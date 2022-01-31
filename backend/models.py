@@ -29,6 +29,17 @@ class Video(models.Model):
     width = models.IntegerField(blank=True, null=True)
 
 
+class VideoAnalyse(models.Model):
+    date = models.DateTimeField(auto_now_add=True)
+    update_date = models.DateTimeField(auto_now_add=True)
+    type = models.CharField(max_length=256)
+    hash_id = models.CharField(max_length=256)
+    results = models.CharField(max_length=256)
+    status = models.CharField(
+        max_length=2, choices=[("Q", "Queued"), ("R", "Running"), ("D", "Done"), ("E", "Error")], default="U"
+    )
+
+
 # class UploadedImage(models.Model):
 #     date = models.DateTimeField(auto_now_add=True)
 #     name = models.CharField(max_length=256)

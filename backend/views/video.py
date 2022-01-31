@@ -122,3 +122,36 @@ class VideoList(View):
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
+
+
+class VideoGet(View):
+    def get(self, request):
+        try:
+            # print(request)
+            # print(request.GET)
+            # print(request.GET.get("hash_id"))
+            entries = []
+            for video in Video.objects.filter(hash_id=request.GET.get("hash_id")):
+                entries.append(
+                    {
+                        "id": video.id,
+                        "hash_id": video.hash_id,
+                        "meta": {
+                            "name": video.name,
+                            "license": video.license,
+                            "width": video.width,
+                            "height": video.height,
+                            "ext": video.ext,
+                            "fps": video.fps,
+                            "duration": video.duration,
+                        },
+                        "url": media_url_to_video(video.hash_id, video.ext),
+                    }
+                )
+            if len(entries) != 1:
+
+                return JsonResponse({"status": "error"})
+            return JsonResponse({"status": "ok", "entry": entries[0]})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})

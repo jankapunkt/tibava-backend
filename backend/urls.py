@@ -19,6 +19,7 @@ urlpatterns = [
     path("get_user", views.GetUser.as_view(), name="get_user"),
     path("video_upload", views.VideoUpload.as_view(), name="video_upload"),
     path("video_list", views.VideoList.as_view(), name="video_list"),
+    path("video_get", views.VideoGet.as_view(), name="video_get"),
     # #
     # path("add_bookmark", views.BookmarkAdd.as_view(), name="add_bookmark"),
     # path("remove_bookmark", views.BookmarkRemove.as_view(), name="remove_bookmark"),
