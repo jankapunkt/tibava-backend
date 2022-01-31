@@ -20,9 +20,9 @@ def check_extension(filename: Path, extensions: list):
 def download_file(file, output_dir, output_name=None, max_size=None, extensions=None):
     try:
         path = Path(file.name)
-        image_ext = "".join(path.suffixes)
+        ext = "".join(path.suffixes)
         if output_name is not None:
-            output_path = os.path.join(output_dir, f"{output_name}{image_ext}")
+            output_path = os.path.join(output_dir, f"{output_name}{ext}")
         else:
             output_path = os.path.join(output_dir, f"{file.name}")
 

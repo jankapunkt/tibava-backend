@@ -3,6 +3,11 @@ import os
 from django.conf import settings
 
 
+def media_url_to_video(id, ext):
+    # todo
+    return "http://localhost" + settings.MEDIA_URL + "/" + id + ext
+
+
 def media_url_to_image(id):
     # todo
     return "http://localhost:8000" + settings.MEDIA_URL + id[0:2] + "/" + id[2:4] + "/" + id + ".jpg"

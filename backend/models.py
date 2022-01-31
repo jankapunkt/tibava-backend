@@ -22,6 +22,11 @@ class Video(models.Model):
     hash_id = models.CharField(max_length=256)
     ext = models.CharField(max_length=256)
     date = models.DateTimeField(auto_now_add=True)
+    # some extracted meta information
+    fps = models.FloatField(blank=True, null=True)
+    duration = models.FloatField(blank=True, null=True)
+    height = models.IntegerField(blank=True, null=True)
+    width = models.IntegerField(blank=True, null=True)
 
 
 # class UploadedImage(models.Model):

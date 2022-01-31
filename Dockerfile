@@ -1,5 +1,11 @@
 # For more information, please refer to https://aka.ms/vscode-docker-python
-FROM python:3.8-slim-buster
+FROM ubuntu:20.04
+
+RUN DEBIAN_FRONTEND=noninteractive apt update --fix-missing -y
+RUN DEBIAN_FRONTEND=noninteractive apt upgrade -y 
+RUN DEBIAN_FRONTEND=noninteractive apt install python3-pip npm git -y
+RUN DEBIAN_FRONTEND=noninteractive apt install libmariadbclient-dev-compat imagemagick -y
+
 
 EXPOSE 5000
 
@@ -11,7 +17,7 @@ ENV PYTHONUNBUFFERED=1
 
 # Install pip requirements
 COPY requirements.txt .
-RUN python -m pip install -r requirements.txt
+RUN python3 -m pip install -r requirements.txt
 
 WORKDIR /app
 COPY . /app
