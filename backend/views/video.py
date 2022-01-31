@@ -10,6 +10,7 @@ from pathlib import Path
 
 from urllib.parse import urlparse
 import imageio
+from backend.analyser import Analyser
 
 import wand.image as wimage
 
@@ -26,14 +27,18 @@ from backend.models import Video
 
 
 class VideoUpload(View):
+    def submit_analyse(self, video, plugins):
+
+        Analyser()(video, plugins)
+
     def post(self, request):
         try:
             if request.method != "POST":
                 return JsonResponse({"status": "error"})
 
-            image = None
+            print(request.POST)
+
             video_hash_id = uuid.uuid4().hex
-            title = ""
             if "file" in request.FILES:
                 output_dir = os.path.join(settings.MEDIA_ROOT)
 
@@ -59,7 +64,7 @@ class VideoUpload(View):
                     "name": request.POST.get("title"),
                     "license": request.POST.get("license"),
                     "width": size[0],
-                    "height": size[0],
+                    "height": size[1],
                     "ext": ext,
                     "fps": fps,
                     "duration": duration,
@@ -77,6 +82,9 @@ class VideoUpload(View):
                 )
                 if not created:
                     return JsonResponse({"status": "error"})
+
+                analyers = request.POST.get("analyser").split(",")
+                self.submit_analyse(video_db, plugins=["thumbnail"] + analyers)
 
                 return JsonResponse(
                     {
