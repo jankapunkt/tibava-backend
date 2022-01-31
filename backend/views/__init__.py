@@ -1,4 +1,4 @@
-from .video import VideoUpload, VideoList, VideoGet
+from .video import VideoUpload, VideoList, VideoGet, VideoDelete
 
 # from .collection import CollectionUpload, CollectionList, CollectionDelete
 from .user import get_csrf_token, login, logout, register, GetUser

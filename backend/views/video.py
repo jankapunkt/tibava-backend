@@ -19,6 +19,8 @@ from django.views import View
 from django.http import HttpResponse, JsonResponse
 from django.conf import settings
 
+# from django.core.exceptions import BadRequest
+
 
 from backend.models import Video
 
@@ -127,9 +129,6 @@ class VideoList(View):
 class VideoGet(View):
     def get(self, request):
         try:
-            # print(request)
-            # print(request.GET)
-            # print(request.GET.get("hash_id"))
             entries = []
             for video in Video.objects.filter(hash_id=request.GET.get("hash_id")):
                 entries.append(
@@ -152,6 +151,27 @@ class VideoGet(View):
 
                 return JsonResponse({"status": "error"})
             return JsonResponse({"status": "ok", "entry": entries[0]})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+class VideoDelete(View):
+    def post(self, request):
+        try:
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+            count, _ = Video.objects.filter(hash_id=data.get("hash_id")).delete()
+            if count:
+                return JsonResponse({"status": "ok"})
+            return JsonResponse({"status": "error"})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
