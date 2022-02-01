@@ -22,7 +22,7 @@ class Thumbnail:
             "fps": 1,
             "max_resolution": 128,
             "output_path": "/predictions/thumbnails/",
-            "base_url": "/thumbnails/",
+            "base_url": "http://localhost/thumbnails/",
         }
 
     def __call__(self, video):
