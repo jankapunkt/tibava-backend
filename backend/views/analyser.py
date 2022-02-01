@@ -22,7 +22,7 @@ from django.conf import settings
 # from django.core.exceptions import BadRequest
 
 
-from backend.models import Video
+from backend.models import Video, VideoAnalyse
 
 
 class AnalyserRun(View):
@@ -42,6 +42,29 @@ class AnalyserRun(View):
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+class AnalyserList(View):
+    def get(self, request):
+        try:
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+
+            video_db = Video.objects.get(hash_id=request.GET.get("hash_id"))
+
+            analyses = VideoAnalyse.objects.filter(video=video_db)
+
+            return JsonResponse({"status": "ok", "entries": [x.to_dict() for x in analyses]})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

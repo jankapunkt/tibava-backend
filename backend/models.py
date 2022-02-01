@@ -41,3 +41,12 @@ class VideoAnalyse(models.Model):
     status = models.CharField(
         max_length=2, choices=[("Q", "Queued"), ("R", "Running"), ("D", "Done"), ("E", "Error")], default="U"
     )
+
+    def to_dict(self):
+        return {
+            "type": self.type,
+            "date": self.date,
+            "update_date": self.update_date,
+            "progres": self.progres,
+            "status": self.status,
+        }
