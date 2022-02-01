@@ -3,6 +3,7 @@ import sys
 import logging
 import uuid
 import math
+import json
 
 import imageio
 
@@ -17,7 +18,12 @@ from backend.utils import media_path_to_video
 @Analyser.export("thumbnail")
 class Thumbnail:
     def __init__(self):
-        self.config = {"fps": 1, "max_resolution": 128, "output_path": "/predictions/thumbnails/"}
+        self.config = {
+            "fps": 1,
+            "max_resolution": 128,
+            "output_path": "/predictions/thumbnails/",
+            "base_url": "/thumbnails/",
+        }
 
     def __call__(self, video):
 
@@ -28,6 +34,11 @@ class Thumbnail:
         task = generate_thumbnails.apply_async(
             ({"hash_id": analyse_hash_id, "video": video.to_dict(), "config": self.config},)
         )
+
+    def get_results(self, analyse):
+        results = json.loads(bytes(analyse.results).decode("utf-8"))
+        results = [{**x, "url": self.config.get("base_url") + f"{analyse.hash_id}/{x['path']}"} for x in results]
+        return results
 
 
 @shared_task(bind=True)
@@ -54,12 +65,16 @@ def generate_thumbnails(self, args):
     else:
         video_reader = imageio.get_reader(video_file, fps=fps)
 
-    os.makedirs(os.path.join(config.get("output_path"), video.get("hash_id")), exist_ok=True)
+    os.makedirs(os.path.join(config.get("output_path"), hash_id), exist_ok=True)
+    results = []
     for i, frame in enumerate(video_reader):
-        thumbnail_output = os.path.join(config.get("output_path"), video.get("hash_id"), f"{i}.jpg")
+        thumbnail_output = os.path.join(config.get("output_path"), hash_id, f"{i}.jpg")
         imageio.imwrite(thumbnail_output, frame)
+        results.append({"time": i / fps, "path": f"{i}.jpg"})
 
         VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(progres=i / (fps * video.get("duration")))
 
-    VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(progres=1.0, status="D")
+    VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(
+        progres=1.0, results=json.dumps(results).encode(), status="D"
+    )
     return {"status": "done"}
