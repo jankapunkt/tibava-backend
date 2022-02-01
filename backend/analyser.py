@@ -21,7 +21,7 @@ class Analyser:
     def __call__(self, video, plugins=None):
         if plugins is None:
             plugins = list(self._analyser.keys())
-        
+
         for plugin in plugins:
             if plugin not in self._analyser:
                 print(f"Analyser: {plugin} not found")
@@ -29,6 +29,12 @@ class Analyser:
 
             self._analyser[plugin]()(video)
 
-        # print(self._analyser)
-        # print(video)
-        # print(plugins)
+    def get_results(self, analyse):
+        if not hasattr(analyse, "type"):
+            return None
+        if analyse.type not in self._analyser:
+            return None
+        analyser = self._analyser[analyse.type]()
+        if not hasattr(analyser, "get_results"):
+            return {}
+        return analyser.get_results(analyse)

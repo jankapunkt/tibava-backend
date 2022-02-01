@@ -6,6 +6,7 @@ import math
 
 import imageio
 import requests
+import json
 
 from time import sleep
 
@@ -36,6 +37,9 @@ class Thumbnail:
         task = detect_shots.apply_async(
             ({"hash_id": analyse_hash_id, "video": video.to_dict(), "config": self.config},)
         )
+
+    def get_results(self, analyse):
+        return json.loads(bytes(analyse.results).decode("utf-8"))
 
 
 @shared_task(bind=True)
@@ -81,5 +85,7 @@ def detect_shots(self, args):
     if response:
         shots = response["shots"]
 
-    VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(progres=1.0, status="D")
+    VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(
+        progres=1.0, results=json.dumps(shots).encode(), status="D"
+    )
     return {"status": "done"}

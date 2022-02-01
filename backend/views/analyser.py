@@ -23,6 +23,7 @@ from django.conf import settings
 
 
 from backend.models import Video, VideoAnalyse
+from backend.analyser import Analyser
 
 
 class AnalyserRun(View):
@@ -49,22 +50,29 @@ class AnalyserRun(View):
 
 class AnalyserList(View):
     def get(self, request):
+        analyser = Analyser()
         try:
-            try:
-                body = request.body.decode("utf-8")
-            except (UnicodeDecodeError, AttributeError):
-                body = request.body
+            print(request.GET)
+            hash_id = request.GET.get("hash_id")
+            if hash_id:
+                video_db = Video.objects.get(hash_id=hash_id)
+                analyses = VideoAnalyse.objects.filter(video=video_db)
+            else:
+                analyses = VideoAnalyse.objects.all()
 
-            try:
-                data = json.loads(body)
-            except Exception as e:
-                return JsonResponse({"status": "error"})
+            add_results = request.GET.get("add_results")
+            if add_results:
+                entries = []
+                for x in analyses:
+                    results = analyser.get_results(x)
+                    if results:
+                        entries.append({**x.to_dict(), "results": results})
+                    else:
+                        entries.append({**x.to_dict()})
+            else:
+                entries = [x.to_dict() for x in analyses]
 
-            video_db = Video.objects.get(hash_id=request.GET.get("hash_id"))
-
-            analyses = VideoAnalyse.objects.filter(video=video_db)
-
-            return JsonResponse({"status": "ok", "entries": [x.to_dict() for x in analyses]})
+            return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

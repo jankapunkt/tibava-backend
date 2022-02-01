@@ -36,7 +36,7 @@ class VideoAnalyse(models.Model):
     update_date = models.DateTimeField(auto_now_add=True)
     type = models.CharField(max_length=256)
     hash_id = models.CharField(max_length=256)
-    results = models.CharField(max_length=256, null=True)
+    results = models.BinaryField(null=True)
     progres = models.FloatField(default=0.0)
     status = models.CharField(
         max_length=2, choices=[("Q", "Queued"), ("R", "Running"), ("D", "Done"), ("E", "Error")], default="U"
