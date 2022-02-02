@@ -19,6 +19,6 @@ urlpatterns = [
     #
     path("timeline_list", views.TimelineList.as_view(), name="timeline_list"),
     path("timeline_duplicate", views.TimelineDuplicate.as_view(), name="timeline_duplicate"),
-    path("timeline_rename", views.TimelineList.as_view(), name="timeline_rename"),
-    path("timeline_delete", views.TimelineList.as_view(), name="timeline_delete"),
+    path("timeline_rename", views.TimelineRename.as_view(), name="timeline_rename"),
+    path("timeline_delete", views.TimelineDelete.as_view(), name="timeline_delete"),
 ]
