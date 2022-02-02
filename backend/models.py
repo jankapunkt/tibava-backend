@@ -50,3 +50,39 @@ class VideoAnalyse(models.Model):
             "progres": self.progres,
             "status": self.status,
         }
+
+
+class Timeline(models.Model):
+    video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    hash_id = models.CharField(max_length=256)
+    name = models.CharField(max_length=256)
+    type = models.CharField(max_length=256,null=True)
+
+    def to_dict(self):
+        return {
+            "hash_id": self.hash_id,
+            "name": self.name,
+            "type": self.type,
+        }
+
+
+class TimelineSegment(models.Model):
+    timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE)
+    hash_id = models.CharField(max_length=256)
+    color = models.CharField(max_length=256)
+    start = models.FloatField(default=0)
+    end = models.FloatField(default=0)
+
+    def to_dict(self):
+        return {
+            "hash_id": self.hash_id,
+            "color": self.color,
+            "start": self.start,
+            "end": self.end,
+        }
+    
+
+class TimelineAnnotation(models.Model):
+    timeline_segment = models.ForeignKey(TimelineSegment, on_delete=models.CASCADE)
+    hash_id = models.CharField(max_length=256)
+    tag = models.CharField(max_length=256)

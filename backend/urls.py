@@ -16,4 +16,7 @@ urlpatterns = [
     path("video_delete", views.VideoDelete.as_view(), name="video_delete"),
     #
     path("analyser_list", views.AnalyserList.as_view(), name="analyser_list"),
+    #
+    path("timeline_list", views.TimelineList.as_view(), name="timeline_list"),
+    
 ]
