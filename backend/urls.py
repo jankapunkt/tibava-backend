@@ -18,5 +18,7 @@ urlpatterns = [
     path("analyser_list", views.AnalyserList.as_view(), name="analyser_list"),
     #
     path("timeline_list", views.TimelineList.as_view(), name="timeline_list"),
-    
+    path("timeline_duplicate", views.TimelineDuplicate.as_view(), name="timeline_duplicate"),
+    path("timeline_rename", views.TimelineList.as_view(), name="timeline_rename"),
+    path("timeline_delete", views.TimelineList.as_view(), name="timeline_delete"),
 ]

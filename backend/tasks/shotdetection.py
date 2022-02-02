@@ -84,34 +84,33 @@ def detect_shots(self, args):
     if response:
         shots = response["shots"]
 
+    # class Timeline(models.Model):
+    #     video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    #     hash_id = models.CharField(max_length=256)
+    #     name = models.CharField(max_length=256)
+    #     type = models.CharField(max_length=256)
 
-# class Timeline(models.Model):
-#     video = models.ForeignKey(Video, on_delete=models.CASCADE)
-#     hash_id = models.CharField(max_length=256)
-#     name = models.CharField(max_length=256)
-#     type = models.CharField(max_length=256)
-
-
-# class TimelineSegment(models.Model):
-#     timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE)
-#     hash_id = models.CharField(max_length=256)
-#     color = models.CharField(max_length=256)
-#     start = models.FloatField()
-#     end = models.FloatField()
+    # class TimelineSegment(models.Model):
+    #     timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE)
+    #     hash_id = models.CharField(max_length=256)
+    #     color = models.CharField(max_length=256)
+    #     start = models.FloatField()
+    #     end = models.FloatField()
 
     # check if there is already a shot detection result
     Timeline.objects.filter(video=video_db, type="shotdetection").delete()
 
-
     timeline_hash_id = uuid.uuid4().hex
     # TODO translate the name
-    timeline = Timeline.objects.create(
-        video=video_db, hash_id=timeline_hash_id, name="shot", type="shotdetection"
-    )
+    timeline = Timeline.objects.create(video=video_db, hash_id=timeline_hash_id, name="shot", type="shotdetection")
     for shot in shots:
         segment_hash_id = uuid.uuid4().hex
         timeline_segment = TimelineSegment.objects.create(
-            timeline=timeline, hash_id=segment_hash_id, start=shot["start_time_sec"], end=shot["end_time_sec"],color="#bababa"
+            timeline=timeline,
+            hash_id=segment_hash_id,
+            start=shot["start_time_sec"],
+            end=shot["end_time_sec"],
+            color="#bababa",
         )
 
     VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(

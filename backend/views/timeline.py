@@ -49,3 +49,54 @@ class TimelineList(View):
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
+
+
+class TimelineDuplicate(View):
+    def post(self, request):
+        try:
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+
+            # get timeline entry to duplicate
+            timeline_db = Timeline.objects.get(hash_id=data.get("hash_id"))
+
+            # create new hash
+            hash_id = uuid.uuid4().hex
+
+            # TODO: store duplicated timeline with new hash into db
+            timeline = Timeline.objects.create(video=video_db, hash_id=hash_id, name="shot", type="shotdetection")
+
+            if timeline_db:
+                return JsonResponse({"status": "ok", "hash_id": hash_id})
+            return JsonResponse({"status": "error"})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+class TimelineDelete(View):
+    def post(self, request):
+        try:
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+            count, _ = Timeline.objects.filter(hash_id=data.get("hash_id")).delete()
+            if count:
+                return JsonResponse({"status": "ok"})
+            return JsonResponse({"status": "error"})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
