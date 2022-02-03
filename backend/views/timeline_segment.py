@@ -22,7 +22,7 @@ from django.conf import settings
 # from django.core.exceptions import BadRequest
 
 
-from backend.models import Video, Timeline, TimelineSegment, TimelineSegmentAnnotation
+from backend.models import Video, TimelineSegment, TimelineAnnotation
 
 
 class TimelineList(View):
@@ -39,6 +39,15 @@ class TimelineList(View):
             entries = []
             for timeline in timelines:
                 result = timeline.to_dict()
+                timeline_segments = TimelineSegment.objects.filter(timeline=timeline)
+                result["segments"] = []
+                for segment in timeline_segments:
+                    segment_r = segment.to_dict()
+                    segment_r["labels"] = []
+                    timeline_segments = TimelineAnnotation.objects.filter(timeline_segment=segment)
+                    for s in timeline_segments:
+                        segment_r["labels"].append(s.tag)
+                    result["segments"].append(segment_r)
                 entries.append(result)
             print(entries)
             return JsonResponse({"status": "ok", "entries": entries})
@@ -66,29 +75,21 @@ class TimelineDuplicate(View):
             hash_id = uuid.uuid4().hex
 
             # TODO: store duplicated timeline with new hash into db
-            new_timeline_db = Timeline.objects.create(
-                video=timeline_db.video, hash_id=hash_id, name=timeline_db.name, type=timeline_db.type
-            )
+            new_timeline_db = Timeline.objects.create(video=timeline_db.video, hash_id=hash_id, name=timeline_db.name, type=timeline_db.type)
 
-            # timeline_segment = TimelineSegment.objects.create(
-            #     timeline=timeline,
-            #     hash_id=segment_hash_id,
-            #     start=shot["start_time_sec"],
-            #     end=shot["end_time_sec"],
-            #     color="#bababa",
-            # # )
+        # timeline_segment = TimelineSegment.objects.create(
+        #     timeline=timeline,
+        #     hash_id=segment_hash_id,
+        #     start=shot["start_time_sec"],
+        #     end=shot["end_time_sec"],
+        #     color="#bababa",
+        # # )
 
             entry = new_timeline_db.to_dict()
             entry["segments"] = []
             for segment in timeline_db.timelinesegment_set.all():
                 segment_hash_id = uuid.uuid4().hex
-                segment_db = TimelineSegment.objects.create(
-                    timeline=new_timeline_db,
-                    hash_id=segment_hash_id,
-                    start=segment.start,
-                    end=segment.end,
-                    color=segment.color,
-                )
+                segment_db = TimelineSegment.objects.create(timeline=new_timeline_db, hash_id=segment_hash_id, start=segment.start,  end=segment.end, color=segment.color)
                 entry["segments"].append(segment_db.to_dict())
 
             return JsonResponse({"status": "ok", "entry": entry})
@@ -116,7 +117,6 @@ class TimelineRename(View):
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
-
 
 class TimelineDelete(View):
     def post(self, request):

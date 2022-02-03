@@ -21,4 +21,15 @@ urlpatterns = [
     path("timeline_duplicate", views.TimelineDuplicate.as_view(), name="timeline_duplicate"),
     path("timeline_rename", views.TimelineRename.as_view(), name="timeline_rename"),
     path("timeline_delete", views.TimelineDelete.as_view(), name="timeline_delete"),
+    #
+    path(
+        "timeline_segment_annotation_list",
+        views.TimelineSegmentAnnoatationList.as_view(),
+        name="timeline_segment_annotation_list",
+    ),
+    path(
+        "timeline_segment_annotation_add",
+        views.TimelineSegmentAnnoatationAdd.as_view(),
+        name="timeline_segment_annotation_add",
+    ),
 ]
