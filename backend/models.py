@@ -67,11 +67,12 @@ class Timeline(models.Model):
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
             "hash_id": self.hash_id,
+            "video_hash_id": self.video.hash_id,
             "name": self.name,
             "type": self.type,
         }
         if include_refs_hashes:
-            result["timeline_segments"] = [x.hash_id for x in self.timelinesegment_set.all()]
+            result["timeline_segment_ids"] = [x.hash_id for x in self.timelinesegment_set.all()]
         elif include_refs:
             result["timeline_segments"] = [
                 x.to_dict(include_refs_hashes=include_refs_hashes, include_refs=include_refs, **kwargs)
@@ -115,12 +116,13 @@ class TimelineSegment(models.Model):
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
             "hash_id": self.hash_id,
+            "timeline_hash_id": self.timeline.hash_id,
             "color": self.color,
             "start": self.start,
             "end": self.end,
         }
         if include_refs_hashes:
-            result["annotations"] = [x.hash_id for x in self.annotations.all()]
+            result["annotation_hash_ids"] = [x.hash_id for x in self.annotations.all()]
         elif include_refs:
             result["annotations"] = [x.to_dict() for x in self.annotations.all()]
         return result
@@ -152,6 +154,6 @@ class TimelineSegmentAnnotation(models.Model):
             "date": self.date,
         }
         if include_refs_hashes:
-            result["annotations"] = self.annotation.hash_id
-            result["timeline_segment"] = self.timeline_segment.hash_id
+            result["annotation_hash_id"] = self.annotation.hash_id
+            result["timeline_segment_hash_id"] = self.timeline_segment.hash_id
         return result
