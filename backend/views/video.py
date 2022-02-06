@@ -115,17 +115,14 @@ class VideoList(View):
             for video in Video.objects.all():
                 entries.append(
                     {
-                        "id": video.id,
-                        "hash_id": video.hash_id,
-                        "meta": {
-                            "name": video.name,
-                            "license": video.license,
-                            "width": video.width,
-                            "height": video.height,
-                            "ext": video.ext,
-                            "fps": video.fps,
-                            "duration": video.duration,
-                        },
+                        "id": video.hash_id,
+                        "name": video.name,
+                        "license": video.license,
+                        "width": video.width,
+                        "height": video.height,
+                        "ext": video.ext,
+                        "fps": video.fps,
+                        "duration": video.duration,
                     }
                 )
             return JsonResponse({"status": "ok", "entries": entries})
@@ -138,20 +135,18 @@ class VideoGet(View):
     def get(self, request):
         try:
             entries = []
-            for video in Video.objects.filter(hash_id=request.GET.get("hash_id")):
+            for video in Video.objects.filter(hash_id=request.GET.get("id")):
                 entries.append(
                     {
                         "id": video.id,
                         "hash_id": video.hash_id,
-                        "meta": {
-                            "name": video.name,
-                            "license": video.license,
-                            "width": video.width,
-                            "height": video.height,
-                            "ext": video.ext,
-                            "fps": video.fps,
-                            "duration": video.duration,
-                        },
+                        "name": video.name,
+                        "license": video.license,
+                        "width": video.width,
+                        "height": video.height,
+                        "ext": video.ext,
+                        "fps": video.fps,
+                        "duration": video.duration,
                         "url": media_url_to_video(video.hash_id, video.ext),
                     }
                 )
