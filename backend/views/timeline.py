@@ -28,10 +28,9 @@ from backend.models import Video, Timeline, TimelineSegment, TimelineSegmentAnno
 class TimelineList(View):
     def get(self, request):
         try:
-            print(request.GET)
-            hash_id = request.GET.get("hash_id")
-            if hash_id:
-                video_db = Video.objects.get(hash_id=hash_id)
+            video_id = request.GET.get("video_id")
+            if video_id:
+                video_db = Video.objects.get(hash_id=video_id)
                 timelines = Timeline.objects.filter(video=video_db)
             else:
                 timelines = Timeline.objects.all()
@@ -130,7 +129,7 @@ class TimelineDelete(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error"})
-            count, _ = Timeline.objects.filter(hash_id=data.get("hash_id")).delete()
+            count, _ = Timeline.objects.filter(hash_id=data.get("timeline_id")).delete()
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})

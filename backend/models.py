@@ -26,7 +26,7 @@ class Video(models.Model):
         return {
             "name": self.name,
             "license": self.license,
-            "hash_id": self.hash_id,
+            "id": self.hash_id,
             "ext": self.ext,
             "date": self.date,
             "fps": self.fps,
@@ -66,8 +66,8 @@ class Timeline(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "hash_id": self.hash_id,
-            "video_hash_id": self.video.hash_id,
+            "id": self.hash_id,
+            "video_id": self.video.hash_id,
             "name": self.name,
             "type": self.type,
         }
@@ -115,8 +115,8 @@ class TimelineSegment(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "hash_id": self.hash_id,
-            "timeline_hash_id": self.timeline.hash_id,
+            "id": self.hash_id,
+            "timeline_id": self.timeline.hash_id,
             "color": self.color,
             "start": self.start,
             "end": self.end,
@@ -150,10 +150,10 @@ class TimelineSegmentAnnotation(models.Model):
 
     def to_dict(self, include_refs_hashes=True, **kwargs):
         result = {
-            "hash_id": self.hash_id,
+            "id": self.hash_id,
             "date": self.date,
         }
         if include_refs_hashes:
-            result["annotation_hash_id"] = self.annotation.hash_id
-            result["timeline_segment_hash_id"] = self.timeline_segment.hash_id
+            result["annotation_id"] = self.annotation.hash_id
+            result["timeline_segment_id"] = self.timeline_segment.hash_id
         return result

@@ -40,14 +40,14 @@ class TimelineSegmentAnnoatationAdd(View):
 
             # get segment
             try:
-                segment_db = TimelineSegment.objects.get(hash_id=data.get("timeline_segment_hash_id"))
+                segment_db = TimelineSegment.objects.get(hash_id=data.get("timeline_segment_id"))
             except TimelineSegment.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
             # link existing annotation
-            if "annotation_hash_id" in data:
+            if "annotation_id" in data:
                 try:
-                    annotation_db = Annotation.objects.get(hash_id=data.get("annotation_hash_id"))
+                    annotation_db = Annotation.objects.get(hash_id=data.get("annotation_id"))
                 except Annotation.DoesNotExist:
                     return JsonResponse({"status": "error", "type": "not_exist"})
 
@@ -59,11 +59,9 @@ class TimelineSegmentAnnoatationAdd(View):
                 return JsonResponse({"status": "ok"})
 
             # create a annotation from exisitng categories
-            elif "annotation_name" in data and "annotation_category_hash_id" in data:
+            elif "annotation_name" in data and "annotation_category_id" in data:
                 try:
-                    annotation_category_db = AnnotationCategory.objects.get(
-                        hash_id=data.get("annotation_category_hash_id")
-                    )
+                    annotation_category_db = AnnotationCategory.objects.get(hash_id=data.get("annotation_category_id"))
                 except AnnotationCategory.DoesNotExist:
                     return JsonResponse({"status": "error", "type": "not_exist"})
 
@@ -137,8 +135,8 @@ class TimelineSegmentAnnoatationList(View):
             except Exception as e:
                 return JsonResponse({"status": "error", "type": "wrong_request_body"})
             query_args = {}
-            if "timeline_segment_hash_id" in data:
-                query_args["timeline_segment_set__hash_id"] = data.get("timeline_segment_hash_id")
+            if "timeline_segment_id" in data:
+                query_args["timeline_segment_set__id"] = data.get("timeline_segment_id")
 
             query_results = TimelineSegmentAnnotation.objects.filter(**query_args)
 
