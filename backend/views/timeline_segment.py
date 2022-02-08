@@ -24,6 +24,7 @@ from django.conf import settings
 
 from backend.models import TimelineSegment
 
+
 class TimelineSegmentList(View):
     def get(self, request):
         try:
@@ -36,7 +37,6 @@ class TimelineSegmentList(View):
             entries = []
             for segment in timeline_segments:
                 entries.append(segment.to_dict())
-            print(entries)
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
             logging.error(traceback.format_exc())

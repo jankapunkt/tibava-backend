@@ -36,15 +36,13 @@ class VideoUpload(View):
             if request.method != "POST":
                 return JsonResponse({"status": "error"})
 
-            print(request.POST)
-
-            video_hash_id = uuid.uuid4().hex
+            video_id = uuid.uuid4().hex
             if "file" in request.FILES:
                 output_dir = os.path.join(settings.MEDIA_ROOT)
 
                 download_result = download_file(
                     output_dir=output_dir,
-                    output_name=video_hash_id,
+                    output_name=video_id,
                     file=request.FILES["file"],
                     max_size=200 * 1024 * 1024,
                     extensions=(".mkv", ".mp4", ".ogv"),
@@ -69,10 +67,10 @@ class VideoUpload(View):
                     "fps": fps,
                     "duration": duration,
                 }
-
+                print(f"Video created {video_id}")
                 video_db, created = Video.objects.get_or_create(
                     name=meta["name"],
-                    hash_id=video_hash_id,
+                    hash_id=video_id,
                     license=meta["license"],
                     ext=meta["ext"],
                     fps=meta["fps"],
@@ -91,10 +89,9 @@ class VideoUpload(View):
                         "status": "ok",
                         "entries": [
                             {
-                                "id": video_db.id,
-                                "hash_id": video_hash_id,
-                                "meta": meta,
-                                "url": media_url_to_video(video_hash_id, meta["ext"]),
+                                "id": video_id,
+                                **meta,
+                                "url": media_url_to_video(video_id, meta["ext"]),
                             }
                         ],
                     }

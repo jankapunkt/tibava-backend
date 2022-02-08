@@ -39,7 +39,6 @@ class TimelineList(View):
             for timeline in timelines:
                 result = timeline.to_dict()
                 entries.append(result)
-            print(entries)
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
             logging.error(traceback.format_exc())
@@ -59,38 +58,14 @@ class TimelineDuplicate(View):
             except Exception as e:
                 return JsonResponse({"status": "error"})
             # get timeline entry to duplicate
-            timeline_db = Timeline.objects.get(hash_id=data.get("hash_id"))
+            timeline_db = Timeline.objects.get(hash_id=data.get("id"))
+            if not timeline_db:
+
+                return JsonResponse({"status": "error"})
+            new_timeline_db = timeline_db.clone()
 
             # create new hash
-            hash_id = uuid.uuid4().hex
-
-            # TODO: store duplicated timeline with new hash into db
-            new_timeline_db = Timeline.objects.create(
-                video=timeline_db.video, hash_id=hash_id, name=timeline_db.name, type=timeline_db.type
-            )
-
-            # timeline_segment = TimelineSegment.objects.create(
-            #     timeline=timeline,
-            #     hash_id=segment_hash_id,
-            #     start=shot["start_time_sec"],
-            #     end=shot["end_time_sec"],
-            #     color="#bababa",
-            # # )
-
-            entry = new_timeline_db.to_dict()
-            entry["segments"] = []
-            for segment in timeline_db.timelinesegment_set.all():
-                segment_hash_id = uuid.uuid4().hex
-                segment_db = TimelineSegment.objects.create(
-                    timeline=new_timeline_db,
-                    hash_id=segment_hash_id,
-                    start=segment.start,
-                    end=segment.end,
-                    color=segment.color,
-                )
-                entry["segments"].append(segment_db.to_dict())
-
-            return JsonResponse({"status": "ok", "entry": entry})
+            return JsonResponse({"status": "ok", "entry": new_timeline_db.to_dict()})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
@@ -129,7 +104,7 @@ class TimelineDelete(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error"})
-            count, _ = Timeline.objects.filter(hash_id=data.get("timeline_id")).delete()
+            count, _ = Timeline.objects.filter(hash_id=data.get("id")).delete()
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})

@@ -83,8 +83,7 @@ class Timeline(models.Model):
     def clone(self, video=None):
         if not video:
             video = self.video
-        hash_id = uuid.uuid4().hex
-        new_timeline_db = Timeline.objects.create(video=video, hash_id=hash_id, name=self.name, type=self.type)
+        new_timeline_db = Timeline.objects.create(video=video, name=self.name, type=self.type)
 
         for segment in self.timelinesegment_set.all():
             segment.clone(new_timeline_db)
@@ -97,10 +96,18 @@ class AnnotationCategory(models.Model):
     name = models.CharField(max_length=256)
     color = models.CharField(max_length=256, null=True)
 
+    def to_dict(self, **kwargs):
+        result = {
+            "id": self.hash_id,
+            "name": self.name,
+            "color": self.color,
+        }
+        return result
+
 
 class Annotation(models.Model):
     hash_id = models.CharField(max_length=256, default=gen_hash_id)
-    category = models.ForeignKey(AnnotationCategory, on_delete=models.CASCADE)
+    category = models.ForeignKey(AnnotationCategory, on_delete=models.CASCADE, null=True)
     name = models.CharField(max_length=256)
     color = models.CharField(max_length=256, null=True)
 
@@ -130,12 +137,11 @@ class TimelineSegment(models.Model):
     def clone(self, timeline=None):
         if not timeline:
             timeline = self.timeline
-        hash_id = uuid.uuid4().hex
         new_timeline_segment_db = TimelineSegment.objects.create(
-            timeline=timeline, hash_id=hash_id, color=self.color, start=self.start, end=self.end
+            timeline=timeline, color=self.color, start=self.start, end=self.end
         )
-
-        for annotation in self.timelineannotation_set.all():
+        print(dir(self))
+        for annotation in self.timelinesegmentannotation_set.all():
             annotation.clone(new_timeline_segment_db)
 
         return new_timeline_segment_db
@@ -157,3 +163,11 @@ class TimelineSegmentAnnotation(models.Model):
             result["annotation_id"] = self.annotation.hash_id
             result["timeline_segment_id"] = self.timeline_segment.hash_id
         return result
+
+    def clone(self, timeline_segment):
+
+        new_timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.create(
+            timeline_segment=timeline_segment,
+            annotation=self.annotation,
+        )
+        return new_timeline_segment_annotation_db

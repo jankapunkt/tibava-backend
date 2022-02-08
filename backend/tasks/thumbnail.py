@@ -27,12 +27,10 @@ class Thumbnail:
 
     def __call__(self, video):
 
-        analyse_hash_id = uuid.uuid4().hex
-
-        video_analyse = VideoAnalyse.objects.create(video=video, hash_id=analyse_hash_id, type="thumbnail", status="Q")
+        video_analyse = VideoAnalyse.objects.create(video=video, type="thumbnail", status="Q")
 
         task = generate_thumbnails.apply_async(
-            ({"hash_id": analyse_hash_id, "video": video.to_dict(), "config": self.config},)
+            ({"hash_id": video_analyse.hash_id, "video": video.to_dict(), "config": self.config},)
         )
 
     def get_results(self, analyse):
@@ -48,11 +46,12 @@ def generate_thumbnails(self, args):
     video = args.get("video")
     hash_id = args.get("hash_id")
 
-    video_db = Video.objects.get(hash_id=video.get("hash_id"))
+    print(f"Video in analyse {hash_id}", flush=True)
+    video_db = Video.objects.get(hash_id=video.get("id"))
 
     VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(status="R")
 
-    video_file = media_path_to_video(video.get("hash_id"), video.get("ext"))
+    video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
     fps = config.get("fps", 1)
 

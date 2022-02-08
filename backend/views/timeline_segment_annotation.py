@@ -23,7 +23,7 @@ from django.conf import settings
 from backend.models import TimelineSegment, TimelineSegmentAnnotation, Annotation, AnnotationCategory
 
 # from django.core.exceptions import BadRequest
-class TimelineSegmentAnnoatationAdd(View):
+class TimelineSegmentAnnoatationCreate(View):
     def post(self, request):
         try:
 

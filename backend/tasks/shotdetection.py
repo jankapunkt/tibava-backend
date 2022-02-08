@@ -48,12 +48,12 @@ def detect_shots(self, args):
     video = args.get("video")
     hash_id = args.get("hash_id")
 
-    video_db = Video.objects.get(hash_id=video.get("hash_id"))
-    video_file = media_path_to_video(video.get("hash_id"), video.get("ext"))
+    video_db = Video.objects.get(hash_id=video.get("id"))
+    video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
     VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(status="R")
     try:
-        job_args = {"video_id": video.get("hash_id"), "path": video_file}
+        job_args = {"video_id": video.get("id"), "path": video_file}
 
         job_id = requests.post(config.get("backend_url"), json=job_args).json()["job_id"]
 

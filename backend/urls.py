@@ -22,7 +22,7 @@ urlpatterns = [
     path("timeline_rename", views.TimelineRename.as_view(), name="timeline_rename"),
     path("timeline_delete", views.TimelineDelete.as_view(), name="timeline_delete"),
     #
-    path("timeline_segment_list",views.TimelineSegmentList.as_view(), name="timeline_segment_list" ),
+    path("timeline_segment_list", views.TimelineSegmentList.as_view(), name="timeline_segment_list"),
     #
     path(
         "timeline_segment_annotation_list",
@@ -30,8 +30,11 @@ urlpatterns = [
         name="timeline_segment_annotation_list",
     ),
     path(
-        "timeline_segment_annotation_add",
-        views.TimelineSegmentAnnoatationAdd.as_view(),
-        name="timeline_segment_annotation_add",
+        "timeline_segment_annotation_create",
+        views.TimelineSegmentAnnoatationCreate.as_view(),
+        name="timeline_segment_annotation_create",
     ),
+    #
+    path("annotation_category_create", views.AnnoatationCategoryCreate.as_view(), name="annotation_category_create"),
+    path("annotation_category_list", views.AnnoatationCategoryList.as_view(), name="annotation_category_list"),
 ]
