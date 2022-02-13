@@ -26,13 +26,16 @@ class AnnoatationCategoryCreate(View):
 
             if "name" not in data:
                 return JsonResponse({"status": "error", "type": "missing_values"})
-            if "color" in data:
-                # TODO filter color
-                annotation_category_db = AnnotationCategory.objects.create(
-                    name=data.get("name"), color=data.get("color")
-                )
-            else:
-                annotation_category_db = AnnotationCategory.objects.create(name=data.get("name"))
+
+            try:
+                annotation_category_db = AnnotationCategory.objects.get(name=data.get("name"))
+            except AnnotationCategory.DoesNotExist:
+                if "color" in data:
+                    annotation_category_db = AnnotationCategory.objects.create(
+                        name=data.get("name"), color=data.get("color")
+                    )
+                else:
+                    annotation_category_db = AnnotationCategory.objects.create(name=data.get("name"))
 
             return JsonResponse({"status": "ok", "entry": annotation_category_db.to_dict()})
         except Exception as e:

@@ -111,6 +111,16 @@ class Annotation(models.Model):
     name = models.CharField(max_length=256)
     color = models.CharField(max_length=256, null=True)
 
+    def to_dict(self, **kwargs):
+        result = {
+            "id": self.hash_id,
+            "name": self.name,
+            "color": self.color,
+        }
+        if self.category:
+            result["category_id"] = self.category.hash_id
+        return result
+
 
 class TimelineSegment(models.Model):
     hash_id = models.CharField(max_length=256, default=gen_hash_id)
@@ -129,7 +139,7 @@ class TimelineSegment(models.Model):
             "end": self.end,
         }
         if include_refs_hashes:
-            result["annotation_hash_ids"] = [x.hash_id for x in self.annotations.all()]
+            result["annotation_ids"] = [x.hash_id for x in self.annotations.all()]
         elif include_refs:
             result["annotations"] = [x.to_dict() for x in self.annotations.all()]
         return result

@@ -56,7 +56,7 @@ class TimelineSegmentAnnoatationCreate(View):
                 )
                 # if not created:
                 #     return JsonResponse({"status": "error", "type": "creation_failed"})
-                return JsonResponse({"status": "ok"})
+                return JsonResponse({"status": "ok", "entry": timeline_segment_annotation_db.to_dict()})
 
             # create a annotation from exisitng categories
             elif "annotation_name" in data and "annotation_category_id" in data:
@@ -83,7 +83,7 @@ class TimelineSegmentAnnoatationCreate(View):
                 )
                 # if not created:
                 #     return JsonResponse({"status": "error", "type": "creation_failed"})
-                return JsonResponse({"status": "ok"})
+                return JsonResponse({"status": "ok", "entry": timeline_segment_annotation_db.to_dict()})
 
             elif "annotation_name" in data and "annotation_category_name" in data:
                 if "annotation_category_color" in data:
@@ -114,7 +114,7 @@ class TimelineSegmentAnnoatationCreate(View):
                 )
                 # if not created:
                 #     return JsonResponse({"status": "error", "type": "creation_failed"})
-                return JsonResponse({"status": "ok"})
+                return JsonResponse({"status": "ok", "entry": timeline_segment_annotation_db.to_dict()})
 
             return JsonResponse({"status": "error", "type": "missing_values"})
         except Exception as e:
@@ -125,6 +125,28 @@ class TimelineSegmentAnnoatationCreate(View):
 class TimelineSegmentAnnoatationList(View):
     def get(self, request):
         try:
+            query_args = {}
+
+            if "timeline_segment_id" in request.GET:
+                query_args["timeline_segment_set__id"] = request.GET.get("timeline_segment_id")
+
+            query_results = TimelineSegmentAnnotation.objects.filter(**query_args)
+
+            entries = []
+            for timeline_segment_annotation in query_results:
+                entries.append(timeline_segment_annotation.to_dict())
+            return JsonResponse({"status": "ok", "entries": entries})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+# from django.core.exceptions import BadRequest
+class TimelineSegmentAnnoatationDelete(View):
+    def post(self, request):
+        try:
+
+            # decode data
             try:
                 body = request.body.decode("utf-8")
             except (UnicodeDecodeError, AttributeError):
@@ -134,16 +156,20 @@ class TimelineSegmentAnnoatationList(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error", "type": "wrong_request_body"})
-            query_args = {}
-            if "timeline_segment_id" in data:
-                query_args["timeline_segment_set__id"] = data.get("timeline_segment_id")
 
-            query_results = TimelineSegmentAnnotation.objects.filter(**query_args)
+            # get segment
+            num_deleted = 0
+            try:
+                num_deleted, _ = TimelineSegmentAnnotation.objects.get(
+                    hash_id=data.get("timeline_segment_annotation_id")
+                ).delete()
+            except TimelineSegment.DoesNotExist:
+                return JsonResponse({"status": "error", "type": "not_exist"})
+            print(num_deleted)
+            if num_deleted == 1:
+                return JsonResponse({"status": "ok"})
+            return JsonResponse({"status": "error"})
 
-            entries = []
-            for timeline_segment_annotation in query_results:
-                entries.append(timeline_segment_annotation.to_dict())
-            return JsonResponse({"status": "ok"})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
