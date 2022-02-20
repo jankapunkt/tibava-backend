@@ -33,6 +33,9 @@ class VideoUpload(View):
 
     def post(self, request):
         try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+
             if request.method != "POST":
                 return JsonResponse({"status": "error"})
 
@@ -67,7 +70,6 @@ class VideoUpload(View):
                     "fps": fps,
                     "duration": duration,
                 }
-                print(f"Video created {video_id}")
                 video_db, created = Video.objects.get_or_create(
                     name=meta["name"],
                     hash_id=video_id,
@@ -77,6 +79,7 @@ class VideoUpload(View):
                     duration=meta["duration"],
                     width=meta["width"],
                     height=meta["height"],
+                    owner=request.user,
                 )
                 if not created:
                     return JsonResponse({"status": "error"})
@@ -108,8 +111,10 @@ class VideoUpload(View):
 class VideoList(View):
     def get(self, request):
         try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
             entries = []
-            for video in Video.objects.all():
+            for video in Video.objects.filter(owner=request.user):
                 entries.append(
                     {
                         "id": video.hash_id,
@@ -131,8 +136,11 @@ class VideoList(View):
 class VideoGet(View):
     def get(self, request):
         try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+
             entries = []
-            for video in Video.objects.filter(hash_id=request.GET.get("id")):
+            for video in Video.objects.filter(hash_id=request.GET.get("id"), owner=request.user):
                 entries.append(
                     {
                         "id": video.id,
@@ -159,6 +167,9 @@ class VideoGet(View):
 class VideoDelete(View):
     def post(self, request):
         try:
+
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
             try:
                 body = request.body.decode("utf-8")
             except (UnicodeDecodeError, AttributeError):
@@ -168,7 +179,7 @@ class VideoDelete(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error"})
-            count, _ = Video.objects.filter(hash_id=data.get("hash_id")).delete()
+            count, _ = Video.objects.filter(hash_id=data.get("id"), owner=request.user).delete()
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})
