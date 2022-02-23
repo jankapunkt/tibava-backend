@@ -52,10 +52,9 @@ class AnalyserList(View):
     def get(self, request):
         analyser = Analyser()
         try:
-            print(request.GET)
-            hash_id = request.GET.get("hash_id")
-            if hash_id:
-                video_db = Video.objects.get(hash_id=hash_id)
+            video_id = request.GET.get("video_id")
+            if video_id:
+                video_db = Video.objects.get(hash_id=video_id)
                 analyses = VideoAnalyse.objects.filter(video=video_db)
             else:
                 analyses = VideoAnalyse.objects.all()

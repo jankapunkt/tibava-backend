@@ -34,9 +34,13 @@ class Thumbnail:
         )
 
     def get_results(self, analyse):
-        results = json.loads(bytes(analyse.results).decode("utf-8"))
-        results = [{**x, "url": self.config.get("base_url") + f"{analyse.hash_id}/{x['path']}"} for x in results]
-        return results
+        try:
+            results = json.loads(bytes(analyse.results).decode("utf-8"))
+            results = [{**x, "url": self.config.get("base_url") + f"{analyse.hash_id}/{x['path']}"} for x in results]
+
+            return results
+        except:
+            return []
 
 
 @shared_task(bind=True)
@@ -71,9 +75,9 @@ def generate_thumbnails(self, args):
         imageio.imwrite(thumbnail_output, frame)
         results.append({"time": i / fps, "path": f"{i}.jpg"})
 
-        VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(progres=i / (fps * video.get("duration")))
+        VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(progress=i / (fps * video.get("duration")))
 
     VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(
-        progres=1.0, results=json.dumps(results).encode(), status="D"
+        progress=1.0, results=json.dumps(results).encode(), status="D"
     )
     return {"status": "done"}

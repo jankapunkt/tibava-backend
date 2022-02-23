@@ -47,7 +47,7 @@ class VideoUpload(View):
                     output_dir=output_dir,
                     output_name=video_id,
                     file=request.FILES["file"],
-                    max_size=200 * 1024 * 1024,
+                    max_size=10 * 1024 * 1024 * 1024,
                     extensions=(".mkv", ".mp4", ".ogv"),
                 )
 

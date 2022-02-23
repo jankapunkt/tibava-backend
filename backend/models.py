@@ -43,19 +43,23 @@ class VideoAnalyse(models.Model):
     update_date = models.DateTimeField(auto_now_add=True)
     type = models.CharField(max_length=256)
     results = models.BinaryField(null=True)
-    progres = models.FloatField(default=0.0)
+    progress = models.FloatField(default=0.0)
     status = models.CharField(
         max_length=2, choices=[("Q", "Queued"), ("R", "Running"), ("D", "Done"), ("E", "Error")], default="U"
     )
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
+        result = {
+            "id": self.hash_id,
             "type": self.type,
             "date": self.date,
             "update_date": self.update_date,
-            "progres": self.progres,
+            "progress": self.progress,
             "status": self.status,
         }
+        if include_refs_hashes:
+            result["video_id"] = self.video.hash_id
+        return result
 
 
 class Timeline(models.Model):

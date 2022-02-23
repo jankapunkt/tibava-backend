@@ -38,7 +38,10 @@ class Thumbnail:
         )
 
     def get_results(self, analyse):
-        return json.loads(bytes(analyse.results).decode("utf-8"))
+        try:
+            return json.loads(bytes(analyse.results).decode("utf-8"))
+        except:
+            return []
 
 
 @shared_task(bind=True)
@@ -78,7 +81,7 @@ def detect_shots(self, args):
         pull_args = {"job_id": job_id, "fps": video.get("fps")}
         response = get_response(config.get("backend_url"), args=pull_args)
     except:
-        VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(progres=1.0, status="E")
+        VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(progress=1.0, status="E")
         return {"status": "error"}
     shots = []
     if response:
@@ -114,6 +117,6 @@ def detect_shots(self, args):
         )
 
     VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(
-        progres=1.0, results=json.dumps(shots).encode(), status="D"
+        progress=1.0, results=json.dumps(shots).encode(), status="D"
     )
     return {"status": "done"}
