@@ -97,6 +97,8 @@ class Timeline(models.Model):
 
 class AnnotationCategory(models.Model):
     hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
     color = models.CharField(max_length=256, null=True)
 
@@ -112,6 +114,8 @@ class AnnotationCategory(models.Model):
 class Annotation(models.Model):
     hash_id = models.CharField(max_length=256, default=gen_hash_id)
     category = models.ForeignKey(AnnotationCategory, on_delete=models.CASCADE, null=True)
+    video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
     color = models.CharField(max_length=256, null=True)
 

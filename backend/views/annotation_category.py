@@ -6,13 +6,14 @@ import traceback
 from django.views import View
 from django.http import JsonResponse
 
-from backend.models import AnnotationCategory
+from backend.models import AnnotationCategory, Video
 
 # from django.core.exceptions import BadRequest
 class AnnoatationCategoryCreate(View):
     def post(self, request):
         try:
-
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
             # decode data
             try:
                 body = request.body.decode("utf-8")
@@ -28,15 +29,22 @@ class AnnoatationCategoryCreate(View):
                 return JsonResponse({"status": "error", "type": "missing_values"})
 
             try:
-                annotation_category_db = AnnotationCategory.objects.get(name=data.get("name"))
+                query_args = {"name": data.get("name"), "owner": request.user}
+                if "video_id" in data:
+                    query_args["video__hash_id"] = data.get("video_id")
+                annotation_category_db = AnnotationCategory.objects.get(**query_args)
             except AnnotationCategory.DoesNotExist:
+                create_args = {"name": data.get("name"), "owner": request.user}
                 if "color" in data:
-                    annotation_category_db = AnnotationCategory.objects.create(
-                        name=data.get("name"), color=data.get("color")
-                    )
-                else:
-                    annotation_category_db = AnnotationCategory.objects.create(name=data.get("name"))
+                    create_args["color"] = data.get("color")
+                if "video_id" in data:
+                    try:
+                        video_db = Video.objects.get(hash_id=data.get("video_id"))
+                    except Video.DoesNotExist:
+                        return JsonResponse({"status": "error", "type": "not_exist"})
+                    create_args["video"] = video_db
 
+                annotation_category_db = AnnotationCategory.objects.create(**create_args)
             return JsonResponse({"status": "ok", "entry": annotation_category_db.to_dict()})
         except Exception as e:
             logging.error(traceback.format_exc())
@@ -46,7 +54,17 @@ class AnnoatationCategoryCreate(View):
 class AnnoatationCategoryList(View):
     def get(self, request):
         try:
-            query_results = AnnotationCategory.objects.all()
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+
+            query_args = {}
+
+            query_args["owner"] = request.user
+
+            if "video_id" in request.GET:
+                query_args["video__hash_id"] = request.GET.get("video_id")
+
+            query_results = AnnotationCategory.objects.filter(**query_args)
 
             entries = []
             for annotation_category in query_results:

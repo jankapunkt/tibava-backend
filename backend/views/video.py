@@ -143,8 +143,7 @@ class VideoGet(View):
             for video in Video.objects.filter(hash_id=request.GET.get("id"), owner=request.user):
                 entries.append(
                     {
-                        "id": video.id,
-                        "hash_id": video.hash_id,
+                        "id": video.hash_id,
                         "name": video.name,
                         "license": video.license,
                         "width": video.width,

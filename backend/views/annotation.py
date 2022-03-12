@@ -7,13 +7,15 @@ from unicodedata import category
 from django.views import View
 from django.http import JsonResponse
 
-from backend.models import Annotation, AnnotationCategory
+from backend.models import Annotation, AnnotationCategory, Video
 
 # from django.core.exceptions import BadRequest
 class AnnoatationCreate(View):
     def post(self, request):
         try:
 
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
             # decode data
             try:
                 body = request.body.decode("utf-8")
@@ -29,14 +31,22 @@ class AnnoatationCreate(View):
                 return JsonResponse({"status": "error", "type": "missing_values"})
 
             try:
-                query_args = {"name": data.get("name")}
+                query_args = {"name": data.get("name"), "owner": request.user}
                 if "category_id" in data:
                     query_args["category__hash_id"] = data.get("category_id")
+                if "video_id" in data:
+                    query_args["video__hash_id"] = data.get("video_id")
                 annotation_db = Annotation.objects.get(**query_args)
             except Annotation.DoesNotExist:
-                create_args = {"name": data.get("name")}
+                create_args = {"name": data.get("name"), "owner": request.user}
                 if "color" in data:
                     create_args["color"] = data.get("color")
+                if "video_id" in data:
+                    try:
+                        video_db = Video.objects.get(hash_id=data.get("video_id"))
+                    except Video.DoesNotExist:
+                        return JsonResponse({"status": "error", "type": "not_exist"})
+                    create_args["video"] = video_db
 
                 if "category_id" in data:
                     try:
@@ -57,6 +67,8 @@ class AnnoatationCreate(View):
 class AnnoatationChange(View):
     def post(self, request):
         try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
 
             # decode data
             try:
@@ -98,7 +110,18 @@ class AnnoatationChange(View):
 class AnnoatationList(View):
     def get(self, request):
         try:
-            query_results = Annotation.objects.all()
+
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+
+            query_args = {}
+
+            query_args["owner"] = request.user
+
+            if "video_id" in request.GET:
+                query_args["video__hash_id"] = request.GET.get("video_id")
+
+            query_results = Annotation.objects.filter(**query_args)
 
             entries = []
             for annotation in query_results:
