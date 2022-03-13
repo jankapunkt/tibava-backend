@@ -28,11 +28,20 @@ from backend.models import TimelineSegment
 class TimelineSegmentList(View):
     def get(self, request):
         try:
-            timeline_id = request.GET.get("timeline_id")
-            if timeline_id:
-                timeline_segments = TimelineSegment.objects.filter(timeline__hash_id=timeline_id)
-            else:
-                timeline_segments = TimelineSegment.objects.all()
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+
+            query_args = {}
+
+            query_args["timeline__video__owner"] = request.user
+
+            if "timeline_id" in request.GET:
+                query_args["timeline__hash_id"] = request.GET.get("timeline_id")
+
+            if "video_id" in request.GET:
+                query_args["timeline__video__hash_id"] = request.GET.get("video_id")
+
+            timeline_segments = TimelineSegment.objects.filter(**query_args)
 
             entries = []
             for segment in timeline_segments:
