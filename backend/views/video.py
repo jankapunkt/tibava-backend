@@ -6,6 +6,7 @@ import uuid
 import logging
 import traceback
 import tempfile
+import logging
 from pathlib import Path
 
 from urllib.parse import urlparse
@@ -34,15 +35,17 @@ class VideoUpload(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
+                logging.error("VideoUpload::not_authenticated")
                 return JsonResponse({"status": "error"})
 
             if request.method != "POST":
+                logging.error("VideoUpload::wrong_method")
                 return JsonResponse({"status": "error"})
 
             video_id = uuid.uuid4().hex
             if "file" in request.FILES:
                 output_dir = os.path.join(settings.MEDIA_ROOT)
-
+                print(output_dir, flush=True)
                 download_result = download_file(
                     output_dir=output_dir,
                     output_name=video_id,
@@ -51,7 +54,9 @@ class VideoUpload(View):
                     extensions=(".mkv", ".mp4", ".ogv"),
                 )
 
+                print(download_result, flush=True)
                 if download_result["status"] != "ok":
+                    logging.error("VideoUpload::download_failed")
                     return JsonResponse(download_result)
 
                 path = Path(request.FILES["file"].name)
@@ -82,6 +87,7 @@ class VideoUpload(View):
                     owner=request.user,
                 )
                 if not created:
+                    logging.error("VideoUpload::database_create_failed")
                     return JsonResponse({"status": "error"})
 
                 analyers = request.POST.get("analyser").split(",")
@@ -103,7 +109,7 @@ class VideoUpload(View):
             return JsonResponse({"status": "error"})
 
         except Exception as e:
-            print(e)
+            print(e, flush=True)
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 

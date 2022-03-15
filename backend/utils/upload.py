@@ -7,6 +7,7 @@ from urllib.parse import unquote
 
 import cgi
 import mimetypes
+import logging
 
 
 def check_extension(filename: Path, extensions: list):
@@ -42,7 +43,8 @@ def download_file(file, output_dir, output_name=None, max_size=None, extensions=
                 f.write(chunk)
 
         return {"status": "ok", "path": Path(output_path), "origin": file.name}
-    except:
+    except Exception as e:
+        logging.error(f"download_file::exception {e}")
         return {"status": "error", "error": {"type": "downloading_error"}}
 
 
