@@ -1,0 +1,16 @@
+{
+    "secret_key": "default_secret",
+    "force_script_name": "/",
+    "allowed_hosts": [
+        "localhost"
+    ],
+    "debug": false,
+    "language_code": "en-us",
+    "static_url": "/static/",
+    "media_root": "/data/media/",
+    "upload_root": "/data/upload/",
+    "media_url": "/media/",
+    "upload_url": "/upload/",
+    "grpc_host": "localhost",
+    "grpc_port": "50051"
+}

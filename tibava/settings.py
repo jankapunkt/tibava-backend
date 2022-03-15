@@ -19,7 +19,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "wrmnr_)ffvihaem(^1vf4*&^n3mthvi-x$74kco07azh0-feb5"
+SECRET_KEY = "default_secret"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -163,3 +163,32 @@ MEDIA_URL = FORCE_SCRIPT_NAME + "media/"
 
 # the last resolution will use for indexing
 IMAGE_RESOLUTIONS = [{"min_dim": 200, "suffix": "_m"}, {"min_dim": 1080, "suffix": ""}]
+
+
+import json
+
+config_lut = {
+    "secret_key": "SECRET_KEY",
+    "force_script_name": "FORCE_SCRIPT_NAME",
+    "allowed_hosts": "ALLOWED_HOSTS",
+    "debug": "DEBUG",
+    "language_code": "LANGUAGE_CODE",
+    "static_url": "STATIC_URL",
+    "media_root": "MEDIA_ROOT",
+    "upload_root": "UPLOAD_ROOT",
+    "media_url": "MEDIA_URL",
+    "upload_url": "UPLOAD_URL",
+    "grpc_host": "GRPC_HOST",
+    "grpc_port": "GRPC_PORT",
+    "image_resolutions": "IMAGE_RESOLUTIONS",
+}
+
+config_path = os.environ.get("TIBAVA_BACKEND_CONFIG")
+if config_path is not None and os.path.exists(config_path):
+    with open(config_path, "r") as f:
+        config = json.load(f)
+        for k, v in config.items():
+            if k not in config_lut:
+                continue
+            conf = {config_lut[k]: v}
+            globals().update(conf)
