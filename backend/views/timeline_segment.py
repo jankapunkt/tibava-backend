@@ -80,15 +80,16 @@ class TimelineSegmentAnnotate(View):
                     if annotation_category_db:
                         query_dict["category"] = annotation_category_db
                     else:
-                        query_dict["category__isnull"] = True
+                        query_dict["category"] = None
                     try:
+                        print(query_dict,flush=True)
                         annotation_db = Annotation.objects.get(**query_dict)
                     except Annotation.DoesNotExist:
                         print({**query_dict, "color": annotation.get("color")})
                         annotation_db = Annotation.objects.create(**{**query_dict, "color": annotation.get("color")})
                     print(annotation_db.to_dict())
 
-                    TimelineSegmentAnnotation.objects.create(timeline_segment=segment_db, annotation=annotation_db)
+                    TimelineSegmentAnnotation.objects.get_or_create(timeline_segment=segment_db, annotation=annotation_db)
             # query_args = {}
 
             # query_args["timeline__video__owner"] = request.user
@@ -126,7 +127,7 @@ class TimelineSegmentGet(View):
             if "video_id" in request.GET:
                 query_args["timeline__video__hash_id"] = request.GET.get("video_id")
 
-            timeline_segments = TimelineSegment.objects.filter(**query_args)
+            timeline_segments = TimelineSegment.objects.filter(**query_args).order_by("start")
 
             entries = []
             for segment in timeline_segments:
