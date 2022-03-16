@@ -79,6 +79,8 @@ class TimelineSegmentAnnotate(View):
                     query_dict = {"video": video_db, "name": annotation.get("name"), "owner": request.user}
                     if annotation_category_db:
                         query_dict["category"] = annotation_category_db
+                    else:
+                        query_dict["category__isnull"] = True
                     try:
                         annotation_db = Annotation.objects.get(**query_dict)
                     except Annotation.DoesNotExist:
