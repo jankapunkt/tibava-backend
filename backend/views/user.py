@@ -21,20 +21,23 @@ def get_csrf_token(request):
     return JsonResponse({"status": "ok"})
 
 
-class GetUser(View):
+class UserGet(View):
     def post(self, request):
         if not request.user.is_authenticated:
             return JsonResponse({"status": "error", "error": {"type": "not_authenticated"}})
 
         try:
             user = request.user
-            return JsonResponse({
-                "status": "ok", "data": {
-                    "username": user.get_username(),
-                    "email": user.email,
-                    "date": user.date_joined,
+            return JsonResponse(
+                {
+                    "status": "ok",
+                    "data": {
+                        "username": user.get_username(),
+                        "email": user.email,
+                        "date": user.date_joined,
+                    },
                 }
-            })
+            )
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
@@ -70,13 +73,16 @@ def login(request):
     user = auth.authenticate(username=username, password=password)
     if user is not None:
         auth.login(request, user)
-        return JsonResponse({
-            "status": "ok", "data": {
-                "username": user.get_username(),
-                "email": user.email,
-                "date": user.date_joined,
+        return JsonResponse(
+            {
+                "status": "ok",
+                "data": {
+                    "username": user.get_username(),
+                    "email": user.email,
+                    "date": user.date_joined,
+                },
             }
-        })
+        )
 
     return JsonResponse({"status": "error"})
 
