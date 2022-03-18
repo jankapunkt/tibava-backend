@@ -119,14 +119,16 @@ class Annotation(models.Model):
     name = models.CharField(max_length=256)
     color = models.CharField(max_length=256, null=True)
 
-    def to_dict(self, **kwargs):
+    def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
             "id": self.hash_id,
             "name": self.name,
             "color": self.color,
         }
-        if self.category:
+        if include_refs_hashes and self.category:
             result["category_id"] = self.category.hash_id
+        elif include_refs and self.category:
+            result["category"] = self.category.to_dict(include_refs_hashes=True, include_refs=False, **kwargs)
         return result
 
 
@@ -149,7 +151,9 @@ class TimelineSegment(models.Model):
         if include_refs_hashes:
             result["annotation_ids"] = [x.hash_id for x in self.annotations.all()]
         elif include_refs:
-            result["annotations"] = [x.to_dict() for x in self.annotations.all()]
+            result["annotations"] = [
+                x.to_dict(include_refs_hashes=True, include_refs=False, **kwargs) for x in self.annotations.all()
+            ]
         return result
 
     def clone(self, timeline=None):
