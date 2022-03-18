@@ -49,8 +49,14 @@ class TimelineSegmentAnnotate(View):
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
             # delete all existing annotation for this segment
+            timeline_segment_annotation_deleted = [
+                x.hash_id for x in TimelineSegmentAnnotation.objects.filter(timeline_segment=segment_db)
+            ]
             TimelineSegmentAnnotation.objects.filter(timeline_segment=segment_db).delete()
 
+            timeline_segment_annotation_added = []
+            annotation_added = []
+            annotation_category_added = []
             video_db = segment_db.timeline.video
             if "annotations" in data and isinstance(data.get("annotations"), (list, set)):
                 for annotation in data.get("annotations"):
@@ -72,6 +78,7 @@ class TimelineSegmentAnnotate(View):
                                 video=video_db,
                                 owner=request.user,
                             )
+                            annotation_category_added.append(annotation_category_db.to_dict())
                         print(annotation_category_db.to_dict())
 
                     # check if there is a existing annotation with this name and category for this video
@@ -82,14 +89,19 @@ class TimelineSegmentAnnotate(View):
                     else:
                         query_dict["category"] = None
                     try:
-                        print(query_dict,flush=True)
+                        print(query_dict, flush=True)
                         annotation_db = Annotation.objects.get(**query_dict)
                     except Annotation.DoesNotExist:
                         print({**query_dict, "color": annotation.get("color")})
                         annotation_db = Annotation.objects.create(**{**query_dict, "color": annotation.get("color")})
+                        annotation_added.append(annotation_db.to_dict())
                     print(annotation_db.to_dict())
 
-                    TimelineSegmentAnnotation.objects.get_or_create(timeline_segment=segment_db, annotation=annotation_db)
+                    timeline_segment_annotation_db, created = TimelineSegmentAnnotation.objects.get_or_create(
+                        timeline_segment=segment_db, annotation=annotation_db
+                    )
+                    if created:
+                        timeline_segment_annotation_added.append(timeline_segment_annotation_db.to_dict())
             # query_args = {}
 
             # query_args["timeline__video__owner"] = request.user
@@ -105,7 +117,15 @@ class TimelineSegmentAnnotate(View):
             # entries = []
             # for segment in timeline_segments:
             #     entries.append(segment.to_dict())
-            return JsonResponse({"status": "ok"})
+            return JsonResponse(
+                {
+                    "status": "ok",
+                    "timeline_segment_annotation_deleted": timeline_segment_annotation_deleted,
+                    "timeline_segment_annotation_added": timeline_segment_annotation_added,
+                    "annotation_category_added": annotation_category_added,
+                    "annotation_added": annotation_added,
+                }
+            )
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
