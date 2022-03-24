@@ -16,6 +16,21 @@ from django.conf import settings
 from backend.models import Video, Annotation, AnnotationCategory
 
 
+def time_to_string(sec, loc="en"):
+    sec, sec_frac = divmod(sec, 1)
+    min, sec = divmod(sec, 60)
+    hours, min = divmod(min, 60)
+
+    sec_frac = round(1000 * sec_frac)
+    hours = int(hours)
+    min = int(min)
+    sec = int(sec)
+
+    if loc == "de":
+        return f"{hours}:{min}:{sec},{sec_frac}"
+    return f"{hours}:{min}:{sec}.{sec_frac}"
+
+
 class VideoExportCSV(View):
     def get(self, request):
         try:
@@ -37,12 +52,14 @@ class VideoExportCSV(View):
                     annotation_dict["category"] = annotation.category.to_dict()
                 annotations[annotation.hash_id] = annotation_dict
 
-            times = [0, video_db.duration]
+            times = []
+            durations = []
             timeline_headers = {}
             for timeline_db in video_db.timeline_set.all():
                 annotations_headers = {}
                 for segment_db in timeline_db.timelinesegment_set.all():
                     times.append(segment_db.start)
+                    durations.append(segment_db.end - segment_db.start)
                     for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
                         annotation_id = segment_annotation_db.annotation.hash_id
                         if annotation_id not in annotations_headers:
@@ -51,12 +68,17 @@ class VideoExportCSV(View):
                             {"start": segment_db.start, "end": segment_db.end}
                         )
                 timeline_headers[timeline_db.hash_id] = {"name": timeline_db.name, "annotations": annotations_headers}
-
-            times = sorted(list(set(times)))
+            # 0, video_db.duration
+            time_duration = sorted(list(set(zip(times, durations))), key=lambda x: x[0])
+            # print(time_duration, flush=True)
+            # print(len(time_duration), flush=True)
             cols = []
 
             # first col
-            cols.append(["start", "", ""] + [str(t) for t in times])
+            cols.append(["start", "", ""] + [str(t[0]) for t in time_duration])
+            cols.append(["start", "", ""] + [time_to_string(t[0], loc="en") for t in time_duration])
+            cols.append(["duration", "", ""] + [str(t[1]) for t in time_duration])
+            cols.append(["duration", "", ""] + [time_to_string(t[1], loc="en") for t in time_duration])
             for _, timeline in timeline_headers.items():
 
                 for _, annotation in timeline["annotations"].items():
@@ -66,7 +88,8 @@ class VideoExportCSV(View):
                         col.append(annotation["category"]["name"])
                     else:
                         col.append("")
-                    for t in times:
+                    for t, _ in time_duration:
+                        print(t, flush=True)
                         label = 0
                         for anno_t in annotation["times"]:
                             if anno_t["start"] <= t and t < anno_t["end"]:
@@ -74,7 +97,7 @@ class VideoExportCSV(View):
                         col.append(str(label))
                         # cols.append([timeline["name"], "", ""] + times)
                     cols.append(col)
-
+            # print(cols, flush=True)
             # Transpose
             rows = list(map(list, zip(*cols)))
 
