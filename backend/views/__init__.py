@@ -6,6 +6,8 @@ from .timeline_segment_annotation import *
 from .timeline_segment import *
 from .annotation_category import *
 from .annotation import *
+from .shortcut import *
+from .annotation_shortcut import *
 
 from .user import *
 

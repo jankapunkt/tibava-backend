@@ -67,6 +67,8 @@ class Timeline(models.Model):
     video = models.ForeignKey(Video, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
     type = models.CharField(max_length=256, null=True)
+    order = models.IntegerField(default=0)
+    collapse = models.BooleanField(default=False)
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
@@ -74,6 +76,8 @@ class Timeline(models.Model):
             "video_id": self.video.hash_id,
             "name": self.name,
             "type": self.type,
+            "order": self.order,
+            "collapse": self.collapse,
         }
         if include_refs_hashes:
             result["timeline_segment_ids"] = [x.hash_id for x in self.timelinesegment_set.all()]
@@ -193,3 +197,74 @@ class TimelineSegmentAnnotation(models.Model):
             annotation=self.annotation,
         )
         return new_timeline_segment_annotation_db
+
+
+class TimelineAnalyse(models.Model):
+    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE)
+    video_analyse = models.ForeignKey(VideoAnalyse, on_delete=models.CASCADE)
+    date = models.DateTimeField(auto_now_add=True)
+
+    def to_dict(self, include_refs_hashes=True, **kwargs):
+        result = {
+            "id": self.hash_id,
+            "date": self.date,
+        }
+        if include_refs_hashes:
+            result["video_analyse_id"] = self.video_analyse.hash_id
+            result["timeline_id"] = self.timeline.hash_id
+        return result
+
+
+class Shortcut(models.Model):
+    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+    type = models.CharField(max_length=256, null=True)
+    keys = models.JSONField(null=True)
+    keys_string = models.CharField(max_length=256, null=True)
+
+    date = models.DateTimeField(auto_now_add=True)
+
+    def to_dict(self, include_refs_hashes=True, **kwargs):
+        result = {
+            "id": self.hash_id,
+            "date": self.date,
+            "type": self.type,
+            "keys": self.keys,
+        }
+        if include_refs_hashes:
+            result["video_id"] = self.video.hash_id
+        return result
+
+    @classmethod
+    def generate_keys_string(cls, keys):
+        keys = set([x.lower() for x in keys])
+        keys_string = []
+        if "ctrl" in keys:
+            keys_string.append("ctrl")
+            keys.remove("ctrl")
+        if "shift" in keys:
+            keys_string.append("shift")
+            keys.remove("shift")
+        for key in keys:
+            keys_string.append(key)
+
+        return "+".join(keys_string)
+
+
+class AnnotationShortcut(models.Model):
+    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    shortcut = models.ForeignKey(Shortcut, on_delete=models.CASCADE)
+    annotation = models.ForeignKey(Annotation, on_delete=models.CASCADE)
+    date = models.DateTimeField(auto_now_add=True)
+
+    def to_dict(self, include_refs_hashes=True, **kwargs):
+        result = {
+            "id": self.hash_id,
+            "date": self.date,
+        }
+        if include_refs_hashes:
+            result["shortcut_id"] = self.shortcut.hash_id
+            result["annotation_id"] = self.annotation.hash_id
+        return result
