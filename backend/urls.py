@@ -56,4 +56,12 @@ urlpatterns = [
     path("annotation/create", views.AnnoatationCreate.as_view(), name="annotation_create"),
     path("annotation/update", views.AnnoatationChange.as_view(), name="annotation_change"),
     path("annotation/delete", views.AnnoatationChange.as_view(), name="annotation_change"),
+    #
+    path("shortcut/list", views.ShortcutList.as_view(), name="shortcut_list"),
+    path("shortcut/create", views.ShortcutCreate.as_view(), name="shortcut_create"),
+    #
+    path("annotation/shortcut/list", views.AnnotationShortcutList.as_view(), name="annotation_shortcut_list"),
+    path("annotation/shortcut/create", views.AnnotationShortcutCreate.as_view(), name="annotation_shortcut_create"),
+    path("annotation/shortcut/update", views.AnnotationShortcutUpdate.as_view(), name="annotation_shortcut_update"),
+    
 ]
