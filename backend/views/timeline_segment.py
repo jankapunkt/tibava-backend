@@ -233,7 +233,6 @@ class TimelineSegmentMerge(View):
             timeline_segment_annotation_deleted = []
             timeline_segment_annotation_added = []
 
-            print(dir(timeline_segment_dbs), flush=True)
             # get all annotations from this block and delete all segments
             annotations = []
             for timeline_segment_db in timeline_segment_dbs:
@@ -260,11 +259,6 @@ class TimelineSegmentMerge(View):
 
             timeline_segment_added.append(timeline_segment_db.to_dict())
             timeline_segment_annotation_added.extend([x.to_dict() for x in timeline_segment_annotation_dbs])
-            print(annotations, flush=True)
-            print(data, flush=True)
-            print(start, flush=True)
-            print(end, flush=True)
-            print(len(timeline_segment_dbs), flush=True)
 
             return JsonResponse(
                 {
@@ -285,7 +279,6 @@ class TimelineSegmentSplit(View):
         try:
 
             if not request.user.is_authenticated:
-                logging.error("VideoUpload::not_authenticated")
                 return JsonResponse({"status": "error"})
 
             try:

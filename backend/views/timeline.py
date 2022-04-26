@@ -28,6 +28,9 @@ from backend.models import Video, Timeline, TimelineSegment, TimelineSegmentAnno
 class TimelineList(View):
     def get(self, request):
         try:
+
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
             video_id = request.GET.get("video_id")
             if video_id:
                 video_db = Video.objects.get(hash_id=video_id)
@@ -48,6 +51,9 @@ class TimelineList(View):
 class TimelineDuplicate(View):
     def post(self, request):
         try:
+
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
             try:
                 body = request.body.decode("utf-8")
             except (UnicodeDecodeError, AttributeError):
@@ -74,6 +80,9 @@ class TimelineDuplicate(View):
 class TimelineRename(View):
     def post(self, request):
         try:
+
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
             try:
                 body = request.body.decode("utf-8")
             except (UnicodeDecodeError, AttributeError):
@@ -83,10 +92,22 @@ class TimelineRename(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error"})
-            # count, _ = Timeline.objects.filter(hash_id=data.get("hash_id")).delete()
-            # if count:
-            #     return JsonResponse({"status": "ok"})
-            return JsonResponse({"status": "error"})
+
+            if "id" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+            if "name" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+            if not isinstance(data.get("name"), str):
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+            try:
+                timeline_db = Timeline.objects.get(hash_id=data.get("id"))
+            except Timeline.DoesNotExist:
+                return JsonResponse({"status": "error", "type": "not_exist"})
+
+            timeline_db.name = data.get("name")
+            timeline_db.save()
+            return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
@@ -95,6 +116,8 @@ class TimelineRename(View):
 class TimelineDelete(View):
     def post(self, request):
         try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
             try:
                 body = request.body.decode("utf-8")
             except (UnicodeDecodeError, AttributeError):
