@@ -27,8 +27,8 @@ urlpatterns = [
     #
     path("timeline/segment/get", views.TimelineSegmentGet.as_view(), name="timeline_segment_get"),
     path("timeline/segment/list", views.TimelineSegmentList.as_view(), name="timeline_segment_list"),
-    path("timeline/segment/merge", views.TimelineSegmentList.as_view(), name="timeline_segment_list"),
-    path("timeline/segment/split", views.TimelineSegmentList.as_view(), name="timeline_segment_list"),
+    path("timeline/segment/merge", views.TimelineSegmentMerge.as_view(), name="timeline_segment_list"),
+    path("timeline/segment/split", views.TimelineSegmentSplit.as_view(), name="timeline_segment_list"),
     path("timeline/segment/annotate", views.TimelineSegmentAnnotate.as_view(), name="timeline_segment_annotate"),
     #
     path(
@@ -63,5 +63,4 @@ urlpatterns = [
     path("annotation/shortcut/list", views.AnnotationShortcutList.as_view(), name="annotation_shortcut_list"),
     path("annotation/shortcut/create", views.AnnotationShortcutCreate.as_view(), name="annotation_shortcut_create"),
     path("annotation/shortcut/update", views.AnnotationShortcutUpdate.as_view(), name="annotation_shortcut_update"),
-    
 ]

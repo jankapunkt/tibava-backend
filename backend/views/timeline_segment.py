@@ -23,7 +23,7 @@ from django.conf import settings
 # from django.core.exceptions import BadRequest
 
 
-from backend.models import AnnotationCategory, Annotation, TimelineSegment, TimelineSegmentAnnotation
+from backend.models import AnnotationCategory, Annotation, TimelineSegment, TimelineSegmentAnnotation, Timeline
 
 
 class TimelineSegmentAnnotate(View):
@@ -60,8 +60,6 @@ class TimelineSegmentAnnotate(View):
             video_db = segment_db.timeline.video
             if "annotations" in data and isinstance(data.get("annotations"), (list, set)):
                 for annotation in data.get("annotations"):
-                    print("################")
-                    print(annotation)
                     # check if there is a category with this name for this video
                     # TODO check name and color in dict
                     annotation_category_db = None
@@ -180,6 +178,178 @@ class TimelineSegmentList(View):
             for segment in timeline_segments:
                 entries.append(segment.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+class TimelineSegmentMerge(View):
+    def post(self, request):
+        try:
+
+            if not request.user.is_authenticated:
+                logging.error("VideoUpload::not_authenticated")
+                return JsonResponse({"status": "error"})
+
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+
+            if "timeline_segment_ids" not in data or not isinstance(data.get("timeline_segment_ids"), (list, set)):
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+            timeline_segments = []
+            for hash_id in data.get("timeline_segment_ids"):
+                try:
+                    timeline_segment_db = TimelineSegment.objects.get(hash_id=hash_id)
+                    timeline_segments.append(timeline_segment_db)
+                except TimelineSegment.DoesNotExist:
+                    return JsonResponse({"status": "error", "type": "not_exist"})
+
+            if len(timeline_segments) < 2:
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+            if not all([x.timeline.hash_id == timeline_segments[0].timeline.hash_id for x in timeline_segments]):
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+            # get some information for query and the new segment
+            start = min([x.start for x in timeline_segments])
+            end = max([x.end for x in timeline_segments])
+            timeline = timeline_segments[0].timeline.hash_id
+            color = timeline_segments[0].timeline.hash_id
+
+            timeline_segment_dbs = TimelineSegment.objects.filter(
+                start__gte=start, timeline__hash_id=timeline_segments[0].timeline.hash_id, end__lte=end
+            )
+
+            timeline_segment_deleted = []
+            timeline_segment_added = []
+            timeline_segment_annotation_deleted = []
+            timeline_segment_annotation_added = []
+
+            print(dir(timeline_segment_dbs), flush=True)
+            # get all annotations from this block and delete all segments
+            annotations = []
+            for timeline_segment_db in timeline_segment_dbs:
+                annotations.extend(
+                    [x.annotation.hash_id for x in timeline_segment_db.timelinesegmentannotation_set.all()]
+                )
+                timeline_segment_annotation_deleted.extend(
+                    [x.hash_id for x in timeline_segment_db.timelinesegmentannotation_set.all()]
+                )
+                timeline_segment_deleted.append(timeline_segment_db.hash_id)
+                timeline_segment_db.delete()
+            annotations = list(set(annotations))
+
+            timeline_segment_db = TimelineSegment.objects.create(
+                timeline=Timeline.objects.get(hash_id=timeline), color=color, start=start, end=end
+            )
+
+            timeline_segment_annotation_dbs = []
+            for annotation in annotations:
+                timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.create(
+                    timeline_segment=timeline_segment_db, annotation=Annotation.objects.get(hash_id=annotation)
+                )
+                timeline_segment_annotation_dbs.append(timeline_segment_annotation_db)
+
+            timeline_segment_added.append(timeline_segment_db.to_dict())
+            timeline_segment_annotation_added.extend([x.to_dict() for x in timeline_segment_annotation_dbs])
+            print(annotations, flush=True)
+            print(data, flush=True)
+            print(start, flush=True)
+            print(end, flush=True)
+            print(len(timeline_segment_dbs), flush=True)
+
+            return JsonResponse(
+                {
+                    "status": "ok",
+                    "timeline_segment_deleted": timeline_segment_deleted,
+                    "timeline_segment_added": timeline_segment_added,
+                    "timeline_segment_annotation_deleted": timeline_segment_annotation_deleted,
+                    "timeline_segment_annotation_added": timeline_segment_annotation_added,
+                }
+            )
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+class TimelineSegmentSplit(View):
+    def post(self, request):
+        try:
+
+            if not request.user.is_authenticated:
+                logging.error("VideoUpload::not_authenticated")
+                return JsonResponse({"status": "error"})
+
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+            if "timeline_segment_id" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+
+            if "time" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+
+            if not isinstance(data.get("time"), (float, int)):
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+            timeline_segment_deleted = []
+            timeline_segment_added = []
+            timeline_segment_annotation_deleted = []
+            timeline_segment_annotation_added = []
+
+            try:
+                timeline_segment_db = TimelineSegment.objects.get(hash_id=data.get("timeline_segment_id"))
+            except TimelineSegment.DoesNotExist:
+                return JsonResponse({"status": "error", "type": "not_exist"})
+
+            if timeline_segment_db.start > data.get("time") and timeline_segment_db.end < data.get("time"):
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+            timeline_segment_db_splits = [timeline_segment_db.clone(), timeline_segment_db.clone()]
+            timeline_segment_db_splits[0].end = data.get("time")
+            timeline_segment_db_splits[1].start = data.get("time")
+            timeline_segment_db_splits[0].save()
+            timeline_segment_db_splits[1].save()
+
+            timeline_segment_added.append(timeline_segment_db_splits[0].to_dict())
+            timeline_segment_added.append(timeline_segment_db_splits[1].to_dict())
+
+            timeline_segment_annotation_added.extend(
+                [x.to_dict() for x in timeline_segment_db_splits[0].timelinesegmentannotation_set.all()]
+            )
+            timeline_segment_annotation_added.extend(
+                [x.to_dict() for x in timeline_segment_db_splits[1].timelinesegmentannotation_set.all()]
+            )
+
+            timeline_segment_deleted.append(timeline_segment_db.hash_id)
+            timeline_segment_annotation_deleted.extend(
+                [x.hash_id for x in timeline_segment_db.timelinesegmentannotation_set.all()]
+            )
+            timeline_segment_db.delete()
+
+            return JsonResponse(
+                {
+                    "status": "ok",
+                    "timeline_segment_deleted": timeline_segment_deleted,
+                    "timeline_segment_added": timeline_segment_added,
+                    "timeline_segment_annotation_deleted": timeline_segment_annotation_deleted,
+                    "timeline_segment_annotation_added": timeline_segment_annotation_added,
+                }
+            )
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
