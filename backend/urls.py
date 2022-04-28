@@ -24,6 +24,7 @@ urlpatterns = [
     path("timeline/duplicate", views.TimelineDuplicate.as_view(), name="timeline_duplicate"),
     path("timeline/rename", views.TimelineRename.as_view(), name="timeline_rename"),
     path("timeline/delete", views.TimelineDelete.as_view(), name="timeline_delete"),
+    path("timeline/create", views.TimelineCreate.as_view(), name="timeline_create"),
     #
     path("timeline/segment/get", views.TimelineSegmentGet.as_view(), name="timeline_segment_get"),
     path("timeline/segment/list", views.TimelineSegmentList.as_view(), name="timeline_segment_list"),
