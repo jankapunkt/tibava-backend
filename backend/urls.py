@@ -43,6 +43,11 @@ urlpatterns = [
         name="timeline_segment_annotation_create",
     ),
     path(
+        "timeline/segment/annotation/toggle",
+        views.TimelineSegmentAnnoatationToggle.as_view(),
+        name="timeline_segment_annotation_toggle",
+    ),
+    path(
         "timeline/segment/annotation/delete",
         views.TimelineSegmentAnnoatationDelete.as_view(),
         name="timeline_segment_annotation_delete",
