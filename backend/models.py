@@ -88,13 +88,13 @@ class Timeline(models.Model):
             ]
         return result
 
-    def clone(self, video=None):
+    def clone(self, video=None, includeannotations=True):
         if not video:
             video = self.video
         new_timeline_db = Timeline.objects.create(video=video, name=self.name, type=self.type)
 
         for segment in self.timelinesegment_set.all():
-            segment.clone(new_timeline_db)
+            segment.clone(new_timeline_db, includeannotations)
 
         return new_timeline_db
 
@@ -160,13 +160,16 @@ class TimelineSegment(models.Model):
             ]
         return result
 
-    def clone(self, timeline=None):
+    def clone(self, timeline=None, includeannotations=True):
         if not timeline:
             timeline = self.timeline
         new_timeline_segment_db = TimelineSegment.objects.create(
             timeline=timeline, color=self.color, start=self.start, end=self.end
         )
-        print(dir(self))
+
+        if not includeannotations:
+            return new_timeline_segment_db
+
         for annotation in self.timelinesegmentannotation_set.all():
             annotation.clone(new_timeline_segment_db)
 
