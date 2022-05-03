@@ -23,6 +23,7 @@ urlpatterns = [
     path("timeline/list", views.TimelineList.as_view(), name="timeline_list"),
     path("timeline/duplicate", views.TimelineDuplicate.as_view(), name="timeline_duplicate"),
     path("timeline/rename", views.TimelineRename.as_view(), name="timeline_rename"),
+    path("timeline/import/eaf", views.TimelineImportEAF.as_view(), name="timeline_import_eaf"),
     path("timeline/delete", views.TimelineDelete.as_view(), name="timeline_delete"),
     path("timeline/create", views.TimelineCreate.as_view(), name="timeline_create"),
     #

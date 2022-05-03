@@ -2,6 +2,7 @@ from .video import *
 from .video_export import *
 from .timeline import *
 from .video_analyser import *
+from .timeline_import import *
 from .timeline_segment_annotation import *
 from .timeline_segment import *
 from .annotation_category import *
