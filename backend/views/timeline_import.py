@@ -74,7 +74,9 @@ class TimelineImportEAF(View):
                             timeline=timeline_db, start=segment["start"], end=segment["end"]
                         )
 
-                        annotation_db, created = Annotation.objects.get_or_create(name=segment["label"], video=video_db)
+                        annotation_db, created = Annotation.objects.get_or_create(
+                            name=segment["label"], video=video_db, owner=request.user
+                        )
                         print(annotation_db.name)
                         tsa_db = TimelineSegmentAnnotation.objects.create(
                             timeline_segment=segment_db, annotation=annotation_db
