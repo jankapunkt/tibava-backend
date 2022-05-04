@@ -6,6 +6,7 @@ import math
 import json
 
 import imageio
+import cv2
 
 from celery import shared_task
 

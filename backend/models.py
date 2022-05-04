@@ -79,7 +79,13 @@ class PluginRunResult(models.Model):
     data = models.BinaryField(null=True)
     type = models.CharField(
         max_length=2,
-        choices=[("V", "VIDEO_DATA"), ("I", "IMAGE_DATA"), ("S", "SCALAR_DATA"), ("H", "HIST_DATA")],
+        choices=[
+            ("V", "VIDEO_DATA"),
+            ("I", "IMAGE_DATA"),
+            ("S", "SCALAR_DATA"),
+            ("H", "HIST_DATA"),
+            ("R", "RGB_HIST_DATA"),
+        ],
         default="S",
     )
 
