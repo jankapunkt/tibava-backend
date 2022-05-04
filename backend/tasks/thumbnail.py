@@ -9,7 +9,7 @@ import imageio
 
 from celery import shared_task
 
-from backend.models import VideoAnalyse, Video
+from backend.models import PluginRun, Video
 from django.conf import settings
 from backend.analyser import Analyser
 from backend.utils import media_path_to_video
@@ -27,7 +27,7 @@ class Thumbnail:
 
     def __call__(self, video):
 
-        video_analyse = VideoAnalyse.objects.create(video=video, type="thumbnail", status="Q")
+        video_analyse = PluginRun.objects.create(video=video, type="thumbnail", status="Q")
 
         task = generate_thumbnails.apply_async(
             ({"hash_id": video_analyse.hash_id, "video": video.to_dict(), "config": self.config},)
@@ -53,7 +53,7 @@ def generate_thumbnails(self, args):
     print(f"Video in analyse {hash_id}", flush=True)
     video_db = Video.objects.get(hash_id=video.get("id"))
 
-    VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(status="R")
+    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(status="R")
 
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
@@ -75,9 +75,9 @@ def generate_thumbnails(self, args):
         imageio.imwrite(thumbnail_output, frame)
         results.append({"time": i / fps, "path": f"{i}.jpg"})
 
-        VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(progress=i / (fps * video.get("duration")))
+        PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(progress=i / (fps * video.get("duration")))
 
-    VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(
+    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(
         progress=1.0, results=json.dumps(results).encode(), status="D"
     )
     return {"status": "done"}

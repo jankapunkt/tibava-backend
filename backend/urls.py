@@ -18,7 +18,10 @@ urlpatterns = [
     path("video/export/csv", views.VideoExportCSV.as_view(), name="video_export_csv"),
     path("video/export/json", views.VideoExportJson.as_view(), name="video_export_json"),
     #
-    path("analyser/list", views.AnalyserList.as_view(), name="analyser_list"),
+    path("plugin/list", views.PluginList.as_view(), name="plugin_list"),
+    path("plugin/run/new", views.PluginRunNew.as_view(), name="plugin_run_new"),
+    path("plugin/run/list", views.PluginRunList.as_view(), name="plugin_run_list"),
+    path("plugin/run/result/list", views.PluginRunResultList.as_view(), name="plugin_run_list"),
     #
     path("timeline/list", views.TimelineList.as_view(), name="timeline_list"),
     path("timeline/duplicate", views.TimelineDuplicate.as_view(), name="timeline_duplicate"),

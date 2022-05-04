@@ -12,7 +12,7 @@ from time import sleep
 
 from celery import shared_task
 
-from backend.models import VideoAnalyse, Video, Timeline, TimelineSegment
+from backend.models import PluginRun, Video, Timeline, TimelineSegment
 from django.conf import settings
 from backend.analyser import Analyser
 from backend.utils import media_path_to_video
@@ -29,9 +29,7 @@ class Thumbnail:
     def __call__(self, video):
         analyse_hash_id = uuid.uuid4().hex
 
-        video_analyse = VideoAnalyse.objects.create(
-            video=video, hash_id=analyse_hash_id, type="shotdetection", status="Q"
-        )
+        video_analyse = PluginRun.objects.create(video=video, hash_id=analyse_hash_id, type="shotdetection", status="Q")
 
         task = detect_shots.apply_async(
             ({"hash_id": analyse_hash_id, "video": video.to_dict(), "config": self.config},)
@@ -54,7 +52,7 @@ def detect_shots(self, args):
     video_db = Video.objects.get(hash_id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
-    VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(status="R")
+    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(status="R")
     try:
         job_args = {"video_id": video.get("id"), "path": video_file}
 
@@ -81,7 +79,7 @@ def detect_shots(self, args):
         pull_args = {"job_id": job_id, "fps": video.get("fps")}
         response = get_response(config.get("backend_url"), args=pull_args)
     except:
-        VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(progress=1.0, status="E")
+        PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(progress=1.0, status="E")
         return {"status": "error"}
     shots = []
     if response:
@@ -101,11 +99,10 @@ def detect_shots(self, args):
     #     end = models.FloatField()
 
     # check if there is already a shot detection result
-    Timeline.objects.filter(video=video_db, type="shotdetection").delete()
 
     timeline_hash_id = uuid.uuid4().hex
     # TODO translate the name
-    timeline = Timeline.objects.create(video=video_db, hash_id=timeline_hash_id, name="shot", type="shotdetection")
+    timeline = Timeline.objects.create(video=video_db, hash_id=timeline_hash_id, name="shot", type="A")
     for shot in shots:
         segment_hash_id = uuid.uuid4().hex
         timeline_segment = TimelineSegment.objects.create(
@@ -113,10 +110,9 @@ def detect_shots(self, args):
             hash_id=segment_hash_id,
             start=shot["start_time_sec"],
             end=shot["end_time_sec"],
-            color="#bababa",
         )
 
-    VideoAnalyse.objects.filter(video=video_db, hash_id=hash_id).update(
+    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(
         progress=1.0, results=json.dumps(shots).encode(), status="D"
     )
     return {"status": "done"}
