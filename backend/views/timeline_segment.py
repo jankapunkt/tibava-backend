@@ -172,7 +172,9 @@ class TimelineSegmentList(View):
             if "video_id" in request.GET:
                 query_args["timeline__video__hash_id"] = request.GET.get("video_id")
 
-            timeline_segments = TimelineSegment.objects.filter(**query_args).select_related("timeline")
+            timeline_segments = (
+                TimelineSegment.objects.filter(**query_args).select_related("timeline").prefetch_related("annotations")
+            )
 
             entries = []
             for segment in timeline_segments:

@@ -76,7 +76,7 @@ class TimelineDuplicate(View):
             new_timeline_db = timeline_db.clone(includeannotations=includeannotations)
 
             if data.get("name") and isinstance(data.get("name"), str):
-                new_timeline_db.name=data.get("name")
+                new_timeline_db.name = data.get("name")
                 new_timeline_db.save()
 
             # create new hash
@@ -105,7 +105,7 @@ class TimelineCreate(View):
             if "video_id" not in data:
                 return JsonResponse({"status": "error", "type": "missing_values"})
 
-            create_args = {"type": "annotation"}
+            create_args = {"type": "A"}
             try:
                 video_db = Video.objects.get(hash_id=data.get("video_id"))
                 create_args["video"] = video_db
