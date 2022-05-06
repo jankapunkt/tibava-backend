@@ -77,7 +77,7 @@ class VideoUpload(View):
                 }
                 video_db, created = Video.objects.get_or_create(
                     name=meta["name"],
-                    hash_id=video_id,
+                    id=video_id,
                     license=meta["license"],
                     ext=meta["ext"],
                     fps=meta["fps"],
@@ -123,7 +123,7 @@ class VideoList(View):
             for video in Video.objects.filter(owner=request.user):
                 entries.append(
                     {
-                        "id": video.hash_id,
+                        "id": video.id,
                         "name": video.name,
                         "license": video.license,
                         "width": video.width,
@@ -146,10 +146,10 @@ class VideoGet(View):
                 return JsonResponse({"status": "error"})
 
             entries = []
-            for video in Video.objects.filter(hash_id=request.GET.get("id"), owner=request.user):
+            for video in Video.objects.filter(id=request.GET.get("id"), owner=request.user):
                 entries.append(
                     {
-                        "id": video.hash_id,
+                        "id": video.id,
                         "name": video.name,
                         "license": video.license,
                         "width": video.width,
@@ -157,7 +157,7 @@ class VideoGet(View):
                         "ext": video.ext,
                         "fps": video.fps,
                         "duration": video.duration,
-                        "url": media_url_to_video(video.hash_id, video.ext),
+                        "url": media_url_to_video(video.id, video.ext),
                     }
                 )
             if len(entries) != 1:
@@ -184,7 +184,7 @@ class VideoDelete(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error"})
-            count, _ = Video.objects.filter(hash_id=data.get("id"), owner=request.user).delete()
+            count, _ = Video.objects.filter(id=data.get("id"), owner=request.user).delete()
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})

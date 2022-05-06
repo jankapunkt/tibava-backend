@@ -5,12 +5,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 
 
-def gen_hash_id():
-    return uuid.uuid4().hex
-
-
 class Video(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
     license = models.CharField(max_length=256)
@@ -26,7 +22,7 @@ class Video(models.Model):
         return {
             "name": self.name,
             "license": self.license,
-            "id": self.hash_id,
+            "id": self.id,
             "ext": self.ext,
             "date": self.date,
             "fps": self.fps,
@@ -37,17 +33,17 @@ class Video(models.Model):
 
 
 class Plugin(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.hash_id,
+            "id": self.id,
         }
         return result
 
 
 class PluginRun(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
     update_date = models.DateTimeField(auto_now_add=True)
@@ -60,7 +56,7 @@ class PluginRun(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.hash_id,
+            "id": self.id,
             "type": self.type,
             "date": self.date,
             "update_date": self.update_date,
@@ -68,12 +64,12 @@ class PluginRun(models.Model):
             "status": self.status,
         }
         if include_refs_hashes:
-            result["video_id"] = self.video.hash_id
+            result["video_id"] = self.video.id
         return result
 
 
 class PluginRunResult(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plugin_run = models.ForeignKey(PluginRun, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
     data = models.BinaryField(null=True)
@@ -91,16 +87,16 @@ class PluginRunResult(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.hash_id,
+            "id": self.id,
             "type": self.type,
         }
         if include_refs_hashes:
-            result["plugin_run_id"] = self.plugin_run.hash_id
+            result["plugin_run_id"] = self.plugin_run.id
         return result
 
 
 class Timeline(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, on_delete=models.CASCADE)
     plugin_run_result = models.ForeignKey(PluginRunResult, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=256)
@@ -114,17 +110,17 @@ class Timeline(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.hash_id,
-            "video_id": self.video.hash_id,
+            "id": self.id,
+            "video_id": self.video.id,
             "name": self.name,
             "type": self.type,
             "order": self.order,
             "collapse": self.collapse,
         }
         if include_refs_hashes:
-            result["timeline_segment_ids"] = [x.hash_id for x in self.timelinesegment_set.all()]
+            result["timeline_segment_ids"] = [x.id for x in self.timelinesegment_set.all()]
             if self.plugin_run_result:
-                result["plugin_run_result_id"] = self.plugin_run_result.hash_id
+                result["plugin_run_result_id"] = self.plugin_run_result.id
 
         elif include_refs:
             result["timeline_segments"] = [
@@ -145,7 +141,7 @@ class Timeline(models.Model):
 
 
 class AnnotationCategory(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
@@ -153,7 +149,7 @@ class AnnotationCategory(models.Model):
 
     def to_dict(self, **kwargs):
         result = {
-            "id": self.hash_id,
+            "id": self.id,
             "name": self.name,
             "color": self.color,
         }
@@ -161,7 +157,7 @@ class AnnotationCategory(models.Model):
 
 
 class Annotation(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     category = models.ForeignKey(AnnotationCategory, on_delete=models.CASCADE, null=True)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
@@ -170,19 +166,19 @@ class Annotation(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.hash_id,
+            "id": self.id,
             "name": self.name,
             "color": self.color,
         }
         if include_refs_hashes and self.category:
-            result["category_id"] = self.category.hash_id
+            result["category_id"] = self.category.id
         elif include_refs and self.category:
             result["category"] = self.category.to_dict(include_refs_hashes=True, include_refs=False, **kwargs)
         return result
 
 
 class TimelineSegment(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE)
     annotations = models.ManyToManyField(Annotation, through="TimelineSegmentAnnotation")
     color = models.CharField(max_length=256, null=True)
@@ -191,18 +187,18 @@ class TimelineSegment(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.hash_id,
-            "timeline_id": self.timeline.hash_id,
-            "color": self.color,
+            "id": self.id,
+            # "timeline_id": self.timeline.id,
+            # "color": self.color,
             "start": self.start,
             "end": self.end,
         }
-        if include_refs_hashes:
-            result["annotation_ids"] = [x.hash_id for x in self.annotations.all()]
-        elif include_refs:
-            result["annotations"] = [
-                x.to_dict(include_refs_hashes=True, include_refs=False, **kwargs) for x in self.annotations.all()
-            ]
+        # if include_refs_hashes:
+        #     result["annotation_ids"] = [x.id for x in self.annotations.all()]
+        # if include_refs:
+        #     result["annotations"] = [
+        #         x.to_dict(include_refs_hashes=True, include_refs=False, **kwargs) for x in self.annotations.all()
+        #     ]
         return result
 
     def clone(self, timeline=None, includeannotations=True):
@@ -223,19 +219,19 @@ class TimelineSegment(models.Model):
 
 # This is basically a many to many connection
 class TimelineSegmentAnnotation(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     timeline_segment = models.ForeignKey(TimelineSegment, on_delete=models.CASCADE)
     annotation = models.ForeignKey(Annotation, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
 
     def to_dict(self, include_refs_hashes=True, **kwargs):
         result = {
-            "id": self.hash_id,
+            "id": self.id,
             "date": self.date,
         }
         if include_refs_hashes:
-            result["annotation_id"] = self.annotation.hash_id
-            result["timeline_segment_id"] = self.timeline_segment.hash_id
+            result["annotation_id"] = self.annotation.id
+            result["timeline_segment_id"] = self.timeline_segment.id
         return result
 
     def clone(self, timeline_segment):
@@ -248,7 +244,7 @@ class TimelineSegmentAnnotation(models.Model):
 
 
 class Shortcut(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
     type = models.CharField(max_length=256, null=True)
@@ -259,13 +255,13 @@ class Shortcut(models.Model):
 
     def to_dict(self, include_refs_hashes=True, **kwargs):
         result = {
-            "id": self.hash_id,
+            "id": self.id,
             "date": self.date,
             "type": self.type,
             "keys": self.keys,
         }
         if include_refs_hashes:
-            result["video_id"] = self.video.hash_id
+            result["video_id"] = self.video.id
         return result
 
     @classmethod
@@ -285,17 +281,17 @@ class Shortcut(models.Model):
 
 
 class AnnotationShortcut(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     shortcut = models.ForeignKey(Shortcut, on_delete=models.CASCADE)
     annotation = models.ForeignKey(Annotation, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
 
     def to_dict(self, include_refs_hashes=True, **kwargs):
         result = {
-            "id": self.hash_id,
+            "id": self.id,
             "date": self.date,
         }
         if include_refs_hashes:
-            result["shortcut_id"] = self.shortcut.hash_id
-            result["annotation_id"] = self.annotation.hash_id
+            result["shortcut_id"] = self.shortcut.id
+            result["annotation_id"] = self.annotation.id
         return result

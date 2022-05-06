@@ -52,7 +52,7 @@ class PluginRunNew(View):
                 return JsonResponse({"status": "error", "type": "missing_values"})
 
             try:
-                video_db = Video.objects.get(hash_id=data.get("video_id"))
+                video_db = Video.objects.get(id=data.get("video_id"))
             except Video.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
@@ -70,7 +70,7 @@ class PluginRunList(View):
         try:
             video_id = request.GET.get("video_id")
             if video_id:
-                video_db = Video.objects.get(hash_id=video_id)
+                video_db = Video.objects.get(id=video_id)
                 analyses = PluginRun.objects.filter(video=video_db)
             else:
                 analyses = PluginRun.objects.all()

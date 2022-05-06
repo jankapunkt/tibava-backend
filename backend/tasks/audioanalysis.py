@@ -31,9 +31,7 @@ class Thumbnail:
 
         plugin_run_db = PluginRun.objects.create(video=video, type="audio_waveform", status="Q")
 
-        task = audio_wavform.apply_async(
-            ({"hash_id": plugin_run_db.hash_id, "video": video.to_dict(), "config": self.config},)
-        )
+        task = audio_wavform.apply_async(({"id": plugin_run_db.id, "video": video.to_dict(), "config": self.config},))
 
     def get_results(self, analyse):
         try:
@@ -47,13 +45,13 @@ def audio_wavform(self, args):
     logging.info("audio_wavform:start")
     config = args.get("config")
     video = args.get("video")
-    hash_id = args.get("hash_id")
+    id = args.get("id")
 
-    video_db = Video.objects.get(hash_id=video.get("id"))
+    video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
-    plugin_run_db = PluginRun.objects.get(hash_id=hash_id)
-    audio_file = os.path.join(config.get("output_path"), f"{plugin_run_db.hash_id}.mp3")
+    plugin_run_db = PluginRun.objects.get(id=id)
+    audio_file = os.path.join(config.get("output_path"), f"{plugin_run_db.id}.mp3")
 
     plugin_run_db.status = "R"
     plugin_run_db.save()

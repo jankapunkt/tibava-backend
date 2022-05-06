@@ -33,10 +33,15 @@ class TimelineList(View):
                 return JsonResponse({"status": "error"})
             video_id = request.GET.get("video_id")
             if video_id:
-                video_db = Video.objects.get(hash_id=video_id)
+                video_db = Video.objects.get(id=video_id)
                 timelines = Timeline.objects.filter(video=video_db)
             else:
                 timelines = Timeline.objects.all()
+            timelines = (
+                timelines.select_related("video")
+                .select_related("plugin_run_result")
+                .prefetch_related("timelinesegment_set")
+            )
 
             entries = []
             for timeline in timelines:
@@ -65,7 +70,7 @@ class TimelineDuplicate(View):
                 return JsonResponse({"status": "error"})
             # get timeline entry to duplicate
             print(data)
-            timeline_db = Timeline.objects.get(hash_id=data.get("id"))
+            timeline_db = Timeline.objects.get(id=data.get("id"))
             if not timeline_db:
                 return JsonResponse({"status": "error"})
 
@@ -107,7 +112,7 @@ class TimelineCreate(View):
 
             create_args = {"type": "A"}
             try:
-                video_db = Video.objects.get(hash_id=data.get("video_id"))
+                video_db = Video.objects.get(id=data.get("video_id"))
                 create_args["video"] = video_db
                 create_args["order"] = Timeline.objects.filter(video=video_db).count()
             except Video.DoesNotExist:
@@ -162,7 +167,7 @@ class TimelineRename(View):
                 return JsonResponse({"status": "error", "type": "wrong_request_body"})
 
             try:
-                timeline_db = Timeline.objects.get(hash_id=data.get("id"))
+                timeline_db = Timeline.objects.get(id=data.get("id"))
             except Timeline.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
@@ -188,7 +193,7 @@ class TimelineDelete(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error"})
-            count, _ = Timeline.objects.filter(hash_id=data.get("id")).delete()
+            count, _ = Timeline.objects.filter(id=data.get("id")).delete()
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})
