@@ -27,11 +27,12 @@ class Thumbnail:
         }
 
     def __call__(self, video):
-        analyse_id = uuid.uuid4().hex
 
-        video_analyse = PluginRun.objects.create(video=video, id=analyse_id, type="shotdetection", status="Q")
+        video_analyse = PluginRun.objects.create(video=video, type="shotdetection", status="Q")
 
-        task = detect_shots.apply_async(({"id": analyse_id, "video": video.to_dict(), "config": self.config},))
+        task = detect_shots.apply_async(
+            ({"id": video_analyse.id.hex, "video": video.to_dict(), "config": self.config},)
+        )
 
     def get_results(self, analyse):
         try:
@@ -76,7 +77,8 @@ def detect_shots(self, args):
 
         pull_args = {"job_id": job_id, "fps": video.get("fps")}
         response = get_response(config.get("backend_url"), args=pull_args)
-    except:
+    except Exception as e:
+        logging.error(e)
         PluginRun.objects.filter(video=video_db, id=id).update(progress=1.0, status="E")
         return {"status": "error"}
     shots = []

@@ -19,10 +19,16 @@ class Video(models.Model):
     width = models.IntegerField(blank=True, null=True)
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
+        try:
+            hash_id = self.id.hex
+        except:
+            print("WTF")
+            print(type(self.id))
+            print(self.id)
         return {
             "name": self.name,
             "license": self.license,
-            "id": self.id,
+            "id": hash_id,
             "ext": self.ext,
             "date": self.date,
             "fps": self.fps,
@@ -37,7 +43,7 @@ class Plugin(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.id,
+            "id": self.id.hex,
         }
         return result
 
@@ -56,7 +62,7 @@ class PluginRun(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.id,
+            "id": self.id.hex,
             "type": self.type,
             "date": self.date,
             "update_date": self.update_date,
@@ -64,7 +70,7 @@ class PluginRun(models.Model):
             "status": self.status,
         }
         if include_refs_hashes:
-            result["video_id"] = self.video.id
+            result["video_id"] = self.video.id.hex
         return result
 
 
@@ -87,11 +93,11 @@ class PluginRunResult(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.id,
+            "id": self.id.hex,
             "type": self.type,
         }
         if include_refs_hashes:
-            result["plugin_run_id"] = self.plugin_run.id
+            result["plugin_run_id"] = self.plugin_run.id.hex
         return result
 
 
@@ -110,17 +116,17 @@ class Timeline(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.id,
-            "video_id": self.video.id,
+            "id": self.id.hex,
+            "video_id": self.video.id.hex,
             "name": self.name,
             "type": self.type,
             "order": self.order,
             "collapse": self.collapse,
         }
         if include_refs_hashes:
-            result["timeline_segment_ids"] = [x.id for x in self.timelinesegment_set.all()]
+            result["timeline_segment_ids"] = [x.id.hex for x in self.timelinesegment_set.all()]
             if self.plugin_run_result:
-                result["plugin_run_result_id"] = self.plugin_run_result.id
+                result["plugin_run_result_id"] = self.plugin_run_result.id.hex
 
         elif include_refs:
             result["timeline_segments"] = [
@@ -149,7 +155,7 @@ class AnnotationCategory(models.Model):
 
     def to_dict(self, **kwargs):
         result = {
-            "id": self.id,
+            "id": self.id.hex,
             "name": self.name,
             "color": self.color,
         }
@@ -166,12 +172,12 @@ class Annotation(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.id,
+            "id": self.id.hex,
             "name": self.name,
             "color": self.color,
         }
         if include_refs_hashes and self.category:
-            result["category_id"] = self.category.id
+            result["category_id"] = self.category.id.hex
         elif include_refs and self.category:
             result["category"] = self.category.to_dict(include_refs_hashes=True, include_refs=False, **kwargs)
         return result
@@ -187,18 +193,18 @@ class TimelineSegment(models.Model):
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
-            "id": self.id,
-            # "timeline_id": self.timeline.id,
-            # "color": self.color,
+            "id": self.id.hex,
+            "timeline_id": self.timeline.id.hex,
+            "color": self.color,
             "start": self.start,
             "end": self.end,
         }
-        # if include_refs_hashes:
-        #     result["annotation_ids"] = [x.id for x in self.annotations.all()]
-        # if include_refs:
-        #     result["annotations"] = [
-        #         x.to_dict(include_refs_hashes=True, include_refs=False, **kwargs) for x in self.annotations.all()
-        #     ]
+        if include_refs_hashes:
+            result["annotation_ids"] = [x.id.hex for x in self.annotations.all()]
+        if include_refs:
+            result["annotations"] = [
+                x.to_dict(include_refs_hashes=True, include_refs=False, **kwargs) for x in self.annotations.all()
+            ]
         return result
 
     def clone(self, timeline=None, includeannotations=True):
@@ -226,12 +232,12 @@ class TimelineSegmentAnnotation(models.Model):
 
     def to_dict(self, include_refs_hashes=True, **kwargs):
         result = {
-            "id": self.id,
+            "id": self.id.hex,
             "date": self.date,
         }
         if include_refs_hashes:
-            result["annotation_id"] = self.annotation.id
-            result["timeline_segment_id"] = self.timeline_segment.id
+            result["annotation_id"] = self.annotation.id.hex
+            result["timeline_segment_id"] = self.timeline_segment.id.hex
         return result
 
     def clone(self, timeline_segment):
@@ -255,13 +261,13 @@ class Shortcut(models.Model):
 
     def to_dict(self, include_refs_hashes=True, **kwargs):
         result = {
-            "id": self.id,
+            "id": self.id.hex,
             "date": self.date,
             "type": self.type,
             "keys": self.keys,
         }
         if include_refs_hashes:
-            result["video_id"] = self.video.id
+            result["video_id"] = self.video.id.hex
         return result
 
     @classmethod
@@ -288,10 +294,10 @@ class AnnotationShortcut(models.Model):
 
     def to_dict(self, include_refs_hashes=True, **kwargs):
         result = {
-            "id": self.id,
+            "id": self.id.hex,
             "date": self.date,
         }
         if include_refs_hashes:
-            result["shortcut_id"] = self.shortcut.id
-            result["annotation_id"] = self.annotation.id
+            result["shortcut_id"] = self.shortcut.id.hex
+            result["annotation_id"] = self.annotation.id.hex
         return result

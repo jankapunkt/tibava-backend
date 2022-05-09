@@ -121,18 +121,9 @@ class VideoList(View):
                 return JsonResponse({"status": "error"})
             entries = []
             for video in Video.objects.filter(owner=request.user):
-                entries.append(
-                    {
-                        "id": video.id,
-                        "name": video.name,
-                        "license": video.license,
-                        "width": video.width,
-                        "height": video.height,
-                        "ext": video.ext,
-                        "fps": video.fps,
-                        "duration": video.duration,
-                    }
-                )
+
+                print(f"Bar {video.id.hex}", flush=True)
+                entries.append(video.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
             logging.error(traceback.format_exc())
@@ -149,15 +140,8 @@ class VideoGet(View):
             for video in Video.objects.filter(id=request.GET.get("id"), owner=request.user):
                 entries.append(
                     {
-                        "id": video.id,
-                        "name": video.name,
-                        "license": video.license,
-                        "width": video.width,
-                        "height": video.height,
-                        "ext": video.ext,
-                        "fps": video.fps,
-                        "duration": video.duration,
-                        "url": media_url_to_video(video.id, video.ext),
+                        **video.to_dict(),
+                        "url": media_url_to_video(video.id.hex, video.ext),
                     }
                 )
             if len(entries) != 1:
