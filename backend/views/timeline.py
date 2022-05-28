@@ -64,11 +64,20 @@ class TimelineDuplicate(View):
             except Exception as e:
                 return JsonResponse({"status": "error"})
             # get timeline entry to duplicate
+            print(data)
             timeline_db = Timeline.objects.get(hash_id=data.get("id"))
             if not timeline_db:
-
                 return JsonResponse({"status": "error"})
-            new_timeline_db = timeline_db.clone()
+
+            includeannotations = True
+            if data.get("includeannotations") is not None and isinstance(data.get("includeannotations"), bool):
+                includeannotations = data.get("includeannotations")
+
+            new_timeline_db = timeline_db.clone(includeannotations=includeannotations)
+
+            if data.get("name") and isinstance(data.get("name"), str):
+                new_timeline_db.name = data.get("name")
+                new_timeline_db.save()
 
             # create new hash
             return JsonResponse({"status": "ok", "entry": new_timeline_db.to_dict()})
@@ -96,7 +105,7 @@ class TimelineCreate(View):
             if "video_id" not in data:
                 return JsonResponse({"status": "error", "type": "missing_values"})
 
-            create_args = {"type": "annotation"}
+            create_args = {"type": "A"}
             try:
                 video_db = Video.objects.get(hash_id=data.get("video_id"))
                 create_args["video"] = video_db

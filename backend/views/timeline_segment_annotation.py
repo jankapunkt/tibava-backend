@@ -299,7 +299,11 @@ class TimelineSegmentAnnoatationList(View):
             if "timeline_segment_id" in request.GET:
                 query_args["timeline_segment_set__id"] = request.GET.get("timeline_segment_id")
 
-            query_results = TimelineSegmentAnnotation.objects.filter(**query_args)
+            query_results = (
+                TimelineSegmentAnnotation.objects.filter(**query_args)
+                .select_related("timeline_segment")
+                .select_related("annotation")
+            )
 
             entries = []
             for timeline_segment_annotation in query_results:

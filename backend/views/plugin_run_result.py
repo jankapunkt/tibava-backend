@@ -22,50 +22,29 @@ from django.conf import settings
 # from django.core.exceptions import BadRequest
 
 
-from backend.models import Video, VideoAnalyse
+from backend.models import PluginRunResult, Video, PluginRun
 from backend.analyser import Analyser
 
 
-class AnalyserRun(View):
-    def post(self, request):
-        try:
-            try:
-                body = request.body.decode("utf-8")
-            except (UnicodeDecodeError, AttributeError):
-                body = request.body
-
-            try:
-                data = json.loads(body)
-            except Exception as e:
-                return JsonResponse({"status": "error"})
-
-            count, _ = Video.objects.filter(hash_id=data.get("hash_id")).delete()
-            if count:
-                return JsonResponse({"status": "ok"})
-            return JsonResponse({"status": "error"})
-        except Exception as e:
-            logging.error(traceback.format_exc())
-            return JsonResponse({"status": "error"})
-
-
-class AnalyserList(View):
+class PluginRunResultList(View):
     def get(self, request):
         analyser = Analyser()
         try:
             video_id = request.GET.get("video_id")
             if video_id:
                 video_db = Video.objects.get(hash_id=video_id)
-                analyses = VideoAnalyse.objects.filter(video=video_db)
+                analyses = PluginRunResult.objects.filter(plugin_run__video=video_db)
             else:
-                analyses = VideoAnalyse.objects.all()
+                analyses = PluginRunResult.objects.all()
 
-            add_results = request.GET.get("add_results")
+            add_results = request.GET.get("add_results", True)
             if add_results:
                 entries = []
                 for x in analyses:
-                    results = analyser.get_results(x)
-                    if results:
-                        entries.append({**x.to_dict(), "results": results})
+                    # TODO fix me
+                    data = analyser.get_results(x.plugin_run)
+                    if data:
+                        entries.append({**x.to_dict(), "data": data})
                     else:
                         entries.append({**x.to_dict()})
             else:

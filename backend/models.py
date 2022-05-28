@@ -36,7 +36,17 @@ class Video(models.Model):
         }
 
 
-class VideoAnalyse(models.Model):
+class Plugin(models.Model):
+    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+
+    def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
+        result = {
+            "id": self.hash_id,
+        }
+        return result
+
+
+class PluginRun(models.Model):
     hash_id = models.CharField(max_length=256, default=gen_hash_id)
     video = models.ForeignKey(Video, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
@@ -62,11 +72,43 @@ class VideoAnalyse(models.Model):
         return result
 
 
+class PluginRunResult(models.Model):
+    hash_id = models.CharField(max_length=256, default=gen_hash_id)
+    plugin_run = models.ForeignKey(PluginRun, on_delete=models.CASCADE)
+    name = models.CharField(max_length=256)
+    data = models.BinaryField(null=True)
+    type = models.CharField(
+        max_length=2,
+        choices=[
+            ("V", "VIDEO_DATA"),
+            ("I", "IMAGE_DATA"),
+            ("S", "SCALAR_DATA"),
+            ("H", "HIST_DATA"),
+            ("R", "RGB_HIST_DATA"),
+        ],
+        default="S",
+    )
+
+    def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
+        result = {
+            "id": self.hash_id,
+            "type": self.type,
+        }
+        if include_refs_hashes:
+            result["plugin_run_id"] = self.plugin_run.hash_id
+        return result
+
+
 class Timeline(models.Model):
     hash_id = models.CharField(max_length=256, default=gen_hash_id)
     video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    plugin_run_result = models.ForeignKey(PluginRunResult, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=256)
-    type = models.CharField(max_length=256, null=True)
+    type = models.CharField(
+        max_length=2,
+        choices=[("A", "ANNOTATION"), ("R", "PLUGIN_RESULT")],
+        default="A",
+    )
     order = models.IntegerField(default=0)
     collapse = models.BooleanField(default=False)
 
@@ -81,6 +123,9 @@ class Timeline(models.Model):
         }
         if include_refs_hashes:
             result["timeline_segment_ids"] = [x.hash_id for x in self.timelinesegment_set.all()]
+            if self.plugin_run_result:
+                result["plugin_run_result_id"] = self.plugin_run_result.hash_id
+
         elif include_refs:
             result["timeline_segments"] = [
                 x.to_dict(include_refs_hashes=include_refs_hashes, include_refs=include_refs, **kwargs)
@@ -88,13 +133,13 @@ class Timeline(models.Model):
             ]
         return result
 
-    def clone(self, video=None):
+    def clone(self, video=None, includeannotations=True):
         if not video:
             video = self.video
         new_timeline_db = Timeline.objects.create(video=video, name=self.name, type=self.type)
 
         for segment in self.timelinesegment_set.all():
-            segment.clone(new_timeline_db)
+            segment.clone(new_timeline_db, includeannotations)
 
         return new_timeline_db
 
@@ -160,13 +205,16 @@ class TimelineSegment(models.Model):
             ]
         return result
 
-    def clone(self, timeline=None):
+    def clone(self, timeline=None, includeannotations=True):
         if not timeline:
             timeline = self.timeline
         new_timeline_segment_db = TimelineSegment.objects.create(
             timeline=timeline, color=self.color, start=self.start, end=self.end
         )
-        print(dir(self))
+
+        if not includeannotations:
+            return new_timeline_segment_db
+
         for annotation in self.timelinesegmentannotation_set.all():
             annotation.clone(new_timeline_segment_db)
 
@@ -197,23 +245,6 @@ class TimelineSegmentAnnotation(models.Model):
             annotation=self.annotation,
         )
         return new_timeline_segment_annotation_db
-
-
-class TimelineAnalyse(models.Model):
-    hash_id = models.CharField(max_length=256, default=gen_hash_id)
-    timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE)
-    video_analyse = models.ForeignKey(VideoAnalyse, on_delete=models.CASCADE)
-    date = models.DateTimeField(auto_now_add=True)
-
-    def to_dict(self, include_refs_hashes=True, **kwargs):
-        result = {
-            "id": self.hash_id,
-            "date": self.date,
-        }
-        if include_refs_hashes:
-            result["video_analyse_id"] = self.video_analyse.hash_id
-            result["timeline_id"] = self.timeline.hash_id
-        return result
 
 
 class Shortcut(models.Model):
