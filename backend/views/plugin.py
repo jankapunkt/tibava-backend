@@ -20,7 +20,7 @@ class PluginList(View):
         try:
             video_id = request.GET.get("video_id")
             if video_id:
-                video_db = Video.objects.get(hash_id=video_id)
+                video_db = Video.objects.get(id=video_id)
                 analyses = PluginRun.objects.filter(video=video_db)
             else:
                 analyses = PluginRun.objects.all()

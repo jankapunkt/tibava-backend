@@ -27,12 +27,11 @@ class Thumbnail:
         }
 
     def __call__(self, video):
-        analyse_hash_id = uuid.uuid4().hex
 
-        video_analyse = PluginRun.objects.create(video=video, hash_id=analyse_hash_id, type="shotdetection", status="Q")
+        video_analyse = PluginRun.objects.create(video=video, type="shotdetection", status="Q")
 
         task = detect_shots.apply_async(
-            ({"hash_id": analyse_hash_id, "video": video.to_dict(), "config": self.config},)
+            ({"id": video_analyse.id.hex, "video": video.to_dict(), "config": self.config},)
         )
 
     def get_results(self, analyse):
@@ -47,12 +46,12 @@ def detect_shots(self, args):
 
     config = args.get("config")
     video = args.get("video")
-    hash_id = args.get("hash_id")
+    id = args.get("id")
 
-    video_db = Video.objects.get(hash_id=video.get("id"))
+    video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
-    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(status="R")
+    PluginRun.objects.filter(video=video_db, id=id).update(status="R")
     try:
         job_args = {"video_id": video.get("id"), "path": video_file}
 
@@ -78,8 +77,9 @@ def detect_shots(self, args):
 
         pull_args = {"job_id": job_id, "fps": video.get("fps")}
         response = get_response(config.get("backend_url"), args=pull_args)
-    except:
-        PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(progress=1.0, status="E")
+    except Exception as e:
+        logging.error(e)
+        PluginRun.objects.filter(video=video_db, id=id).update(progress=1.0, status="E")
         return {"status": "error"}
     shots = []
     if response:
@@ -87,32 +87,30 @@ def detect_shots(self, args):
 
     # class Timeline(models.Model):
     #     video = models.ForeignKey(Video, on_delete=models.CASCADE)
-    #     hash_id = models.CharField(max_length=256)
+    #     id = models.CharField(max_length=256)
     #     name = models.CharField(max_length=256)
     #     type = models.CharField(max_length=256)
 
     # class TimelineSegment(models.Model):
     #     timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE)
-    #     hash_id = models.CharField(max_length=256)
+    #     id = models.CharField(max_length=256)
     #     color = models.CharField(max_length=256)
     #     start = models.FloatField()
     #     end = models.FloatField()
 
     # check if there is already a shot detection result
 
-    timeline_hash_id = uuid.uuid4().hex
+    timeline_id = uuid.uuid4().hex
     # TODO translate the name
-    timeline = Timeline.objects.create(video=video_db, hash_id=timeline_hash_id, name="shot", type="A")
+    timeline = Timeline.objects.create(video=video_db, id=timeline_id, name="shot", type="A")
     for shot in shots:
-        segment_hash_id = uuid.uuid4().hex
+        segment_id = uuid.uuid4().hex
         timeline_segment = TimelineSegment.objects.create(
             timeline=timeline,
-            hash_id=segment_hash_id,
+            id=segment_id,
             start=shot["start_time_sec"],
             end=shot["end_time_sec"],
         )
 
-    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(
-        progress=1.0, results=json.dumps(shots).encode(), status="D"
-    )
+    PluginRun.objects.filter(video=video_db, id=id).update(progress=1.0, results=json.dumps(shots).encode(), status="D")
     return {"status": "done"}

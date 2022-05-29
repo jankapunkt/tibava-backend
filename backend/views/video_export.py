@@ -41,7 +41,7 @@ class VideoExportCSV(View):
                 return JsonResponse({"status": "error", "type": "missing_values"})
 
             try:
-                video_db = Video.objects.get(hash_id=request.GET.get("video_id"))
+                video_db = Video.objects.get(id=request.GET.get("video_id"))
             except Video.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
@@ -50,7 +50,7 @@ class VideoExportCSV(View):
                 annotation_dict = annotation.to_dict()
                 if annotation.category:
                     annotation_dict["category"] = annotation.category.to_dict()
-                annotations[annotation.hash_id] = annotation_dict
+                annotations[annotation.id] = annotation_dict
 
             times = []
             durations = []
@@ -61,13 +61,13 @@ class VideoExportCSV(View):
                     times.append(segment_db.start)
                     durations.append(segment_db.end - segment_db.start)
                     for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
-                        annotation_id = segment_annotation_db.annotation.hash_id
+                        annotation_id = segment_annotation_db.annotation.id
                         if annotation_id not in annotations_headers:
                             annotations_headers[annotation_id] = {**annotations[annotation_id], "times": []}
                         annotations_headers[annotation_id]["times"].append(
                             {"start": segment_db.start, "end": segment_db.end}
                         )
-                timeline_headers[timeline_db.hash_id] = {"name": timeline_db.name, "annotations": annotations_headers}
+                timeline_headers[timeline_db.id] = {"name": timeline_db.name, "annotations": annotations_headers}
             # 0, video_db.duration
             time_duration = sorted(list(set(zip(times, durations))), key=lambda x: x[0])
             # print(time_duration, flush=True)
@@ -120,7 +120,7 @@ class VideoExportJson(View):
                 return JsonResponse({"status": "error", "type": "missing_values"})
 
             try:
-                video_db = Video.objects.get(hash_id=request.GET.get("video_id"))
+                video_db = Video.objects.get(id=request.GET.get("video_id"))
             except Video.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 

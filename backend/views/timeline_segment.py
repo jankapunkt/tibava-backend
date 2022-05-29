@@ -19,6 +19,7 @@ from backend.utils import download_url, download_file, media_url_to_video
 from django.views import View
 from django.http import HttpResponse, JsonResponse
 from django.conf import settings
+import time
 
 # from django.core.exceptions import BadRequest
 
@@ -44,13 +45,13 @@ class TimelineSegmentAnnotate(View):
                 return JsonResponse({"status": "error"})
 
             try:
-                segment_db = TimelineSegment.objects.get(hash_id=data.get("timeline_segment_id"))
+                segment_db = TimelineSegment.objects.get(id=data.get("timeline_segment_id"))
             except TimelineSegment.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
             # delete all existing annotation for this segment
             timeline_segment_annotation_deleted = [
-                x.hash_id for x in TimelineSegmentAnnotation.objects.filter(timeline_segment=segment_db)
+                x.id for x in TimelineSegmentAnnotation.objects.filter(timeline_segment=segment_db)
             ]
             TimelineSegmentAnnotation.objects.filter(timeline_segment=segment_db).delete()
 
@@ -105,10 +106,10 @@ class TimelineSegmentAnnotate(View):
             # query_args["timeline__video__owner"] = request.user
 
             # if "timeline_id" in request.GET:
-            #     query_args["timeline__hash_id"] = request.GET.get("timeline_id")
+            #     query_args["timeline__id"] = request.GET.get("timeline_id")
 
             # if "video_id" in request.GET:
-            #     query_args["timeline__video__hash_id"] = request.GET.get("video_id")
+            #     query_args["timeline__video__id"] = request.GET.get("video_id")
 
             # timeline_segments = TimelineSegment.objects.filter(**query_args)
 
@@ -140,10 +141,10 @@ class TimelineSegmentGet(View):
             query_args["timeline__video__owner"] = request.user
 
             if "timeline_id" in request.GET:
-                query_args["timeline__hash_id"] = request.GET.get("timeline_id")
+                query_args["timeline__id"] = request.GET.get("timeline_id")
 
             if "video_id" in request.GET:
-                query_args["timeline__video__hash_id"] = request.GET.get("video_id")
+                query_args["timeline__video__id"] = request.GET.get("video_id")
 
             timeline_segments = TimelineSegment.objects.filter(**query_args).order_by("start")
 
@@ -159,6 +160,9 @@ class TimelineSegmentGet(View):
 class TimelineSegmentList(View):
     def get(self, request):
         try:
+
+            start = time.time()
+            print(start)
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error"})
 
@@ -167,18 +171,20 @@ class TimelineSegmentList(View):
             query_args["timeline__video__owner"] = request.user
 
             if "timeline_id" in request.GET:
-                query_args["timeline__hash_id"] = request.GET.get("timeline_id")
+                query_args["timeline__id"] = request.GET.get("timeline_id")
 
             if "video_id" in request.GET:
-                query_args["timeline__video__hash_id"] = request.GET.get("video_id")
+                query_args["timeline__video__id"] = request.GET.get("video_id")
 
             timeline_segments = (
                 TimelineSegment.objects.filter(**query_args).select_related("timeline").prefetch_related("annotations")
             )
-
+            print(timeline_segments.query)
+            print(time.time() - start)
             entries = []
             for segment in timeline_segments:
                 entries.append(segment.to_dict())
+            print(time.time() - start)
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
             logging.error(traceback.format_exc())
@@ -207,9 +213,9 @@ class TimelineSegmentMerge(View):
                 return JsonResponse({"status": "error", "type": "wrong_request_body"})
 
             timeline_segments = []
-            for hash_id in data.get("timeline_segment_ids"):
+            for id in data.get("timeline_segment_ids"):
                 try:
-                    timeline_segment_db = TimelineSegment.objects.get(hash_id=hash_id)
+                    timeline_segment_db = TimelineSegment.objects.get(id=id)
                     timeline_segments.append(timeline_segment_db)
                 except TimelineSegment.DoesNotExist:
                     return JsonResponse({"status": "error", "type": "not_exist"})
@@ -217,17 +223,17 @@ class TimelineSegmentMerge(View):
             if len(timeline_segments) < 2:
                 return JsonResponse({"status": "error", "type": "wrong_request_body"})
 
-            if not all([x.timeline.hash_id == timeline_segments[0].timeline.hash_id for x in timeline_segments]):
+            if not all([x.timeline.id == timeline_segments[0].timeline.id for x in timeline_segments]):
                 return JsonResponse({"status": "error", "type": "wrong_request_body"})
 
             # get some information for query and the new segment
             start = min([x.start for x in timeline_segments])
             end = max([x.end for x in timeline_segments])
-            timeline = timeline_segments[0].timeline.hash_id
-            color = timeline_segments[0].timeline.hash_id
+            timeline = timeline_segments[0].timeline.id
+            color = timeline_segments[0].timeline.id
 
             timeline_segment_dbs = TimelineSegment.objects.filter(
-                start__gte=start, timeline__hash_id=timeline_segments[0].timeline.hash_id, end__lte=end
+                start__gte=start, timeline__id=timeline_segments[0].timeline.id, end__lte=end
             )
 
             timeline_segment_deleted = []
@@ -238,24 +244,22 @@ class TimelineSegmentMerge(View):
             # get all annotations from this block and delete all segments
             annotations = []
             for timeline_segment_db in timeline_segment_dbs:
-                annotations.extend(
-                    [x.annotation.hash_id for x in timeline_segment_db.timelinesegmentannotation_set.all()]
-                )
+                annotations.extend([x.annotation.id for x in timeline_segment_db.timelinesegmentannotation_set.all()])
                 timeline_segment_annotation_deleted.extend(
-                    [x.hash_id for x in timeline_segment_db.timelinesegmentannotation_set.all()]
+                    [x.id for x in timeline_segment_db.timelinesegmentannotation_set.all()]
                 )
-                timeline_segment_deleted.append(timeline_segment_db.hash_id)
+                timeline_segment_deleted.append(timeline_segment_db.id)
                 timeline_segment_db.delete()
             annotations = list(set(annotations))
 
             timeline_segment_db = TimelineSegment.objects.create(
-                timeline=Timeline.objects.get(hash_id=timeline), color=color, start=start, end=end
+                timeline=Timeline.objects.get(id=timeline), color=color, start=start, end=end
             )
 
             timeline_segment_annotation_dbs = []
             for annotation in annotations:
                 timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.create(
-                    timeline_segment=timeline_segment_db, annotation=Annotation.objects.get(hash_id=annotation)
+                    timeline_segment=timeline_segment_db, annotation=Annotation.objects.get(id=annotation)
                 )
                 timeline_segment_annotation_dbs.append(timeline_segment_annotation_db)
 
@@ -307,7 +311,7 @@ class TimelineSegmentSplit(View):
             timeline_segment_annotation_added = []
 
             try:
-                timeline_segment_db = TimelineSegment.objects.get(hash_id=data.get("timeline_segment_id"))
+                timeline_segment_db = TimelineSegment.objects.get(id=data.get("timeline_segment_id"))
             except TimelineSegment.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
@@ -330,9 +334,9 @@ class TimelineSegmentSplit(View):
                 [x.to_dict() for x in timeline_segment_db_splits[1].timelinesegmentannotation_set.all()]
             )
 
-            timeline_segment_deleted.append(timeline_segment_db.hash_id)
+            timeline_segment_deleted.append(timeline_segment_db.id)
             timeline_segment_annotation_deleted.extend(
-                [x.hash_id for x in timeline_segment_db.timelinesegmentannotation_set.all()]
+                [x.id for x in timeline_segment_db.timelinesegmentannotation_set.all()]
             )
             timeline_segment_db.delete()
 
@@ -362,7 +366,7 @@ class TimelineSegmentSplit(View):
 #                 data = json.loads(body)
 #             except Exception as e:
 #                 return JsonResponse({"status": "error"})
-#             count, _ = Timeline.objects.filter(hash_id=data.get("hash_id")).delete()
+#             count, _ = Timeline.objects.filter(id=data.get("id")).delete()
 #             if count:
 #                 return JsonResponse({"status": "ok"})
 #             return JsonResponse({"status": "error"})

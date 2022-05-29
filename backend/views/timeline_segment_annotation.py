@@ -41,14 +41,14 @@ class TimelineSegmentAnnoatationCreate(View):
 
             # get segment
             try:
-                segment_db = TimelineSegment.objects.get(hash_id=data.get("timeline_segment_id"))
+                segment_db = TimelineSegment.objects.get(id=data.get("timeline_segment_id"))
             except TimelineSegment.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
             # link existing annotation
             if "annotation_id" in data:
                 try:
-                    annotation_db = Annotation.objects.get(hash_id=data.get("annotation_id"))
+                    annotation_db = Annotation.objects.get(id=data.get("annotation_id"))
                 except Annotation.DoesNotExist:
                     return JsonResponse({"status": "error", "type": "not_exist"})
                 if (
@@ -69,7 +69,7 @@ class TimelineSegmentAnnoatationCreate(View):
             # create a annotation from exisitng categories
             elif "annotation_name" in data and "annotation_category_id" in data:
                 try:
-                    annotation_category_db = AnnotationCategory.objects.get(hash_id=data.get("annotation_category_id"))
+                    annotation_category_db = AnnotationCategory.objects.get(id=data.get("annotation_category_id"))
                 except AnnotationCategory.DoesNotExist:
                     return JsonResponse({"status": "error", "type": "not_exist"})
 
@@ -155,7 +155,7 @@ class TimelineSegmentAnnoatationToggle(View):
         timeline_segment_dbs = []
         for timeline_segment_id in timeline_segment_ids:
             try:
-                timeline_segment_db = TimelineSegment.objects.get(hash_id=timeline_segment_id)
+                timeline_segment_db = TimelineSegment.objects.get(id=timeline_segment_id)
                 timeline_segment_dbs.append(timeline_segment_db)
             except TimelineSegment.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
@@ -169,14 +169,14 @@ class TimelineSegmentAnnoatationToggle(View):
         # link existing annotation
         if "annotation_id" in data:
             try:
-                annotation_db = Annotation.objects.get(hash_id=data.get("annotation_id"))
+                annotation_db = Annotation.objects.get(id=data.get("annotation_id"))
             except Annotation.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
             return annotation_db, annotation_added, annotation_category_added
         # create a annotation from exisitng categories
         elif "annotation_name" in data and "annotation_category_id" in data:
             try:
-                annotation_category_db = AnnotationCategory.objects.get(hash_id=data.get("annotation_category_id"))
+                annotation_category_db = AnnotationCategory.objects.get(id=data.get("annotation_category_id"))
             except AnnotationCategory.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
@@ -260,7 +260,7 @@ class TimelineSegmentAnnoatationToggle(View):
                     timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.get(
                         timeline_segment=timeline_segment_db, annotation=annotation_db
                     )
-                    timeline_segment_annotation_deleted.append(timeline_segment_annotation_db.hash_id)
+                    timeline_segment_annotation_deleted.append(timeline_segment_annotation_db.id)
                     timeline_segment_annotation_db.delete()
                 except TimelineSegmentAnnotation.DoesNotExist:
                     timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.create(
@@ -273,7 +273,7 @@ class TimelineSegmentAnnoatationToggle(View):
                     timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.filter(
                         timeline_segment=timeline_segment_db, annotation=annotation_db
                     )
-                    timeline_segment_annotation_deleted.extend([x.hash_id for x in timeline_segment_annotation_db])
+                    timeline_segment_annotation_deleted.extend([x.id for x in timeline_segment_annotation_db])
                     timeline_segment_annotation_db.delete()
 
             return JsonResponse(
@@ -334,7 +334,7 @@ class TimelineSegmentAnnoatationDelete(View):
             num_deleted = 0
             try:
                 num_deleted, _ = TimelineSegmentAnnotation.objects.get(
-                    hash_id=data.get("timeline_segment_annotation_id")
+                    id=data.get("timeline_segment_annotation_id")
                 ).delete()
             except TimelineSegment.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})

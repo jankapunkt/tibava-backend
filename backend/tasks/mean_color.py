@@ -36,9 +36,7 @@ class Thumbnail:
 
         plugin_run_db = PluginRun.objects.create(video=video, type="mean_color", status="Q")
 
-        task = mean_color.apply_async(
-            ({"hash_id": plugin_run_db.hash_id, "video": video.to_dict(), "config": self.config},)
-        )
+        task = mean_color.apply_async(({"id": plugin_run_db.id, "video": video.to_dict(), "config": self.config},))
 
     def get_results(self, analyse):
         try:
@@ -52,12 +50,12 @@ def mean_color(self, args):
     logging.info("mean_color:start")
     config = args.get("config")
     video = args.get("video")
-    hash_id = args.get("hash_id")
+    id = args.get("id")
 
-    video_db = Video.objects.get(hash_id=video.get("id"))
+    video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
-    plugin_run_db = PluginRun.objects.get(hash_id=hash_id)
+    plugin_run_db = PluginRun.objects.get(id=id)
 
     plugin_run_db.status = "R"
     plugin_run_db.save()
@@ -83,7 +81,10 @@ def mean_color(self, args):
         cls.fit(image)
         y.append(cls.cluster_centers_)
         time.append(i / fps)
-    # result = json.dumps({"y": y.tolist(), "time": (np.arange(len(y)) / sr).tolist()}).encode()
+    y = np.asarray(y)
+    print(y.shape)
+    print()
+    result = json.dumps({"y": y.tolist(), "time": (np.arange(len(y)) / sr).tolist()}).encode()
     # # TODO translate the name
     # plugin_run_result_db = PluginRunResult.objects.create(plugin_run=plugin_run_db, type="S", data=result)
 

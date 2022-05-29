@@ -31,13 +31,13 @@ class Thumbnail:
         video_analyse = PluginRun.objects.create(video=video, type="thumbnail", status="Q")
 
         task = generate_thumbnails.apply_async(
-            ({"hash_id": video_analyse.hash_id, "video": video.to_dict(), "config": self.config},)
+            ({"id": video_analyse.id, "video": video.to_dict(), "config": self.config},)
         )
 
     def get_results(self, analyse):
         try:
             results = json.loads(bytes(analyse.results).decode("utf-8"))
-            results = [{**x, "url": self.config.get("base_url") + f"{analyse.hash_id}/{x['path']}"} for x in results]
+            results = [{**x, "url": self.config.get("base_url") + f"{analyse.id}/{x['path']}"} for x in results]
 
             return results
         except:
@@ -49,12 +49,12 @@ def generate_thumbnails(self, args):
 
     config = args.get("config")
     video = args.get("video")
-    hash_id = args.get("hash_id")
+    id = args.get("id")
 
-    print(f"Video in analyse {hash_id}", flush=True)
-    video_db = Video.objects.get(hash_id=video.get("id"))
+    print(f"Video in analyse {id}", flush=True)
+    video_db = Video.objects.get(id=video.get("id"))
 
-    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(status="R")
+    PluginRun.objects.filter(video=video_db, id=id).update(status="R")
 
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
@@ -69,16 +69,16 @@ def generate_thumbnails(self, args):
     else:
         video_reader = imageio.get_reader(video_file, fps=fps)
 
-    os.makedirs(os.path.join(config.get("output_path"), hash_id), exist_ok=True)
+    os.makedirs(os.path.join(config.get("output_path"), id), exist_ok=True)
     results = []
     for i, frame in enumerate(video_reader):
-        thumbnail_output = os.path.join(config.get("output_path"), hash_id, f"{i}.jpg")
+        thumbnail_output = os.path.join(config.get("output_path"), id, f"{i}.jpg")
         imageio.imwrite(thumbnail_output, frame)
         results.append({"time": i / fps, "path": f"{i}.jpg"})
 
-        PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(progress=i / (fps * video.get("duration")))
+        PluginRun.objects.filter(video=video_db, id=id).update(progress=i / (fps * video.get("duration")))
 
-    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(
+    PluginRun.objects.filter(video=video_db, id=id).update(
         progress=1.0, results=json.dumps(results).encode(), status="D"
     )
     return {"status": "done"}
