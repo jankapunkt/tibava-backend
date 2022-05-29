@@ -15,6 +15,9 @@ from django.conf import settings
 from backend.analyser import Analyser
 from backend.utils import media_path_to_video
 
+from analyser.client import AnalyserClient
+from analyser.data import DataManager
+
 
 @Analyser.export("thumbnail")
 class Thumbnail:
@@ -24,6 +27,8 @@ class Thumbnail:
             "max_resolution": 128,
             "output_path": "/predictions/thumbnails/",
             "base_url": "http://localhost/thumbnails/",
+            "analyser_host": "localhost",
+            "analyser_port": 50051,
         }
 
     def __call__(self, video):
@@ -50,6 +55,36 @@ def generate_thumbnails(self, args):
     config = args.get("config")
     video = args.get("video")
     id = args.get("id")
+    analyser_host = args.get("analyser_host", "localhost")
+    analyser_port = args.get("analyser_port", 50051)
+
+    video_db = Video.objects.get(id=video.get("id"))
+
+    video_file = media_path_to_video(video.get("id"), video.get("ext"))
+
+    PluginRun.objects.filter(video=video_db, id=id).update(status="R")
+
+    client = AnalyserClient(analyser_host, analyser_port)
+    logging.info(f"Start uploading")
+    data_id = client.upload_data(video_file)
+    logging.info(f"Upload done: {data_id}")
+
+    job_id = client.run_plugin("thumbnail_generator", [{"id": data_id, "name": "video"}], [])
+    logging.info(f"Job video_to_audio started: {job_id}")
+
+    result = client.get_plugin_results(job_id=job_id)
+    if result is None:
+        logging.error("Job is crashing")
+        return
+    print(result, flush=True)
+    images_id = None
+    for output in result.outputs:
+        if output.name == "images":
+            images_id = output.id
+
+    data = client.download_data(images_id, args.output_path)
+
+    # OLD
 
     print(f"Video in analyse {id}", flush=True)
     video_db = Video.objects.get(id=video.get("id"))
