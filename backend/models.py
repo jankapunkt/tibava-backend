@@ -19,16 +19,10 @@ class Video(models.Model):
     width = models.IntegerField(blank=True, null=True)
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
-        try:
-            hash_id = self.id.hex
-        except:
-            print("WTF")
-            print(type(self.id))
-            print(self.id)
         return {
             "name": self.name,
             "license": self.license,
-            "id": hash_id,
+            "id": self.id.hex,
             "ext": self.ext,
             "date": self.date,
             "fps": self.fps,
@@ -54,7 +48,6 @@ class PluginRun(models.Model):
     date = models.DateTimeField(auto_now_add=True)
     update_date = models.DateTimeField(auto_now_add=True)
     type = models.CharField(max_length=256)
-    results = models.BinaryField(null=True)
     progress = models.FloatField(default=0.0)
     status = models.CharField(
         max_length=2, choices=[("Q", "Queued"), ("R", "Running"), ("D", "Done"), ("E", "Error")], default="U"
@@ -78,7 +71,7 @@ class PluginRunResult(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plugin_run = models.ForeignKey(PluginRun, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
-    data = models.BinaryField(null=True)
+    data_id = models.CharField(null=True, max_length=64)
     type = models.CharField(
         max_length=2,
         choices=[
@@ -86,6 +79,7 @@ class PluginRunResult(models.Model):
             ("I", "IMAGE_DATA"),
             ("S", "SCALAR_DATA"),
             ("H", "HIST_DATA"),
+            ("SH", "SHOTS_DATA"),
             ("R", "RGB_HIST_DATA"),
         ],
         default="S",
@@ -95,6 +89,7 @@ class PluginRunResult(models.Model):
         result = {
             "id": self.id.hex,
             "type": self.type,
+            "data_id": self.data_id,
         }
         if include_refs_hashes:
             result["plugin_run_id"] = self.plugin_run.id.hex

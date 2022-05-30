@@ -24,12 +24,16 @@ from django.conf import settings
 
 from backend.models import PluginRunResult, Video, PluginRun
 from backend.analyser import Analyser
+from analyser.data import DataManager
 
 
 class PluginRunResultList(View):
     def get(self, request):
-        analyser = Analyser()
-        try:
+        # analyser = Analyser()
+        # TODO parameters
+        data_manager = DataManager("/predictions/")
+        if True:
+            # try:
             video_id = request.GET.get("video_id")
             if video_id:
                 video_db = Video.objects.get(id=video_id)
@@ -41,8 +45,12 @@ class PluginRunResultList(View):
             if add_results:
                 entries = []
                 for x in analyses:
+
+                    print(f"x {x}")
                     # TODO fix me
-                    data = analyser.get_results(x.plugin_run)
+                    data = data_manager.load(x.data_id)
+                    print(data, flush=True)
+                    # print(f"data {data}")
                     if data:
                         entries.append({**x.to_dict(), "data": data})
                     else:
@@ -51,6 +59,6 @@ class PluginRunResultList(View):
                 entries = [x.to_dict() for x in analyses]
 
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logging.error(traceback.format_exc())
-            return JsonResponse({"status": "error"})
+        # except Exception as e:
+        #     logging.error(traceback.format_exc())
+        #     return JsonResponse({"status": "error"})

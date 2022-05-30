@@ -63,7 +63,7 @@ def generate_thumbnails(self, args):
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
     PluginRun.objects.filter(video=video_db, id=id).update(status="R")
-
+    print(f"{analyser_host}, {analyser_port}")
     client = AnalyserClient(analyser_host, analyser_port)
     logging.info(f"Start uploading")
     data_id = client.upload_data(video_file)
