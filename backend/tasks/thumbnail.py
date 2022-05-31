@@ -25,7 +25,7 @@ class Thumbnail:
         self.config = {
             "fps": 1,
             "max_resolution": 128,
-            "output_path": "/predictions/thumbnails/",
+            "output_path": "/predictions/",
             "base_url": "http://localhost/thumbnails/",
             "analyser_host": "localhost",
             "analyser_port": 50051,
@@ -51,7 +51,7 @@ class Thumbnail:
 
 @shared_task(bind=True)
 def generate_thumbnails(self, args):
-
+    print(f"Start thumbnail", flush=True)
     config = args.get("config")
     video = args.get("video")
     id = args.get("id")
@@ -62,7 +62,10 @@ def generate_thumbnails(self, args):
 
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
-    PluginRun.objects.filter(video=video_db, id=id).update(status="R")
+    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
+    plugin_run_db.status = "R"
+    plugin_run_db.save()
+
     print(f"{analyser_host}, {analyser_port}")
     client = AnalyserClient(analyser_host, analyser_port)
     logging.info(f"Start uploading")
@@ -82,7 +85,11 @@ def generate_thumbnails(self, args):
         if output.name == "images":
             images_id = output.id
 
-    data = client.download_data(images_id, args.output_path)
+    data = client.download_data(images_id, config.get("output_path"))
+
+    plugin_run_result_db = PluginRunResult.objects.create(
+        plugin_run=plugin_run_db, data_id=data.id, name="shots", type="SH"
+    )
 
     # OLD
 

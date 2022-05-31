@@ -52,7 +52,7 @@ class PluginRunResultList(View):
                     print(data, flush=True)
                     # print(f"data {data}")
                     if data:
-                        entries.append({**x.to_dict(), "data": data})
+                        entries.append({**x.to_dict(), "data": data.dumps_to_web()})
                     else:
                         entries.append({**x.to_dict()})
             else:
