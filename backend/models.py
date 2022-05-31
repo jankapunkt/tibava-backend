@@ -19,6 +19,7 @@ class Video(models.Model):
     width = models.IntegerField(blank=True, null=True)
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
+
         return {
             "name": self.name,
             "license": self.license,
