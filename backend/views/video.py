@@ -41,8 +41,8 @@ class VideoUpload(View):
             if request.method != "POST":
                 logging.error("VideoUpload::wrong_method")
                 return JsonResponse({"status": "error"})
-
-            video_id = uuid.uuid4().hex
+            video_id_uuid = uuid.uuid4()
+            video_id = video_id_uuid.hex
             if "file" in request.FILES:
                 output_dir = os.path.join(settings.MEDIA_ROOT)
                 print(output_dir, flush=True)
@@ -77,7 +77,7 @@ class VideoUpload(View):
                 }
                 video_db, created = Video.objects.get_or_create(
                     name=meta["name"],
-                    id=video_id,
+                    id=video_id_uuid,
                     license=meta["license"],
                     ext=meta["ext"],
                     fps=meta["fps"],
