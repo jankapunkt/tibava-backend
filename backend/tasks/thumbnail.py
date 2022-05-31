@@ -10,7 +10,7 @@ import cv2
 
 from celery import shared_task
 
-from backend.models import PluginRun, Video
+from backend.models import PluginRun, Video, PluginRunResult
 from django.conf import settings
 from backend.analyser import Analyser
 from backend.utils import media_path_to_video
@@ -88,39 +88,44 @@ def generate_thumbnails(self, args):
     data = client.download_data(images_id, config.get("output_path"))
 
     plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="shots", type="SH"
+        plugin_run=plugin_run_db, data_id=data.id, name="images", type="I"
     )
 
+    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
+    plugin_run_db.status = "D"
+    plugin_run_db.progress = 1.0
+    plugin_run_db.save()
     # OLD
 
-    print(f"Video in analyse {id}", flush=True)
-    video_db = Video.objects.get(id=video.get("id"))
-
-    PluginRun.objects.filter(video=video_db, id=id).update(status="R")
-
-    video_file = media_path_to_video(video.get("id"), video.get("ext"))
-
-    fps = config.get("fps", 1)
-
-    max_resolution = config.get("max_resolution")
-    if max_resolution is not None:
-        res = max(video.get("height"), video.get("width"))
-        scale = min(max_resolution / res, 1)
-        res = (round(video.get("width") * scale), round(video.get("height") * scale))
-        video_reader = imageio.get_reader(video_file, fps=fps, size=res)
-    else:
-        video_reader = imageio.get_reader(video_file, fps=fps)
-
-    os.makedirs(os.path.join(config.get("output_path"), id), exist_ok=True)
-    results = []
-    for i, frame in enumerate(video_reader):
-        thumbnail_output = os.path.join(config.get("output_path"), id, f"{i}.jpg")
-        imageio.imwrite(thumbnail_output, frame)
-        results.append({"time": i / fps, "path": f"{i}.jpg"})
-
-        PluginRun.objects.filter(video=video_db, id=id).update(progress=i / (fps * video.get("duration")))
-
-    PluginRun.objects.filter(video=video_db, id=id).update(
-        progress=1.0, results=json.dumps(results).encode(), status="D"
-    )
     return {"status": "done"}
+
+    # print(f"Video in analyse {id}", flush=True)
+    # video_db = Video.objects.get(id=video.get("id"))
+
+    # PluginRun.objects.filter(video=video_db, id=id).update(status="R")
+
+    # video_file = media_path_to_video(video.get("id"), video.get("ext"))
+
+    # fps = config.get("fps", 1)
+
+    # max_resolution = config.get("max_resolution")
+    # if max_resolution is not None:
+    #     res = max(video.get("height"), video.get("width"))
+    #     scale = min(max_resolution / res, 1)
+    #     res = (round(video.get("width") * scale), round(video.get("height") * scale))
+    #     video_reader = imageio.get_reader(video_file, fps=fps, size=res)
+    # else:
+    #     video_reader = imageio.get_reader(video_file, fps=fps)
+
+    # os.makedirs(os.path.join(config.get("output_path"), id), exist_ok=True)
+    # results = []
+    # for i, frame in enumerate(video_reader):
+    #     thumbnail_output = os.path.join(config.get("output_path"), id, f"{i}.jpg")
+    #     imageio.imwrite(thumbnail_output, frame)
+    #     results.append({"time": i / fps, "path": f"{i}.jpg"})
+
+    #     PluginRun.objects.filter(video=video_db, id=id).update(progress=i / (fps * video.get("duration")))
+
+    # PluginRun.objects.filter(video=video_db, id=id).update(
+    #     progress=1.0, results=json.dumps(results).encode(), status="D"
+    # )
