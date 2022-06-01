@@ -54,20 +54,20 @@ def audio_amp(self, args):
     plugin_run_db.status = "R"
     plugin_run_db.save()
 
-    print(f"{analyser_host}, {analyser_port}")
+    # print(f"{analyser_host}, {analyser_port}")
     client = AnalyserClient(analyser_host, analyser_port)
 
-    print(f"Start uploading", flush=True)
+    # print(f"Start uploading", flush=True)
     data_id = client.upload_data(video_file)
-    print(f"{data_id}", flush=True)
+    # print(f"{data_id}", flush=True)
 
-    print(f"Start plugin", flush=True)
+    # print(f"Start plugin", flush=True)
     job_id = client.run_plugin("video_to_audio", [{"id": data_id, "name": "video"}], [])
-    logging.info(f"Job video_to_audio started: {job_id}")
+    # logging.info(f"Job video_to_audio started: {job_id}")
 
     result = client.get_plugin_results(job_id=job_id)
     if result is None:
-        logging.error("Job is crashing")
+        # logging.error("Job is crashing")
         return
 
     audio_id = None
@@ -75,14 +75,14 @@ def audio_amp(self, args):
         if output.name == "audio":
             audio_id = output.id
 
-    logging.info(f"Job video_to_audio done: {audio_id}")
+    # logging.info(f"Job video_to_audio done: {audio_id}")
 
     job_id = client.run_plugin("audio_amp_analysis", [{"id": audio_id, "name": "audio"}], [])
-    logging.info(f"Job audio_amp started: {job_id}")
+    # logging.info(f"Job audio_amp started: {job_id}")
 
     result = client.get_plugin_results(job_id=job_id)
     if result is None:
-        logging.error("Job is crashing")
+        # logging.error("Job is crashing")
         return
 
     amp_id = None
@@ -90,10 +90,9 @@ def audio_amp(self, args):
         if output.name == "amp":
             amp_id = output.id
 
-    logging.info(f"Job audio_amp done: {amp_id}")
+    # logging.info(f"Job audio_amp done: {amp_id}")
 
     data = client.download_data(amp_id, output_path)
-    logging.info(data)
 
     # timeline_id = uuid.uuid4().hex
     # # TODO translate the name
@@ -114,8 +113,6 @@ def audio_amp(self, args):
     timeline_db = Timeline.objects.create(
         video=video_db, name="audio", type="R", plugin_run_result=plugin_run_result_db
     )
-
-    print(f"save results {plugin_run_result_db}", flush=True)
 
     plugin_run_db.progress = 1.0
     plugin_run_db.status = "D"
