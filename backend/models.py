@@ -109,6 +109,11 @@ class Timeline(models.Model):
     )
     order = models.IntegerField(default=0)
     collapse = models.BooleanField(default=False)
+    visualization = models.CharField(
+        max_length=2,
+        choices=[("C", "COLOR"), ("CC", "CATEGORYCOLOR"), ("SC", "SCALARCOLOR"), ("SL", "SCALARLINE")],
+        default="C",
+    )
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
@@ -116,6 +121,7 @@ class Timeline(models.Model):
             "video_id": self.video.id.hex,
             "name": self.name,
             "type": self.type,
+            "visualization": self.visualization,
             "order": self.order,
             "collapse": self.collapse,
         }

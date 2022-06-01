@@ -179,6 +179,42 @@ class TimelineRename(View):
             return JsonResponse({"status": "error"})
 
 
+class TimelineChangeVisualization(View):
+    def post(self, request):
+        try:
+            print(request)
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+
+            if "id" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+            if "visualization" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+            if not isinstance(data.get("visualization"), str):
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+            try:
+                timeline_db = Timeline.objects.get(id=data.get("id"))
+            except Timeline.DoesNotExist:
+                return JsonResponse({"status": "error", "type": "not_exist"})
+
+            timeline_db.visualization = data.get("visualization")
+            timeline_db.save()
+            return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
 class TimelineDelete(View):
     def post(self, request):
         try:
