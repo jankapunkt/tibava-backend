@@ -12,14 +12,14 @@ from celery import shared_task
 
 from backend.models import PluginRun, Video, PluginRunResult
 from django.conf import settings
-from backend.analyser import Analyser
+from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
 from analyser.client import AnalyserClient
 from analyser.data import DataManager
 
 
-@Analyser.export("thumbnail")
+@PluginManager.export("thumbnail")
 class Thumbnail:
     def __init__(self):
         self.config = {

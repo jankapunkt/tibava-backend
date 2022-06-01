@@ -23,7 +23,7 @@ from django.conf import settings
 
 
 from backend.models import PluginRunResult, Video, PluginRun
-from backend.analyser import Analyser
+from backend.plugin_manager import PluginManager
 from analyser.data import DataManager
 
 

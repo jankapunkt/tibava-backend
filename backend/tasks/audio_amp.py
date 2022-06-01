@@ -14,14 +14,14 @@ from celery import shared_task
 
 from backend.models import PluginRun, PluginRunResult, Video, Timeline, TimelineSegment
 from django.conf import settings
-from backend.analyser import Analyser
+from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
 from analyser.client import AnalyserClient
 from analyser.data import DataManager
 
 
-@Analyser.export("audio_amp")
+@PluginManager.export("audio_amp")
 class AudioAmp:
     def __init__(self):
         self.config = {
@@ -30,17 +30,38 @@ class AudioAmp:
             "analyser_port": 50051,
         }
 
-    def __call__(self, video):
+    def __call__(self, video, parameters=None):
+        print(f"[AudioAmp] {video}: {parameters}", flush=True)
+        if not parameters:
+            parameters = []
+
+        task_parameter = {"timeline": "audio_amp"}
+        for p in parameters:
+            if p["name"] in "timeline":
+                task_parameter[p["name"]] = str(p["value"])
+            else:
+                return False
 
         video_analyse = PluginRun.objects.create(video=video, type="audio_amp", status="Q")
 
-        task = audio_amp.apply_async(({"id": video_analyse.id.hex, "video": video.to_dict(), "config": self.config},))
+        task = audio_amp.apply_async(
+            (
+                {
+                    "id": video_analyse.id.hex,
+                    "video": video.to_dict(),
+                    "config": self.config,
+                    "parameters": task_parameter,
+                },
+            )
+        )
+        return True
 
 
 @shared_task(bind=True)
 def audio_amp(self, args):
 
     config = args.get("config")
+    parameters = args.get("parameters")
     video = args.get("video")
     id = args.get("id")
     output_path = config.get("output_path")
@@ -93,25 +114,15 @@ def audio_amp(self, args):
     # logging.info(f"Job audio_amp done: {amp_id}")
 
     data = client.download_data(amp_id, output_path)
+    print(data.time[0])
 
-    # timeline_id = uuid.uuid4().hex
-    # # TODO translate the name
-    # timeline = Timeline.objects.create(video=video_db, id=timeline_id, name="shot", type="A")
-    # for shot in data.shots:
-    #     segment_id = uuid.uuid4().hex
-    #     timeline_segment = TimelineSegment.objects.create(
-    #         timeline=timeline,
-    #         id=segment_id,
-    #         start=shot.start,
-    #         end=shot.end,
-    #     )
-
+    print(parameters, flush=True)
     plugin_run_result_db = PluginRunResult.objects.create(
         plugin_run=plugin_run_db, data_id=data.id, name="audio_amp", type="S"
     )
 
     timeline_db = Timeline.objects.create(
-        video=video_db, name="audio", type="R", plugin_run_result=plugin_run_result_db
+        video=video_db, name=parameters.get("timeline"), type="R", plugin_run_result=plugin_run_result_db
     )
 
     plugin_run_db.progress = 1.0

@@ -11,12 +11,12 @@ from django.conf import settings
 
 
 from backend.models import Video, PluginRun
-from backend.analyser import Analyser
+from backend.plugin_manager import PluginManager
 
 
 class PluginList(View):
     def get(self, request):
-        analyser = Analyser()
+        plugin_manager = PluginManager()
         try:
             video_id = request.GET.get("video_id")
             if video_id:
@@ -29,7 +29,7 @@ class PluginList(View):
             if add_results:
                 entries = []
                 for x in analyses:
-                    results = analyser.get_results(x)
+                    results = plugin_manager.get_results(x)
                     if results:
                         entries.append({**x.to_dict(), "results": results})
                     else:

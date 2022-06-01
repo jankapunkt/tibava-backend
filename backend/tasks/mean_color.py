@@ -12,7 +12,7 @@ from celery import shared_task
 
 from backend.models import PluginRun, Video, Timeline, PluginRunResult
 from django.conf import settings
-from backend.analyser import Analyser
+from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
 from sklearn.cluster import KMeans
@@ -20,7 +20,7 @@ from sklearn.cluster import KMeans
 import imageio
 
 
-@Analyser.export("mean_color")
+@PluginManager.export("mean_color")
 class Thumbnail:
     def __init__(self):
         self.config = {

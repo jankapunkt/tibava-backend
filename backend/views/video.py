@@ -11,7 +11,7 @@ from pathlib import Path
 
 from urllib.parse import urlparse
 import imageio
-from backend.analyser import Analyser
+from backend.plugin_manager import PluginManager
 
 import wand.image as wimage
 
@@ -30,7 +30,9 @@ from backend.models import Video
 class VideoUpload(View):
     def submit_analyse(self, video, plugins):
 
-        Analyser()(video, plugins)
+        plugin_manager = PluginManager()
+        for plugin in plugins:
+            plugin_manager(video, plugin)
 
     def post(self, request):
         try:
