@@ -108,6 +108,7 @@ class Timeline(models.Model):
         default="A",
     )
     order = models.IntegerField(default=0)
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
     collapse = models.BooleanField(default=False)
     visualization = models.CharField(
         max_length=2,
@@ -123,6 +124,7 @@ class Timeline(models.Model):
             "type": self.type,
             "visualization": self.visualization,
             "order": self.order,
+            "parent": self.parent,
             "collapse": self.collapse,
         }
         if include_refs_hashes:
