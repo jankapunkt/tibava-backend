@@ -32,7 +32,7 @@ class Thumbnail:
             "output_path": "/predictions/mean_color/",
         }
 
-    def __call__(self, video):
+    def __call__(self, video, parameters=None):
 
         plugin_run_db = PluginRun.objects.create(video=video, type="mean_color", status="Q")
 

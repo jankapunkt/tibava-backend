@@ -46,10 +46,10 @@ class PluginRunResultList(View):
                 entries = []
                 for x in analyses:
 
-                    print(f"x {x}")
+                    # print(f"x {x}")
                     # TODO fix me
                     data = data_manager.load(x.data_id)
-                    print(data, flush=True)
+                    # print(data, flush=True)
                     # print(f"data {data}")
                     if data:
                         entries.append({**x.to_dict(), "data": data.dumps_to_web()})

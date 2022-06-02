@@ -116,6 +116,9 @@ class Timeline(models.Model):
         default="C",
     )
 
+    class Meta:
+        ordering = ["order"]
+
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
             "id": self.id.hex,
@@ -124,9 +127,14 @@ class Timeline(models.Model):
             "type": self.type,
             "visualization": self.visualization,
             "order": self.order,
-            "parent": self.parent,
             "collapse": self.collapse,
         }
+
+        if self.parent:
+            result["parent_id"] = self.parent.id.hex
+        else:
+            result["parent_id"] = None
+
         if include_refs_hashes:
             result["timeline_segment_ids"] = [x.id.hex for x in self.timelinesegment_set.all()]
             if self.plugin_run_result:
