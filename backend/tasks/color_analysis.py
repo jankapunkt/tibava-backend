@@ -77,13 +77,7 @@ def color_analysis(self, args):
 
     data = client.download_data(output_id, output_path)
 
-    # TODO create k timelines (k is parameter for kMeans) with RGB information (color of cluster center)
-    print(data)
-    print(parameters, flush=True)
-
     for d in data.data:
-        print(d.colors)
-
         plugin_run_result_db = PluginRunResult.objects.create(
             plugin_run=plugin_run_db, data_id=d.id, name="color_analysis", type="R"  # R stands for RGB_HIST_DATA
         )
