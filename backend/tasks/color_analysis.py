@@ -44,7 +44,7 @@ class ColorAnalyser:
 
 
 @shared_task(bind=True)
-def color_analysis(args):
+def color_analysis(self, args):
 
     config = args.get("config")
     parameters = args.get("parameters")
@@ -78,19 +78,22 @@ def color_analysis(args):
     data = client.download_data(output_id, output_path)
 
     # TODO create k timelines (k is parameter for kMeans) with RGB information (color of cluster center)
-    print(data.time[0])
+    print(data)
     print(parameters, flush=True)
 
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="color_analysis", type="R"  # R stands for RGB_HIST_DATA
-    )
+    for d in data.data:
+        print(d.colors)
 
-    timeline_db = Timeline.objects.create(
-        video=video_db,
-        name=parameters.get("timeline"),
-        type="R",
-        plugin_run_result=plugin_run_result_db,  # R stands for PLUGIN_RESULT
-    )
+        plugin_run_result_db = PluginRunResult.objects.create(
+            plugin_run=plugin_run_db, data_id=d.id, name="color_analysis", type="R"  # R stands for RGB_HIST_DATA
+        )
+
+        timeline_db = Timeline.objects.create(
+            video=video_db,
+            name=parameters.get("timeline"),
+            type="R",
+            plugin_run_result=plugin_run_result_db,  # R stands for PLUGIN_RESULT
+        )
 
     plugin_run_db.progress = 1.0
     plugin_run_db.status = "D"
