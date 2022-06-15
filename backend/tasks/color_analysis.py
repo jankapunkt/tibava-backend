@@ -81,17 +81,26 @@ def color_analysis(self, args):
 
     data = client.download_data(output_id, output_path)
 
-    for d in data.data:
+    parent_timeline = None
+    if len(data.data) > 1:
+        parent_timeline = Timeline.objects.create(
+            video=video_db,
+            name=parameters.get("timeline"),
+            type="R",
+        )
+
+    for i, d in enumerate(data.data):
         plugin_run_result_db = PluginRunResult.objects.create(
             plugin_run=plugin_run_db, data_id=d.id, name="color_analysis", type="R"  # R stands for RGB_HIST_DATA
         )
 
-        timeline_db = Timeline.objects.create(
+        _ = Timeline.objects.create(
             video=video_db,
-            name=parameters.get("timeline"),
+            name=parameters.get("timeline") + f" #{i}" if len(data.data) > 1 else parameters.get("timeline"),
             type="R",
             plugin_run_result=plugin_run_result_db,  # R stands for PLUGIN_RESULT
             visualization="C",
+            parent=parent_timeline,
         )
 
     plugin_run_db.progress = 1.0
