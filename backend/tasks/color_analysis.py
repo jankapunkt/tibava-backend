@@ -87,6 +87,7 @@ def color_analysis(self, args):
             name=parameters.get("timeline"),
             type="R",
             plugin_run_result=plugin_run_result_db,  # R stands for PLUGIN_RESULT
+            visualization="C",
         )
 
     plugin_run_db.progress = 1.0
