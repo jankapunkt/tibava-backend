@@ -4,6 +4,8 @@ from backend.models import PluginRun, PluginRunResult, Video, Timeline, Timeline
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
+import logging
+
 from analyser.client import AnalyserClient
 
 
@@ -21,13 +23,11 @@ class ColorAnalyser:
         if not parameters:
             parameters = []
 
-        task_parameter = {"timeline": "Color Analysis"}
+        task_parameter = {"timeline": "Color Analysis", "k": 4, "timeline_visualization": 0}
         for p in parameters:
-            if p["name"] in "timeline":
-                task_parameter[p["name"]] = str(p["value"])
-            else:
-                return False
-
+            # if "name" in p and "value" in p:
+            if p["name"] in task_parameter:
+                task_parameter[p["name"]] = p["value"]
         pluging_run_db = PluginRun.objects.create(video=video, type="color_analysis", status="Q")
 
         task = color_analysis.apply_async(
@@ -65,7 +65,11 @@ def color_analysis(self, args):
 
     client = AnalyserClient(analyser_host, analyser_port)
     data_id = client.upload_data(video_file)
-    job_id = client.run_plugin("color_analyser", [{"id": data_id, "name": "video"}], [])
+    job_id = client.run_plugin(
+        "color_analyser",
+        [{"id": data_id, "name": "video"}],
+        [{"name": key, "value": val} for key, val in parameters.items()],
+    )
     result = client.get_plugin_results(job_id=job_id)
     if result is None:
         return
