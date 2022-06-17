@@ -44,7 +44,7 @@ class ShotTypeClassifier:
 
 
 @shared_task(bind=True)
-def shot_type_classification(args):
+def shot_type_classification(self, args):
 
     config = args.get("config")
     parameters = args.get("parameters")
@@ -77,36 +77,26 @@ def shot_type_classification(args):
 
     data = client.download_data(output_id, output_path)
 
-    print(data.time[0])
-    print(parameters, flush=True)
+    for index, sub_data in zip(data.index, data.data):
+        print(index)
+        print(sub_data)
 
-    # TODO create a timeline labeled by most probable camera setting (per shot)
-    # TODO get shot boundaries
-    # TODO assign max label to shot boundary
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db,
-        data_id=data.id,
-        name="shot_type_classification",
-        type="SH",  # SH stands for SHOTS_DATA
-    )
-    Timeline.objects.create(
-        video=video_db,
-        name=parameters.get("timeline"),
-        type="R",  # A stands for ANNOTATION
-        plugin_run_result=plugin_run_result_db,
-    )
-
-    # TODO create 5 timelines with probabilities of each shot type in [ECU, CU, MS, FS, LS]
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="color_analysis", type="S"  # R stands for Scalar Data
-    )
-
-    Timeline.objects.create(
-        video=video_db,
-        name=parameters.get("timeline"),
-        type="R",  # R stands for PLUGIN_RESULT
-        plugin_run_result=plugin_run_result_db,
-    )
+        # TODO create a timeline labeled by most probable camera setting (per shot)
+        # TODO get shot boundaries
+        # TODO assign max label to shot boundary
+        plugin_run_result_db = PluginRunResult.objects.create(
+            plugin_run=plugin_run_db,
+            data_id=sub_data.id,
+            name="shot_type_classification",
+            type="S",  # SH stands for SHOTS_DATA´
+        )
+        Timeline.objects.create(
+            video=video_db,
+            name=parameters.get("timeline") + f" {index}",
+            type="R",  # A stands for ANNOTATION
+            plugin_run_result=plugin_run_result_db,
+            visualization="SL",
+        )
 
     plugin_run_db.progress = 1.0
     plugin_run_db.status = "D"
