@@ -80,6 +80,13 @@ def shot_type_classification(self, args):
     for index, sub_data in zip(data.index, data.data):
         print(index)
         print(sub_data)
+        label_lut = {
+            "p_ECU": "Extreme Close-Up",
+            "p_CU": "Close-Up",
+            "p_MS": "Medium Shot",
+            "p_FS": "Full Shot",
+            "p_LS": "Long Shot",
+        }
 
         # TODO create a timeline labeled by most probable camera setting (per shot)
         # TODO get shot boundaries
@@ -92,10 +99,10 @@ def shot_type_classification(self, args):
         )
         Timeline.objects.create(
             video=video_db,
-            name=parameters.get("timeline") + f" {index}",
+            name=parameters.get("timeline") + f" {label_lut.get(index, index)}",
             type="R",  # A stands for ANNOTATION
             plugin_run_result=plugin_run_result_db,
-            visualization="SL",
+            visualization="SC",
         )
 
     plugin_run_db.progress = 1.0

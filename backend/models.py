@@ -102,17 +102,25 @@ class Timeline(models.Model):
     video = models.ForeignKey(Video, on_delete=models.CASCADE)
     plugin_run_result = models.ForeignKey(PluginRunResult, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=256)
+
+    TYPE_ANNOTATION = "A"
+    TYPE_PLUGIN_RESULT = "B"
+    TYPE = [
+        (TYPE_ANNOTATION, "ANNOTATION"),
+        (TYPE_PLUGIN_RESULT, "PLUGIN_RESULT"),
+    ]
+
     type = models.CharField(
         max_length=2,
-        choices=[("A", "ANNOTATION"), ("R", "PLUGIN_RESULT")],
-        default="A",
+        choices=TYPE,
+        default=TYPE_ANNOTATION,
     )
     order = models.IntegerField(default=0)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
     collapse = models.BooleanField(default=False)
     visualization = models.CharField(
         max_length=2,
-        choices=[("C", "COLOR"), ("CC", "CATEGORYCOLOR"), ("SC", "SCALARCOLOR"), ("SL", "SCALARLINE")],
+        choices=[("C", "COLOR"), ("CC", "CATEGORYCOLOR"), ("SC", "SCALARCOLOR"), ("SL", "SCALARLINE"), ("H", "HIST")],
         default="C",
     )
 
