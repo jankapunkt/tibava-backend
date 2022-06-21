@@ -7,8 +7,8 @@ from backend.utils import media_path_to_video
 from analyser.client import AnalyserClient
 
 
-@PluginManager.export("insightface_detection")
-class InsightfaceDetector:
+@PluginManager.export("insightface_facesize")
+class InsightfaceFacesize:
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
@@ -17,7 +17,7 @@ class InsightfaceDetector:
         }
 
     def __call__(self, video, parameters=None):
-        print(f"[InsightfaceDetector] {video}: {parameters}", flush=True)
+        print(f"[InsightfaceFacesize] {video}: {parameters}", flush=True)
         if not parameters:
             parameters = []
 
@@ -28,7 +28,7 @@ class InsightfaceDetector:
             else:
                 return False
 
-        pluging_run_db = PluginRun.objects.create(video=video, type="insightface_detection", status="Q")
+        pluging_run_db = PluginRun.objects.create(video=video, type="insightface_facesize", status="Q")
 
         insightface_detection.apply_async(
             (
@@ -60,6 +60,7 @@ def insightface_detection(self, args):
     plugin_run_db.status = "R"
     plugin_run_db.save()
 
+    # run insightface_detector
     client = AnalyserClient(analyser_host, analyser_port)
     data_id = client.upload_data(video_file)
     job_id = client.run_plugin("insightface_detector", [{"id": data_id, "name": "video"}], [])
@@ -68,18 +69,38 @@ def insightface_detection(self, args):
         return
 
     bbox_output_id = None
-    faceimg_output_id = None
     for output in result.outputs:
-        if output.name == "bbox":
+        if output.name == "bboxes":
             bbox_output_id = output.id
-        if output.name == "images":
-            faceimg_output_id = output.id
 
-    bbox_data = client.download_data(bbox_output_id, output_path)
-    faceimg_output_data = client.download_data(faceimg_output_id, output_path)
+    # run insightface_facesize
+    job_id = client.run_plugin("insightface_facesize", [{"id": bbox_output_id, "name": "bboxes"}], [])
+    result = client.get_plugin_results(job_id=job_id)
+    if result is None:
+        return
 
-    # TODO
+    # get results
+    facesize_output_id = None
+    for output in result.outputs:
+        if output.name == "facesizes":
+            facesize_output_id = output.id
 
+    data = client.download_data(facesize_output_id, output_path)
+
+    # store results in timeline
+    plugin_run_result_db = PluginRunResult.objects.create(
+        plugin_run=plugin_run_db, data_id=data.id, name="facesizes", type="S"  # S stands for SCALAR_DATA
+    )
+
+    _ = Timeline.objects.create(
+        video=video_db,
+        name=parameters.get("timeline"),
+        type=Timeline.TYPE_PLUGIN_RESULT,
+        plugin_run_result=plugin_run_result_db,
+        visualization="SC",  # SC stands for SCALARCOLOR
+    )
+
+    # set status
     plugin_run_db.progress = 1.0
     plugin_run_db.status = "D"
     plugin_run_db.save()

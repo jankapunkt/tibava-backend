@@ -83,11 +83,7 @@ def color_analysis(self, args):
 
     parent_timeline = None
     if len(data.data) > 1:
-        parent_timeline = Timeline.objects.create(
-            video=video_db,
-            name=parameters.get("timeline"),
-            type="R",
-        )
+        parent_timeline = Timeline.objects.create(video=video_db, name=parameters.get("timeline"), type="R",)
 
     for i, d in enumerate(data.data):
         plugin_run_result_db = PluginRunResult.objects.create(
@@ -97,8 +93,8 @@ def color_analysis(self, args):
         _ = Timeline.objects.create(
             video=video_db,
             name=parameters.get("timeline") + f" #{i}" if len(data.data) > 1 else parameters.get("timeline"),
-            type="R",
-            plugin_run_result=plugin_run_result_db,  # R stands for PLUGIN_RESULT
+            type=Timeline.TYPE_PLUGIN_RESULT,
+            plugin_run_result=plugin_run_result_db,
             visualization="C",
             parent=parent_timeline,
         )

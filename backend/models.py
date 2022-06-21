@@ -104,17 +104,13 @@ class Timeline(models.Model):
     name = models.CharField(max_length=256)
 
     TYPE_ANNOTATION = "A"
-    TYPE_PLUGIN_RESULT = "B"
+    TYPE_PLUGIN_RESULT = "R"
     TYPE = [
         (TYPE_ANNOTATION, "ANNOTATION"),
         (TYPE_PLUGIN_RESULT, "PLUGIN_RESULT"),
     ]
 
-    type = models.CharField(
-        max_length=2,
-        choices=TYPE,
-        default=TYPE_ANNOTATION,
-    )
+    type = models.CharField(max_length=2, choices=TYPE, default=TYPE_ANNOTATION,)
     order = models.IntegerField(default=0)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
     collapse = models.BooleanField(default=False)
@@ -263,8 +259,7 @@ class TimelineSegmentAnnotation(models.Model):
     def clone(self, timeline_segment):
 
         new_timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.create(
-            timeline_segment=timeline_segment,
-            annotation=self.annotation,
+            timeline_segment=timeline_segment, annotation=self.annotation,
         )
         return new_timeline_segment_annotation_db
 

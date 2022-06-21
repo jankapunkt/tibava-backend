@@ -121,10 +121,10 @@ def audio_amp(self, args):
         plugin_run=plugin_run_db, data_id=data.id, name="audio_amp", type="S"
     )
 
-    timeline_db = Timeline.objects.create(
+    _ = Timeline.objects.create(
         video=video_db,
         name=parameters.get("timeline"),
-        type="R",
+        type=Timeline.TYPE_PLUGIN_RESULT,
         plugin_run_result=plugin_run_result_db,
         visualization="SL",
     )

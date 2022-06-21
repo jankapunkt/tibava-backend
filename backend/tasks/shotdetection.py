@@ -81,14 +81,11 @@ def detect_shots(self, args):
 
     timeline_id = uuid.uuid4().hex
     # TODO translate the name
-    timeline = Timeline.objects.create(video=video_db, id=timeline_id, name="shot", type="A")
+    timeline = Timeline.objects.create(video=video_db, id=timeline_id, name="shot", type=Timeline.TYPE_ANNOTATION)
     for shot in data.shots:
         segment_id = uuid.uuid4().hex
         timeline_segment = TimelineSegment.objects.create(
-            timeline=timeline,
-            id=segment_id,
-            start=shot.start,
-            end=shot.end,
+            timeline=timeline, id=segment_id, start=shot.start, end=shot.end,
         )
 
     plugin_run_result_db = PluginRunResult.objects.create(

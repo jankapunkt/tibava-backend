@@ -95,12 +95,12 @@ def shot_type_classification(self, args):
             plugin_run=plugin_run_db,
             data_id=sub_data.id,
             name="shot_type_classification",
-            type="S",  # SH stands for SHOTS_DATA´
+            type="S",  # S stands for SCALAR_DATA
         )
         Timeline.objects.create(
             video=video_db,
             name=parameters.get("timeline") + f" {label_lut.get(index, index)}",
-            type="R",  # A stands for ANNOTATION
+            type=Timeline.TYPE_PLUGIN_RESULT,
             plugin_run_result=plugin_run_result_db,
             visualization="SC",
         )
