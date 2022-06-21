@@ -35,13 +35,13 @@ class AnnotationShortcutCreate(View):
             try:
                 query_args = {"key": data.get("key"), "video_id": request.user}
                 if "video_id" in data:
-                    query_args["video__hash_id"] = data.get("video_id")
+                    query_args["video__id"] = data.get("video_id")
                 shortcut_db = AnnotationShortcut.objects.get(**query_args)
             except AnnotationShortcut.DoesNotExist:
                 create_args = {"key": data.get("key"), "owner": request.user}
                 if "video_id" in data:
                     try:
-                        video_db = Video.objects.get(hash_id=data.get("video_id"))
+                        video_db = Video.objects.get(id=data.get("video_id"))
                     except Video.DoesNotExist:
                         return JsonResponse({"status": "error", "type": "not_exist"})
                     create_args["video"] = video_db
@@ -60,7 +60,7 @@ class AnnotationShortcutUpdate(View):
 
     def update_shortcut(self, annotation_shortcut, user, annotation, video=None):
         keys = annotation_shortcut.get("keys")
-        hash_id = annotation_shortcut.get("id")
+        id = annotation_shortcut.get("id")
         keys_string = Shortcut.generate_keys_string(keys)
 
         try:
@@ -105,7 +105,7 @@ class AnnotationShortcutUpdate(View):
             video_db = None
             if "video_id" in data:
                 try:
-                    video_db = Video.objects.get(hash_id=data.get("video_id"))
+                    video_db = Video.objects.get(id=data.get("video_id"))
                 except Video.DoesNotExist:
                     return JsonResponse({"status": "error", "type": "not_exist"})
 
@@ -115,7 +115,7 @@ class AnnotationShortcutUpdate(View):
                     continue
                 annotation_db = None
                 try:
-                    annotation_db = Annotation.objects.get(hash_id=annotation_shortcut.get("id"))
+                    annotation_db = Annotation.objects.get(id=annotation_shortcut.get("id"))
                 except Annotation.DoesNotExist:
                     continue
 
@@ -157,7 +157,7 @@ class AnnotationShortcutList(View):
             query_args = {}
 
             if "video_id" in request.GET:
-                query_args["shortcut__video__hash_id"] = request.GET.get("video_id")
+                query_args["shortcut__video__id"] = request.GET.get("video_id")
 
             query_results = AnnotationShortcut.objects.filter(**query_args)
 

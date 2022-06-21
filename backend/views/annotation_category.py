@@ -31,7 +31,7 @@ class AnnoatationCategoryCreate(View):
             try:
                 query_args = {"name": data.get("name"), "owner": request.user}
                 if "video_id" in data:
-                    query_args["video__hash_id"] = data.get("video_id")
+                    query_args["video__id"] = data.get("video_id")
                 annotation_category_db = AnnotationCategory.objects.get(**query_args)
             except AnnotationCategory.DoesNotExist:
                 create_args = {"name": data.get("name"), "owner": request.user}
@@ -39,7 +39,7 @@ class AnnoatationCategoryCreate(View):
                     create_args["color"] = data.get("color")
                 if "video_id" in data:
                     try:
-                        video_db = Video.objects.get(hash_id=data.get("video_id"))
+                        video_db = Video.objects.get(id=data.get("video_id"))
                     except Video.DoesNotExist:
                         return JsonResponse({"status": "error", "type": "not_exist"})
                     create_args["video"] = video_db
@@ -62,7 +62,7 @@ class AnnoatationCategoryList(View):
             query_args["owner"] = request.user
 
             if "video_id" in request.GET:
-                query_args["video__hash_id"] = request.GET.get("video_id")
+                query_args["video__id"] = request.GET.get("video_id")
 
             query_results = AnnotationCategory.objects.filter(**query_args)
 

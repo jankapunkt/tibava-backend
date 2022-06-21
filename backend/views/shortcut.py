@@ -31,13 +31,13 @@ class ShortcutCreate(View):
             try:
                 query_args = {"key": data.get("key"), "video_id": request.user}
                 if "video_id" in data:
-                    query_args["video__hash_id"] = data.get("video_id")
+                    query_args["video__id"] = data.get("video_id")
                 shortcut_db = Shortcut.objects.get(**query_args)
             except Shortcut.DoesNotExist:
                 create_args = {"key": data.get("key"), "owner": request.user}
                 if "video_id" in data:
                     try:
-                        video_db = Video.objects.get(hash_id=data.get("video_id"))
+                        video_db = Video.objects.get(id=data.get("video_id"))
                     except Video.DoesNotExist:
                         return JsonResponse({"status": "error", "type": "not_exist"})
                     create_args["video"] = video_db
@@ -60,7 +60,7 @@ class ShortcutList(View):
             query_args["owner"] = request.user
 
             if "video_id" in request.GET:
-                query_args["video__hash_id"] = request.GET.get("video_id")
+                query_args["video__id"] = request.GET.get("video_id")
 
             query_results = Shortcut.objects.filter(**query_args)
 

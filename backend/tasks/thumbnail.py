@@ -10,34 +10,39 @@ import cv2
 
 from celery import shared_task
 
-from backend.models import PluginRun, Video
+from backend.models import PluginRun, Video, PluginRunResult
 from django.conf import settings
-from backend.analyser import Analyser
+from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
+from analyser.client import AnalyserClient
+from analyser.data import DataManager
 
-@Analyser.export("thumbnail")
+
+@PluginManager.export("thumbnail")
 class Thumbnail:
     def __init__(self):
         self.config = {
             "fps": 1,
             "max_resolution": 128,
-            "output_path": "/predictions/thumbnails/",
+            "output_path": "/predictions/",
             "base_url": "http://localhost/thumbnails/",
+            "analyser_host": "localhost",
+            "analyser_port": 50051,
         }
 
-    def __call__(self, video):
+    def __call__(self, video, parameters=None):
 
         video_analyse = PluginRun.objects.create(video=video, type="thumbnail", status="Q")
 
         task = generate_thumbnails.apply_async(
-            ({"hash_id": video_analyse.hash_id, "video": video.to_dict(), "config": self.config},)
+            ({"id": video_analyse.id, "video": video.to_dict(), "config": self.config},)
         )
 
     def get_results(self, analyse):
         try:
             results = json.loads(bytes(analyse.results).decode("utf-8"))
-            results = [{**x, "url": self.config.get("base_url") + f"{analyse.hash_id}/{x['path']}"} for x in results]
+            results = [{**x, "url": self.config.get("base_url") + f"{analyse.id}/{x['path']}"} for x in results]
 
             return results
         except:
@@ -46,39 +51,81 @@ class Thumbnail:
 
 @shared_task(bind=True)
 def generate_thumbnails(self, args):
-
+    print(f"Start thumbnail", flush=True)
     config = args.get("config")
     video = args.get("video")
-    hash_id = args.get("hash_id")
+    id = args.get("id")
+    analyser_host = args.get("analyser_host", "localhost")
+    analyser_port = args.get("analyser_port", 50051)
 
-    print(f"Video in analyse {hash_id}", flush=True)
-    video_db = Video.objects.get(hash_id=video.get("id"))
-
-    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(status="R")
+    video_db = Video.objects.get(id=video.get("id"))
 
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
-    fps = config.get("fps", 1)
+    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
+    plugin_run_db.status = "R"
+    plugin_run_db.save()
 
-    max_resolution = config.get("max_resolution")
-    if max_resolution is not None:
-        res = max(video.get("height"), video.get("width"))
-        scale = min(max_resolution / res, 1)
-        res = (round(video.get("width") * scale), round(video.get("height") * scale))
-        video_reader = imageio.get_reader(video_file, fps=fps, size=res)
-    else:
-        video_reader = imageio.get_reader(video_file, fps=fps)
+    print(f"{analyser_host}, {analyser_port}")
+    client = AnalyserClient(analyser_host, analyser_port)
+    logging.info(f"Start uploading")
+    data_id = client.upload_data(video_file)
+    logging.info(f"Upload done: {data_id}")
 
-    os.makedirs(os.path.join(config.get("output_path"), hash_id), exist_ok=True)
-    results = []
-    for i, frame in enumerate(video_reader):
-        thumbnail_output = os.path.join(config.get("output_path"), hash_id, f"{i}.jpg")
-        imageio.imwrite(thumbnail_output, frame)
-        results.append({"time": i / fps, "path": f"{i}.jpg"})
+    job_id = client.run_plugin("thumbnail_generator", [{"id": data_id, "name": "video"}], [])
+    logging.info(f"Job video_to_audio started: {job_id}")
 
-        PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(progress=i / (fps * video.get("duration")))
+    result = client.get_plugin_results(job_id=job_id)
+    if result is None:
+        logging.error("Job is crashing")
+        return
+    print(result, flush=True)
+    images_id = None
+    for output in result.outputs:
+        if output.name == "images":
+            images_id = output.id
 
-    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(
-        progress=1.0, results=json.dumps(results).encode(), status="D"
+    data = client.download_data(images_id, config.get("output_path"))
+
+    plugin_run_result_db = PluginRunResult.objects.create(
+        plugin_run=plugin_run_db, data_id=data.id, name="images", type="I"
     )
+
+    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
+    plugin_run_db.status = "D"
+    plugin_run_db.progress = 1.0
+    plugin_run_db.save()
+    # OLD
+
     return {"status": "done"}
+
+    # print(f"Video in analyse {id}", flush=True)
+    # video_db = Video.objects.get(id=video.get("id"))
+
+    # PluginRun.objects.filter(video=video_db, id=id).update(status="R")
+
+    # video_file = media_path_to_video(video.get("id"), video.get("ext"))
+
+    # fps = config.get("fps", 1)
+
+    # max_resolution = config.get("max_resolution")
+    # if max_resolution is not None:
+    #     res = max(video.get("height"), video.get("width"))
+    #     scale = min(max_resolution / res, 1)
+    #     res = (round(video.get("width") * scale), round(video.get("height") * scale))
+    #     video_reader = imageio.get_reader(video_file, fps=fps, size=res)
+    # else:
+    #     video_reader = imageio.get_reader(video_file, fps=fps)
+
+    # os.makedirs(os.path.join(config.get("output_path"), id), exist_ok=True)
+    # results = []
+    # for i, frame in enumerate(video_reader):
+    #     thumbnail_output = os.path.join(config.get("output_path"), id, f"{i}.jpg")
+    #     imageio.imwrite(thumbnail_output, frame)
+    #     results.append({"time": i / fps, "path": f"{i}.jpg"})
+
+    #     PluginRun.objects.filter(video=video_db, id=id).update(progress=i / (fps * video.get("duration")))
+
+    # PluginRun.objects.filter(video=video_db, id=id).update(
+    #     progress=1.0, results=json.dumps(results).encode(), status="D"
+    # )

@@ -12,34 +12,31 @@ from time import sleep
 
 from celery import shared_task
 
-from backend.models import PluginRun, Video, Timeline, TimelineSegment
+from backend.models import PluginRun, PluginRunResult, Video, Timeline, TimelineSegment
 from django.conf import settings
-from backend.analyser import Analyser
+from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
+from analyser.client import AnalyserClient
+from analyser.data import DataManager
 
-@Analyser.export("shotdetection")
+
+@PluginManager.export("shotdetection")
 class Thumbnail:
     def __init__(self):
         self.config = {
-            "backend_url": "http://localhost:5000/detect_shots",
-            "output_path": "/predictions/shotdetection/",
+            "output_path": "/predictions/",
+            "analyser_host": "localhost",
+            "analyser_port": 50051,
         }
 
-    def __call__(self, video):
-        analyse_hash_id = uuid.uuid4().hex
+    def __call__(self, video, parameters=None):
 
-        video_analyse = PluginRun.objects.create(video=video, hash_id=analyse_hash_id, type="shotdetection", status="Q")
+        video_analyse = PluginRun.objects.create(video=video, type="shotdetection", status="Q")
 
         task = detect_shots.apply_async(
-            ({"hash_id": analyse_hash_id, "video": video.to_dict(), "config": self.config},)
+            ({"id": video_analyse.id.hex, "video": video.to_dict(), "config": self.config},)
         )
-
-    def get_results(self, analyse):
-        try:
-            return json.loads(bytes(analyse.results).decode("utf-8"))
-        except:
-            return []
 
 
 @shared_task(bind=True)
@@ -47,72 +44,61 @@ def detect_shots(self, args):
 
     config = args.get("config")
     video = args.get("video")
-    hash_id = args.get("hash_id")
+    id = args.get("id")
+    output_path = config.get("output_path")
+    analyser_host = args.get("analyser_host", "localhost")
+    analyser_port = args.get("analyser_port", 50051)
 
-    video_db = Video.objects.get(hash_id=video.get("id"))
+    video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
+    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
 
-    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(status="R")
-    try:
-        job_args = {"video_id": video.get("id"), "path": video_file}
+    plugin_run_db.status = "R"
+    plugin_run_db.save()
 
-        job_id = requests.post(config.get("backend_url"), json=job_args).json()["job_id"]
+    print(f"{analyser_host}, {analyser_port}")
+    client = AnalyserClient(analyser_host, analyser_port)
 
-        def get_response(url, args):
-            while True:
-                response = requests.get(url, args)
-                response = response.json()
-                logging.debug(response)
+    print(f"Start uploading", flush=True)
+    data_id = client.upload_data(video_file)
+    print(f"{data_id}", flush=True)
 
-                if "status" in response and response["status"] == "SUCCESS":
-                    logging.info("JOB DONE!")
-                    return response
-                elif "status" in response and response["status"] == "PENDING":
-                    sleep(0.5)
-                else:
-                    print(response)
-                    logging.error("Something went wrong")
-                    break
+    print(f"Start plugin", flush=True)
+    job_id = client.run_plugin("transnet_shotdetection", [{"id": data_id, "name": "video"}], [])
+    result = client.get_plugin_results(job_id=job_id)
+    if result is None:
+        logging.error("Job is crashing")
+        return
 
-            return None
+    shots_id = None
+    for output in result.outputs:
+        if output.name == "shots":
+            shots_id = output.id
 
-        pull_args = {"job_id": job_id, "fps": video.get("fps")}
-        response = get_response(config.get("backend_url"), args=pull_args)
-    except:
-        PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(progress=1.0, status="E")
-        return {"status": "error"}
-    shots = []
-    if response:
-        shots = response["shots"]
+    logging.info(f"shots_id: {shots_id} {output_path}")
+    data = client.download_data(shots_id, output_path)
+    logging.info(data)
 
-    # class Timeline(models.Model):
-    #     video = models.ForeignKey(Video, on_delete=models.CASCADE)
-    #     hash_id = models.CharField(max_length=256)
-    #     name = models.CharField(max_length=256)
-    #     type = models.CharField(max_length=256)
-
-    # class TimelineSegment(models.Model):
-    #     timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE)
-    #     hash_id = models.CharField(max_length=256)
-    #     color = models.CharField(max_length=256)
-    #     start = models.FloatField()
-    #     end = models.FloatField()
-
-    # check if there is already a shot detection result
-
-    timeline_hash_id = uuid.uuid4().hex
+    timeline_id = uuid.uuid4().hex
     # TODO translate the name
-    timeline = Timeline.objects.create(video=video_db, hash_id=timeline_hash_id, name="shot", type="A")
-    for shot in shots:
-        segment_hash_id = uuid.uuid4().hex
+    timeline = Timeline.objects.create(video=video_db, id=timeline_id, name="shot", type="A")
+    for shot in data.shots:
+        segment_id = uuid.uuid4().hex
         timeline_segment = TimelineSegment.objects.create(
             timeline=timeline,
-            hash_id=segment_hash_id,
-            start=shot["start_time_sec"],
-            end=shot["end_time_sec"],
+            id=segment_id,
+            start=shot.start,
+            end=shot.end,
         )
 
-    PluginRun.objects.filter(video=video_db, hash_id=hash_id).update(
-        progress=1.0, results=json.dumps(shots).encode(), status="D"
+    plugin_run_result_db = PluginRunResult.objects.create(
+        plugin_run=plugin_run_db, data_id=data.id, name="shots", type="SH"
     )
+
+    print(f"save results {plugin_run_result_db}", flush=True)
+
+    plugin_run_db.progress = 1.0
+    plugin_run_db.status = "D"
+    plugin_run_db.save()
+
     return {"status": "done"}

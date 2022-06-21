@@ -44,7 +44,7 @@ class TimelineImportEAF(View):
             video_id = request.POST.get("video_id")
             print(video_id)
             try:
-                video_db = Video.objects.get(hash_id=video_id)
+                video_db = Video.objects.get(id=video_id)
             except Video.DoesNotExist:
                 return JsonResponse({"status": "error"})
 

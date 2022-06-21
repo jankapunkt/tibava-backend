@@ -33,9 +33,9 @@ class AnnoatationCreate(View):
             try:
                 query_args = {"name": data.get("name"), "owner": request.user}
                 if "category_id" in data:
-                    query_args["category__hash_id"] = data.get("category_id")
+                    query_args["category__id"] = data.get("category_id")
                 if "video_id" in data:
-                    query_args["video__hash_id"] = data.get("video_id")
+                    query_args["video__id"] = data.get("video_id")
                 annotation_db = Annotation.objects.get(**query_args)
             except Annotation.DoesNotExist:
                 create_args = {"name": data.get("name"), "owner": request.user}
@@ -43,14 +43,14 @@ class AnnoatationCreate(View):
                     create_args["color"] = data.get("color")
                 if "video_id" in data:
                     try:
-                        video_db = Video.objects.get(hash_id=data.get("video_id"))
+                        video_db = Video.objects.get(id=data.get("video_id"))
                     except Video.DoesNotExist:
                         return JsonResponse({"status": "error", "type": "not_exist"})
                     create_args["video"] = video_db
 
                 if "category_id" in data:
                     try:
-                        annotation_category_db = AnnotationCategory.objects.get(hash_id=data.get("category_id"))
+                        annotation_category_db = AnnotationCategory.objects.get(id=data.get("category_id"))
                     except AnnotationCategory.DoesNotExist:
                         return JsonResponse({"status": "error", "type": "not_exist"})
                     create_args["category"] = annotation_category_db
@@ -84,7 +84,7 @@ class AnnoatationChange(View):
             update_args = {}
             if "category_id" in data:
                 try:
-                    annotation_category_db = AnnotationCategory.objects.get(hash_id=data.get("category_id"))
+                    annotation_category_db = AnnotationCategory.objects.get(id=data.get("category_id"))
                     update_args["category"] = annotation_category_db
                 except AnnotationCategory.DoesNotExist:
                     return JsonResponse({"status": "error", "type": "not_exist"})
@@ -97,7 +97,7 @@ class AnnoatationChange(View):
 
             if "color" in data:
                 update_args["color"] = data.get("color")
-            updated = Annotation.objects.filter(hash_id=data.get("annotation_id")).update(**update_args)
+            updated = Annotation.objects.filter(id=data.get("annotation_id")).update(**update_args)
             if updated != 1:
                 return JsonResponse({"status": "error"})
 
@@ -119,7 +119,7 @@ class AnnoatationList(View):
             query_args["owner"] = request.user
 
             if "video_id" in request.GET:
-                query_args["video__hash_id"] = request.GET.get("video_id")
+                query_args["video__id"] = request.GET.get("video_id")
 
             query_results = Annotation.objects.filter(**query_args)
 

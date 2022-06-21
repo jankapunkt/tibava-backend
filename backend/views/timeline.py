@@ -33,10 +33,15 @@ class TimelineList(View):
                 return JsonResponse({"status": "error"})
             video_id = request.GET.get("video_id")
             if video_id:
-                video_db = Video.objects.get(hash_id=video_id)
+                video_db = Video.objects.get(id=video_id)
                 timelines = Timeline.objects.filter(video=video_db)
             else:
                 timelines = Timeline.objects.all()
+            timelines = (
+                timelines.select_related("video")
+                .select_related("plugin_run_result")
+                .prefetch_related("timelinesegment_set")
+            )
 
             entries = []
             for timeline in timelines:
@@ -64,8 +69,7 @@ class TimelineDuplicate(View):
             except Exception as e:
                 return JsonResponse({"status": "error"})
             # get timeline entry to duplicate
-            print(data)
-            timeline_db = Timeline.objects.get(hash_id=data.get("id"))
+            timeline_db = Timeline.objects.get(id=data.get("id"))
             if not timeline_db:
                 return JsonResponse({"status": "error"})
 
@@ -107,7 +111,7 @@ class TimelineCreate(View):
 
             create_args = {"type": "A"}
             try:
-                video_db = Video.objects.get(hash_id=data.get("video_id"))
+                video_db = Video.objects.get(id=data.get("video_id"))
                 create_args["video"] = video_db
                 create_args["order"] = Timeline.objects.filter(video=video_db).count()
             except Video.DoesNotExist:
@@ -162,13 +166,121 @@ class TimelineRename(View):
                 return JsonResponse({"status": "error", "type": "wrong_request_body"})
 
             try:
-                timeline_db = Timeline.objects.get(hash_id=data.get("id"))
+                timeline_db = Timeline.objects.get(id=data.get("id"))
             except Timeline.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
             timeline_db.name = data.get("name")
             timeline_db.save()
             return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+class TimelineChangeVisualization(View):
+    def post(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+
+            if "id" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+            if "visualization" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+            if not isinstance(data.get("visualization"), str):
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+            try:
+                timeline_db = Timeline.objects.get(id=data.get("id"))
+            except Timeline.DoesNotExist:
+                return JsonResponse({"status": "error", "type": "not_exist"})
+
+            timeline_db.visualization = data.get("visualization")
+            timeline_db.save()
+            return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+class TimelineSetParent(View):
+    def post(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+
+            if "timelineId" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+            if "parentId" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+
+            try:
+                timeline_db = Timeline.objects.get(id=data.get("timelineId"))
+            except Timeline.DoesNotExist:
+                return JsonResponse({"status": "error", "type": "not_exist"})
+
+            parent_timeline_db = None
+            if data.get("parentId"):
+                try:
+                    parent_timeline_db = Timeline.objects.get(id=data.get("parentId"))
+                except Timeline.DoesNotExist:
+                    return JsonResponse({"status": "error", "type": "not_exist"})
+
+            timeline_db.parent = parent_timeline_db
+            timeline_db.save()
+            return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+class TimelineSetOrder(View):
+    def post(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+
+            if "order" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+
+            for idx, timelineId in enumerate(data.get("order")):
+                print(idx, timelineId)
+                try:
+                    timeline_db = Timeline.objects.get(id=timelineId)
+                except Timeline.DoesNotExist:
+                    return JsonResponse({"status": "error", "type": "not_exist"})
+
+                timeline_db.order = idx
+                timeline_db.save()
+            return JsonResponse({"status": "ok"})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
@@ -188,7 +300,7 @@ class TimelineDelete(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error"})
-            count, _ = Timeline.objects.filter(hash_id=data.get("id")).delete()
+            count, _ = Timeline.objects.filter(id=data.get("id")).delete()
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})

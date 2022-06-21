@@ -11,7 +11,7 @@ from pathlib import Path
 
 from urllib.parse import urlparse
 import imageio
-from backend.analyser import Analyser
+from backend.plugin_manager import PluginManager
 
 import wand.image as wimage
 
@@ -30,7 +30,9 @@ from backend.models import Video
 class VideoUpload(View):
     def submit_analyse(self, video, plugins):
 
-        Analyser()(video, plugins)
+        plugin_manager = PluginManager()
+        for plugin in plugins:
+            plugin_manager(video, plugin)
 
     def post(self, request):
         try:
@@ -41,8 +43,8 @@ class VideoUpload(View):
             if request.method != "POST":
                 logging.error("VideoUpload::wrong_method")
                 return JsonResponse({"status": "error"})
-
-            video_id = uuid.uuid4().hex
+            video_id_uuid = uuid.uuid4()
+            video_id = video_id_uuid.hex
             if "file" in request.FILES:
                 output_dir = os.path.join(settings.MEDIA_ROOT)
                 print(output_dir, flush=True)
@@ -77,7 +79,7 @@ class VideoUpload(View):
                 }
                 video_db, created = Video.objects.get_or_create(
                     name=meta["name"],
-                    hash_id=video_id,
+                    id=video_id_uuid,
                     license=meta["license"],
                     ext=meta["ext"],
                     fps=meta["fps"],
@@ -121,18 +123,9 @@ class VideoList(View):
                 return JsonResponse({"status": "error"})
             entries = []
             for video in Video.objects.filter(owner=request.user):
-                entries.append(
-                    {
-                        "id": video.hash_id,
-                        "name": video.name,
-                        "license": video.license,
-                        "width": video.width,
-                        "height": video.height,
-                        "ext": video.ext,
-                        "fps": video.fps,
-                        "duration": video.duration,
-                    }
-                )
+
+                print(f"Bar {video.id.hex}", flush=True)
+                entries.append(video.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
             logging.error(traceback.format_exc())
@@ -146,18 +139,11 @@ class VideoGet(View):
                 return JsonResponse({"status": "error"})
 
             entries = []
-            for video in Video.objects.filter(hash_id=request.GET.get("id"), owner=request.user):
+            for video in Video.objects.filter(id=request.GET.get("id"), owner=request.user):
                 entries.append(
                     {
-                        "id": video.hash_id,
-                        "name": video.name,
-                        "license": video.license,
-                        "width": video.width,
-                        "height": video.height,
-                        "ext": video.ext,
-                        "fps": video.fps,
-                        "duration": video.duration,
-                        "url": media_url_to_video(video.hash_id, video.ext),
+                        **video.to_dict(),
+                        "url": media_url_to_video(video.id.hex, video.ext),
                     }
                 )
             if len(entries) != 1:
@@ -184,7 +170,7 @@ class VideoDelete(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error"})
-            count, _ = Video.objects.filter(hash_id=data.get("id"), owner=request.user).delete()
+            count, _ = Video.objects.filter(id=data.get("id"), owner=request.user).delete()
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})
