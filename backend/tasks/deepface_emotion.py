@@ -87,6 +87,11 @@ def deepface_emotion(self, args):
 
     data = client.download_data(emotions_output_id, output_path)
 
+    # TODO create a timeline labeled by most probable emotion (per shot)
+    # TODO get shot boundaries
+    # TODO assign max label to shot boundary
+    parent_timeline = Timeline.objects.create(video=video_db, name=parameters.get("timeline"), type="R")
+
     # create timelines
     for index, sub_data in zip(data.index, data.data):
         label_lut = {
@@ -99,19 +104,16 @@ def deepface_emotion(self, args):
             "p_neutral": "Neural",
         }
 
-        # TODO create a timeline labeled by most probable emotion (per shot)
-        # TODO get shot boundaries
-        # TODO assign max label to shot boundary
-
         plugin_run_result_db = PluginRunResult.objects.create(
             plugin_run=plugin_run_db, data_id=sub_data.id, name="face_emotion", type="S",  # S stands for SCALAR_DATA
         )
         Timeline.objects.create(
             video=video_db,
-            name=parameters.get("timeline") + f" {label_lut.get(index, index)}",
+            name=label_lut.get(index, index),
             type=Timeline.TYPE_PLUGIN_RESULT,
             plugin_run_result=plugin_run_result_db,
             visualization="SC",
+            parent=parent_timeline,
         )
 
     # set status

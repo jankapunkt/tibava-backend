@@ -77,9 +77,12 @@ def shot_type_classification(self, args):
 
     data = client.download_data(output_id, output_path)
 
+    # TODO create a timeline labeled by most probable camera setting (per shot)
+    # TODO get shot boundaries
+    # TODO assign max label to shot boundary
+    parent_timeline = Timeline.objects.create(video=video_db, name=parameters.get("timeline"), type="R")
+
     for index, sub_data in zip(data.index, data.data):
-        print(index)
-        print(sub_data)
         label_lut = {
             "p_ECU": "Extreme Close-Up",
             "p_CU": "Close-Up",
@@ -88,9 +91,6 @@ def shot_type_classification(self, args):
             "p_LS": "Long Shot",
         }
 
-        # TODO create a timeline labeled by most probable camera setting (per shot)
-        # TODO get shot boundaries
-        # TODO assign max label to shot boundary
         plugin_run_result_db = PluginRunResult.objects.create(
             plugin_run=plugin_run_db,
             data_id=sub_data.id,
@@ -99,10 +99,11 @@ def shot_type_classification(self, args):
         )
         Timeline.objects.create(
             video=video_db,
-            name=parameters.get("timeline") + f" {label_lut.get(index, index)}",
+            name=label_lut.get(index, index),
             type=Timeline.TYPE_PLUGIN_RESULT,
             plugin_run_result=plugin_run_result_db,
             visualization="SC",
+            parent=parent_timeline,
         )
 
     plugin_run_db.progress = 1.0
