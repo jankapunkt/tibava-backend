@@ -27,6 +27,7 @@ urlpatterns = [
     path("timeline/duplicate", views.TimelineDuplicate.as_view(), name="timeline_duplicate"),
     path("timeline/rename", views.TimelineRename.as_view(), name="timeline_rename"),
     path("timeline/setparent", views.TimelineSetParent.as_view(), name="timeline_setparent"),
+    path("timeline/setcollapse", views.TimelineSetCollapse.as_view(), name="timeline_setcollapse"),
     path("timeline/setorder", views.TimelineSetOrder.as_view(), name="timeline_setorder"),
     path(
         "timeline/changevisualization",

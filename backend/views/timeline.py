@@ -253,6 +253,40 @@ class TimelineSetParent(View):
             return JsonResponse({"status": "error"})
 
 
+class TimelineSetCollapse(View):
+    def post(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+
+            if "timelineId" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+            if "collapse" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+
+            try:
+                timeline_db = Timeline.objects.get(id=data.get("timelineId"))
+
+            except Timeline.DoesNotExist:
+                return JsonResponse({"status": "error", "type": "not_exist"})
+
+            timeline_db.collapse = data.get("collapse")
+            timeline_db.save()
+            return JsonResponse({"status": "ok"})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
 class TimelineSetOrder(View):
     def post(self, request):
         try:
