@@ -82,25 +82,39 @@ def insightface_detection(self, args):
     # get results
     facesize_output_id = None
     for output in result.outputs:
-        if output.name == "facesizes":
+        if output.name == "probs":
             facesize_output_id = output.id
 
     data = client.download_data(facesize_output_id, output_path)
+    # TODO create a timeline labeled by most probable camera setting (per shot)
+    # TODO get shot boundaries
+    # TODO assign max label to shot boundary
+    parent_timeline = Timeline.objects.create(video=video_db, name=parameters.get("timeline"), type="R")
 
-    # store results in timeline
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="facesizes", type="S"  # S stands for SCALAR_DATA
-    )
+    for index, sub_data in zip(data.index, data.data):
+        label_lut = {
+            "p_ECU": "Extreme Close-Up",
+            "p_CU": "Close-Up",
+            "p_MS": "Medium Shot",
+            "p_FS": "Full Shot",
+            "p_LS": "Long Shot",
+        }
 
-    _ = Timeline.objects.create(
-        video=video_db,
-        name=parameters.get("timeline"),
-        type=Timeline.TYPE_PLUGIN_RESULT,
-        plugin_run_result=plugin_run_result_db,
-        visualization="SC",  # SC stands for SCALARCOLOR
-    )
+        plugin_run_result_db = PluginRunResult.objects.create(
+            plugin_run=plugin_run_db,
+            data_id=sub_data.id,
+            name="insightface_facesizes",
+            type="S",  # S stands for SCALAR_DATA
+        )
+        Timeline.objects.create(
+            video=video_db,
+            name=label_lut.get(index, index),
+            type=Timeline.TYPE_PLUGIN_RESULT,
+            plugin_run_result=plugin_run_result_db,
+            visualization="SC",
+            parent=parent_timeline,
+        )
 
-    # set status
     plugin_run_db.progress = 1.0
     plugin_run_db.status = "D"
     plugin_run_db.save()
