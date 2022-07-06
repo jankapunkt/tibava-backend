@@ -7,3 +7,4 @@ from .insightface_facesize import *
 from .shot_type_classification import *
 from .shotdetection import *
 from .thumbnail import *
+from .clip import *
