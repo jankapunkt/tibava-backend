@@ -20,6 +20,8 @@ from backend.utils import media_path_to_video
 from analyser.client import AnalyserClient
 from analyser.data import DataManager
 
+import redis
+
 
 @PluginManager.export("clip")
 class AudioFreq:
@@ -80,24 +82,33 @@ def clip(self, args):
     # print(f"{analyser_host}, {analyser_port}")
     client = AnalyserClient(analyser_host, analyser_port)
 
-    # print(f"Start uploading", flush=True)
-    data_id = client.upload_data(video_file)
-    # print(f"{data_id}", flush=True)
+    r = redis.Redis()
+    data_id = r.get(f"video_{video.get('id')}")
+    # data_id = None
+    if data_id is None:
+        print(f"Video not exist in the analyser", flush=True)
+        data_id = client.upload_data(video_file)
+        r.set(f"video_{video.get('id')}", data_id)
+        # print(f"{data_id}", flush=True)
+    print(data_id, flush=True)
+    embd_id = r.get(f"data_{data_id}")
+    if embd_id is None:
+        print(f"Video Embedding not exist in the analyser", flush=True)
+        # generate image embeddings
+        job_id = client.run_plugin("clip_image_embedding", [{"id": data_id, "name": "video"}], [])
+        logging.info(f"Job clip_image_embedding started: {job_id}")
 
-    # generate image embeddings
-    job_id = client.run_plugin("clip_image_embedding", [{"id": data_id, "name": "video"}], [])
-    logging.info(f"Job clip_image_embedding started: {job_id}")
+        result = client.get_plugin_results(job_id=job_id)
+        if result is None:
+            logging.error("Job is crashing")
+            return
 
-    result = client.get_plugin_results(job_id=job_id)
-    if result is None:
-        logging.error("Job is crashing")
-        return
-
-    embd_id = None
-    for output in result.outputs:
-        if output.name == "embeddings":
-            embd_id = output.id
-            break
+        embd_id = None
+        for output in result.outputs:
+            if output.name == "embeddings":
+                embd_id = output.id
+                break
+        r.set(f"data_{data_id}", embd_id)
     logging.info(f"finished job with resulting embedding id: {embd_id}")
     # calculate similarities between image embeddings and search term
     job_id = client.run_plugin(
@@ -132,7 +143,7 @@ def clip(self, args):
         name=parameters.get("timeline"),
         type=Timeline.TYPE_PLUGIN_RESULT,
         plugin_run_result=plugin_run_result_db,
-        visualization="SL",
+        visualization="SC",
     )
 
     plugin_run_db.progress = 1.0
