@@ -88,8 +88,9 @@ def deepface_emotion(self, args):
     data = client.download_data(emotions_output_id, output_path)
 
     # TODO create a timeline labeled by most probable emotion (per shot)
-    # TODO get shot boundaries
-    # TODO assign max label to shot boundary
+    # - TODO get annotation timeline with temporal structure
+    # - TODO get shot boundaries of annotation timeline
+    # - TODO assign max label to shot boundary
     parent_timeline = Timeline.objects.create(video=video_db, name=parameters.get("timeline"), type="R")
 
     # create timelines
@@ -101,7 +102,7 @@ def deepface_emotion(self, args):
             "p_happy": "Happy",
             "p_sad": "Sad",
             "p_surprise": "Surprise",
-            "p_neutral": "Neural",
+            "p_neutral": "Neutral",
         }
 
         plugin_run_result_db = PluginRunResult.objects.create(
