@@ -81,7 +81,7 @@ def detect_shots(self, args):
 
     timeline_id = uuid.uuid4().hex
     # TODO translate the name
-    timeline = Timeline.objects.create(video=video_db, id=timeline_id, name="shot", type=Timeline.TYPE_ANNOTATION)
+    timeline = Timeline.objects.create(video=video_db, id=timeline_id, name="Shots", type=Timeline.TYPE_ANNOTATION)
     for shot in data.shots:
         segment_id = uuid.uuid4().hex
         timeline_segment = TimelineSegment.objects.create(
