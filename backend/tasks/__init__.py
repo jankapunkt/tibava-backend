@@ -4,6 +4,7 @@ from .color_analysis import *
 from .deepface_emotion import *
 from .insightface_detection import *
 from .insightface_facesize import *
+from .places_classification import *
 from .shot_type_classification import *
 from .shotdetection import *
 from .thumbnail import *
