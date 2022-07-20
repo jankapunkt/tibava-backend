@@ -1,10 +1,22 @@
-from celery import shared_task
+from analyser.client import AnalyserClient
+from analyser.data import Shot, ShotsData
 
-from backend.models import PluginRun, PluginRunResult, Video, Timeline
+from backend.models import (
+    Annotation,
+    AnnotationCategory,
+    PluginRun,
+    PluginRunResult,
+    TimelineSegmentAnnotation,
+    Video,
+    Timeline,
+    TimelineSegment,
+)
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
-from analyser.client import AnalyserClient
+from celery import shared_task
+
+import uuid
 
 
 @PluginManager.export("places_classification")
@@ -23,7 +35,7 @@ class PlacesClassifier:
 
         task_parameter = {"timeline": "Places"}
         for p in parameters:
-            if p["name"] in "timeline":
+            if p["name"] in ["timeline", "shot_timeline_id"]:  # defines standard parameter of the task
                 task_parameter[p["name"]] = str(p["value"])
             else:
                 return False
@@ -61,8 +73,11 @@ def places_classification(self, args):
     plugin_run_db.status = "R"
     plugin_run_db.save()
 
-    # print(f"{analyser_host}, {analyser_port}")
+    print(parameters)
 
+    """
+    Place Classification
+    """
     client = AnalyserClient(analyser_host, analyser_port)
     data_id = client.upload_file(video_file)
     job_id = client.run_plugin("places_classifier", [{"id": data_id, "name": "video"}], [])
@@ -70,29 +85,83 @@ def places_classification(self, args):
     if result is None:
         return
 
-    embeddings_id = None
-    places365_id = None
-    places16_id = None
-    places3_id = None
-
+    result_ids = {"probs_places365": None, "probs_places16": None, "probs_places3": None}
     for output in result.outputs:
-        if output.name == "embeddings":
-            embeddings_id = output.id
-        if output.name == "probs_places365":
-            places365_id = output.id
-        if output.name == "probs_places16":
-            places16_id = output.id
-        if output.name == "probs_places3":
-            places3_id = output.id
+        if output.name in result_ids.keys():  # and parameters.get(output.name):
+            result_ids[output.name] = output.id
 
-    data = client.download_data(places3_id, output_path)
+    result_probs = {}
+    for key in result_ids:
+        result_probs[key] = None
+        if result_ids[key]:
+            result_probs[key] = client.download_data(result_ids[key], output_path)
 
-    # TODO create a timeline labeled by most probable places category (per shot)
-    # TODO get shot boundaries
-    # TODO assign max label to shot boundary
-    parent_timeline = Timeline.objects.create(video=video_db, name=parameters.get("timeline"), type="R")
+    """
+    Get shots from timeline with shot boundaries (if selected by the user)
+    """
+    shots_id = None
+    if parameters.get("shot_timeline_id"):
+        shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
+        shot_timeline_segments = TimelineSegment.object.filter(timeline=shot_timeline_db)
+        data = ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments])
+        shots_id = client.upload_data(data)
 
-    for index, sub_data in zip(data.index, data.data):
+    print(shots_id)
+
+    """
+    Assign most probable label to each shot boundary
+    """
+    result_annotations = {}
+    if shots_id:
+        for key in result_ids:
+            result_annotations[key] = None
+
+            if not result_ids[key]:
+                continue
+
+            job_id = client.run_plugin(
+                "shot_annotator", [{"id": shots_id, "name": "shots"}, {"id": result_ids[key], "name": "probs"}], []
+            )
+
+            result = client.get_plugin_results(job_id=job_id)
+            if result is None:
+                return
+
+            annotation_id = None
+            for output in result.outputs:
+                if output.name == "annotations":
+                    annotation_id = output.id
+
+            result_annotations[key] = client.download_data(annotation_id, args.output_path)
+
+    """
+    Create a timeline labeled by most probable places category (per shot)
+    """
+    for idx, key in enumerate(result_annotations):
+        timeline_id = uuid.uuid4().hex
+        annotation_timeline = Timeline.objects.create(
+            video=video_db, id=timeline_id, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+        )
+        for annotation in result_annotations[key].annotations:
+            segment_id = uuid.uuid4().hex
+            timeline_segment_db = TimelineSegment.objects.create(
+                timeline=annotation_timeline, id=segment_id, start=annotation.start, end=annotation.end,
+            )
+
+            # TODO cleaner solution to get the category label from key?
+            category_db = AnnotationCategory.objects.get_or_create(name=key.split("_")[-1], video=video.db)
+
+            for label in annotation.labels:
+                # add annotion to TimelineSegment
+                annotation_db = Annotation.objects.get_or_create(name=label, video=video_db, category=category_db)
+                TimelineSegmentAnnotation.objects.create(annotation=annotation_db, timeline_segment=timeline_segment_db)
+
+    """
+    TODO: Create hierarchical timeline(s) with probability of each place category (per hierarchy level) as scalar data
+    """
+    # if parameters.get("show_probs"):
+
+    for index, sub_data in zip(result_probs["probs_places3"].index, result_probs["probs_places3"].data):
 
         plugin_run_result_db = PluginRunResult.objects.create(
             plugin_run=plugin_run_db,
@@ -106,7 +175,7 @@ def places_classification(self, args):
             type=Timeline.TYPE_PLUGIN_RESULT,
             plugin_run_result=plugin_run_result_db,
             visualization="SC",
-            parent=parent_timeline,
+            parent=annotation_timeline,
         )
 
     plugin_run_db.progress = 1.0
