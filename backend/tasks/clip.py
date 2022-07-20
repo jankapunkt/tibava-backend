@@ -1,30 +1,16 @@
-import os
-import sys
-import logging
-import uuid
-import math
-
-import imageio
-import requests
-import json
-
-from time import sleep
-
 from celery import shared_task
+import logging
+import redis
 
-from backend.models import PluginRun, PluginRunResult, Video, Timeline, TimelineSegment
-from django.conf import settings
+from analyser.client import AnalyserClient
+
+from backend.models import PluginRun, PluginRunResult, Video, Timeline
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
-from analyser.client import AnalyserClient
-from analyser.data import DataManager
-
-import redis
-
 
 @PluginManager.export("clip")
-class AudioFreq:
+class CLIP:
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
@@ -34,16 +20,15 @@ class AudioFreq:
 
     def __call__(self, parameters=None, **kwargs):
         video = kwargs.get("video")
-        print(f"[AudioAmp] {video}: {parameters}", flush=True)
         if not parameters:
             parameters = []
 
         task_parameter = {"timeline": "clip"}
         for p in parameters:
-            if p["name"] == "timeline":
+            if p["name"] == ["timeline", "search_term"]:
                 task_parameter[p["name"]] = str(p["value"])
-            elif p["name"] == "search_term":
-                task_parameter[p["name"]] = str(p["value"])
+            elif p["name"] == ["fps"]:
+                task_parameter[p["name"]] = int(p["value"])
             else:
                 return False
 
@@ -73,6 +58,8 @@ def clip(self, args):
     analyser_host = args.get("analyser_host", "localhost")
     analyser_port = args.get("analyser_port", 50051)
 
+    print(f"[CLIP] {video}: {parameters}", flush=True)
+
     video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
@@ -91,12 +78,16 @@ def clip(self, args):
         data_id = client.upload_file(video_file)
         r.set(f"video_{video.get('id')}", data_id)
         # print(f"{data_id}", flush=True)
-    print(data_id, flush=True)
+
     embd_id = r.get(f"data_{data_id}")
     if embd_id is None:
         print(f"Video Embedding not exist in the analyser", flush=True)
         # generate image embeddings
-        job_id = client.run_plugin("clip_image_embedding", [{"id": data_id, "name": "video"}], [])
+        job_id = client.run_plugin(
+            "clip_image_embedding",
+            [{"id": data_id, "name": "video"}],
+            [{"name": k, "value": v} for k, v in parameters.items()],
+        )
         logging.info(f"Job clip_image_embedding started: {job_id}")
 
         result = client.get_plugin_results(job_id=job_id)
@@ -113,9 +104,7 @@ def clip(self, args):
     logging.info(f"finished job with resulting embedding id: {embd_id}")
     # calculate similarities between image embeddings and search term
     job_id = client.run_plugin(
-        "clip_probs",
-        [{"id": embd_id, "name": "embeddings"}],
-        [{"name": "search_term", "value": parameters.get("search_term", "")}],
+        "clip_probs", [{"id": embd_id, "name": "embeddings"}], [{"name": k, "value": v} for k, v in parameters.items()],
     )
     logging.info(f"Job clip_probs started: {job_id}")
 
@@ -132,9 +121,7 @@ def clip(self, args):
     # logging.info(f"Job clip done: {freq_id}")
 
     data = client.download_data(probs_id, output_path)
-    print(data)
 
-    print(parameters, flush=True)
     plugin_run_result_db = PluginRunResult.objects.create(
         plugin_run=plugin_run_db, data_id=data.id, name="clip", type="S"
     )

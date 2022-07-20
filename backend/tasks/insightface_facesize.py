@@ -18,14 +18,15 @@ class InsightfaceFacesize:
 
     def __call__(self, parameters=None, **kwargs):
         video = kwargs.get("video")
-        print(f"[InsightfaceFacesize] {video}: {parameters}", flush=True)
         if not parameters:
             parameters = []
 
         task_parameter = {"timeline": "Face Detection"}
         for p in parameters:
-            if p["name"] in "timeline":
+            if p["name"] in ["timeline"]:
                 task_parameter[p["name"]] = str(p["value"])
+            elif p["name"] in ["fps"]:
+                task_parameter[p["name"]] = int(p["value"])
             else:
                 return False
 
@@ -54,6 +55,8 @@ def insightface_detection(self, args):
     analyser_host = args.get("analyser_host", "localhost")
     analyser_port = args.get("analyser_port", 50051)
 
+    print(f"[InsightfaceFacesize] {video}: {parameters}", flush=True)
+
     video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
@@ -64,7 +67,11 @@ def insightface_detection(self, args):
     # run insightface_detector
     client = AnalyserClient(analyser_host, analyser_port)
     data_id = client.upload_file(video_file)
-    job_id = client.run_plugin("insightface_detector", [{"id": data_id, "name": "video"}], [])
+    job_id = client.run_plugin(
+        "insightface_detector",
+        [{"id": data_id, "name": "video"}],
+        [{"name": k, "value": v} for k, v in parameters.items()],
+    )
     result = client.get_plugin_results(job_id=job_id)
     if result is None:
         return
@@ -75,7 +82,11 @@ def insightface_detection(self, args):
             bbox_output_id = output.id
 
     # run insightface_facesize
-    job_id = client.run_plugin("insightface_facesize", [{"id": bbox_output_id, "name": "bboxes"}], [])
+    job_id = client.run_plugin(
+        "insightface_facesize",
+        [{"id": bbox_output_id, "name": "bboxes"}],
+        [{"name": k, "value": v} for k, v in parameters.items()],
+    )
     result = client.get_plugin_results(job_id=job_id)
     if result is None:
         return

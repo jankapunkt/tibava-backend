@@ -33,14 +33,15 @@ class AudioAmp:
     def __call__(self, parameters=None, **kwargs):
 
         video = kwargs.get("video")
-        print(f"[AudioAmp] {video}: {parameters}", flush=True)
         if not parameters:
             parameters = []
 
         task_parameter = {"timeline": "audio_amp"}
         for p in parameters:
-            if p["name"] in "timeline":
+            if p["name"] in ["timeline"]:
                 task_parameter[p["name"]] = str(p["value"])
+            elif p["name"] in ["sr"]:
+                task_parameter[p["name"]] = int(p["value"])
             else:
                 return False
 
@@ -69,6 +70,8 @@ def audio_amp(self, args):
     output_path = config.get("output_path")
     analyser_host = args.get("analyser_host", "localhost")
     analyser_port = args.get("analyser_port", 50051)
+
+    print(f"[AudioAmp] {video}: {parameters}", flush=True)
 
     video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
@@ -100,7 +103,11 @@ def audio_amp(self, args):
 
     # logging.info(f"Job video_to_audio done: {audio_id}")
 
-    job_id = client.run_plugin("audio_amp_analysis", [{"id": audio_id, "name": "audio"}], [])
+    job_id = client.run_plugin(
+        "audio_amp_analysis",
+        [{"id": audio_id, "name": "audio"}],
+        [{"name": k, "value": v} for k, v in parameters.items()],
+    )
     # logging.info(f"Job audio_amp started: {job_id}")
 
     result = client.get_plugin_results(job_id=job_id)
@@ -116,9 +123,6 @@ def audio_amp(self, args):
     # logging.info(f"Job audio_amp done: {amp_id}")
 
     data = client.download_data(amp_id, output_path)
-    print(data.time[0])
-
-    print(parameters, flush=True)
     plugin_run_result_db = PluginRunResult.objects.create(
         plugin_run=plugin_run_db, data_id=data.id, name="audio_amp", type="S"
     )

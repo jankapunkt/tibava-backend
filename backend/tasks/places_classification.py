@@ -17,8 +17,6 @@ from backend.utils import media_path_to_video
 
 from celery import shared_task
 
-import uuid
-
 
 @PluginManager.export("places_classification")
 class PlacesClassifier:
@@ -32,7 +30,6 @@ class PlacesClassifier:
     def __call__(self, parameters=None, **kwargs):
         video = kwargs.get("video")
         user = kwargs.get("user")
-        print(f"[PlacesClassifier] {video}: {parameters}", flush=True)
         if not parameters:
             parameters = []
 
@@ -40,6 +37,8 @@ class PlacesClassifier:
         for p in parameters:
             if p["name"] in ["timeline", "shot_timeline_id"]:  # defines standard parameter of the task
                 task_parameter[p["name"]] = str(p["value"])
+            elif p["name"] in ["fps"]:
+                task_parameter[p["name"]] = int(p["value"])
             else:
                 return False
 
@@ -77,6 +76,8 @@ def places_classification(self, args):
     analyser_port = args.get("analyser_port", 50051)
 
     user_db = User.objects.get(id=user.get("id"))
+    print(f"[PlacesClassifier] {video}: {parameters}", flush=True)
+
     video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
@@ -89,7 +90,11 @@ def places_classification(self, args):
     """
     client = AnalyserClient(analyser_host, analyser_port)
     data_id = client.upload_file(video_file)
-    job_id = client.run_plugin("places_classifier", [{"id": data_id, "name": "video"}], [])
+    job_id = client.run_plugin(
+        "places_classifier",
+        [{"id": data_id, "name": "video"}],
+        [{"name": k, "value": v} for k, v in parameters.items()],
+    )
     result = client.get_plugin_results(job_id=job_id)
     if result is None:
         return
@@ -151,9 +156,7 @@ def places_classification(self, args):
     segments = {}
     for shot in shots.shots:
         timeline_segment_db = TimelineSegment.objects.create(
-            timeline=annotation_timeline,
-            start=shot.start,
-            end=shot.end,
+            timeline=annotation_timeline, start=shot.start, end=shot.end,
         )
         segments[shot.start] = timeline_segment_db
 

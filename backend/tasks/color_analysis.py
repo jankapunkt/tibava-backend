@@ -20,15 +20,18 @@ class ColorAnalyser:
 
     def __call__(self, parameters=None, **kwargs):
         video = kwargs.get("video")
-        print(f"[ColorAnalyser] {video}: {parameters}", flush=True)
         if not parameters:
             parameters = []
 
         task_parameter = {"timeline": "Color Analysis", "k": 4, "timeline_visualization": 0}
         for p in parameters:
-            # if "name" in p and "value" in p:
-            if p["name"] in task_parameter:
-                task_parameter[p["name"]] = p["value"]
+            if p["name"] in ["timeline"]:
+                task_parameter[p["name"]] = str(p["value"])
+            elif p["name"] in ["k", "fps", "max_resolution", "max_iter"]:
+                task_parameter[p["name"]] = int(p["value"])
+            else:
+                return False
+
         pluging_run_db = PluginRun.objects.create(video=video, type="color_analysis", status="Q")
 
         task = color_analysis.apply_async(
@@ -55,6 +58,8 @@ def color_analysis(self, args):
     analyser_host = args.get("analyser_host", "localhost")
     analyser_port = args.get("analyser_port", 50051)
 
+    print(f"[ColorAnalyser] {video}: {parameters}", flush=True)
+
     video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
@@ -67,9 +72,7 @@ def color_analysis(self, args):
     client = AnalyserClient(analyser_host, analyser_port)
     data_id = client.upload_file(video_file)
     job_id = client.run_plugin(
-        "color_analyser",
-        [{"id": data_id, "name": "video"}],
-        [{"name": key, "value": val} for key, val in parameters.items()],
+        "color_analyser", [{"id": data_id, "name": "video"}], [{"name": k, "value": v} for k, v in parameters.items()],
     )
     result = client.get_plugin_results(job_id=job_id)
     if result is None:
@@ -84,11 +87,7 @@ def color_analysis(self, args):
 
     parent_timeline = None
     if len(data.data) > 1:
-        parent_timeline = Timeline.objects.create(
-            video=video_db,
-            name=parameters.get("timeline"),
-            type="R",
-        )
+        parent_timeline = Timeline.objects.create(video=video_db, name=parameters.get("timeline"), type="R",)
 
     for i, d in enumerate(data.data):
         plugin_run_result_db = PluginRunResult.objects.create(
