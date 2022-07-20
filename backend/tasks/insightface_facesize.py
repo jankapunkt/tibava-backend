@@ -62,7 +62,7 @@ def insightface_detection(self, args):
 
     # run insightface_detector
     client = AnalyserClient(analyser_host, analyser_port)
-    data_id = client.upload_data(video_file)
+    data_id = client.upload_file(video_file)
     job_id = client.run_plugin("insightface_detector", [{"id": data_id, "name": "video"}], [])
     result = client.get_plugin_results(job_id=job_id)
     if result is None:

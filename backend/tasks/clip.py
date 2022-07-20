@@ -87,7 +87,7 @@ def clip(self, args):
     # data_id = None
     if data_id is None:
         print(f"Video not exist in the analyser", flush=True)
-        data_id = client.upload_data(video_file)
+        data_id = client.upload_file(video_file)
         r.set(f"video_{video.get('id')}", data_id)
         # print(f"{data_id}", flush=True)
     print(data_id, flush=True)

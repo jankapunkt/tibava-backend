@@ -79,7 +79,7 @@ def audio_freq(self, args):
     client = AnalyserClient(analyser_host, analyser_port)
 
     # print(f"Start uploading", flush=True)
-    data_id = client.upload_data(video_file)
+    data_id = client.upload_file(video_file)
     # print(f"{data_id}", flush=True)
 
     # print(f"Start plugin", flush=True)

@@ -62,7 +62,7 @@ def deepface_emotion(self, args):
 
     # run insightface_detector
     client = AnalyserClient(analyser_host, analyser_port)
-    data_id = client.upload_data(video_file)
+    data_id = client.upload_file(video_file)
     job_id = client.run_plugin("insightface_detector", [{"id": data_id, "name": "video"}], [])
     result = client.get_plugin_results(job_id=job_id)
     if result is None:
@@ -106,7 +106,10 @@ def deepface_emotion(self, args):
         }
 
         plugin_run_result_db = PluginRunResult.objects.create(
-            plugin_run=plugin_run_db, data_id=sub_data.id, name="face_emotion", type="S",  # S stands for SCALAR_DATA
+            plugin_run=plugin_run_db,
+            data_id=sub_data.id,
+            name="face_emotion",
+            type="S",  # S stands for SCALAR_DATA
         )
         Timeline.objects.create(
             video=video_db,

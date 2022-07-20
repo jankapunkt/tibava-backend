@@ -64,7 +64,7 @@ def shot_type_classification(self, args):
     # print(f"{analyser_host}, {analyser_port}")
 
     client = AnalyserClient(analyser_host, analyser_port)
-    data_id = client.upload_data(video_file)
+    data_id = client.upload_file(video_file)
     job_id = client.run_plugin("shot_type_classifier", [{"id": data_id, "name": "video"}], [])
     result = client.get_plugin_results(job_id=job_id)
     if result is None:

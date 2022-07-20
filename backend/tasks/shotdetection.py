@@ -60,7 +60,7 @@ def detect_shots(self, args):
     client = AnalyserClient(analyser_host, analyser_port)
 
     print(f"Start uploading", flush=True)
-    data_id = client.upload_data(video_file)
+    data_id = client.upload_file(video_file)
     print(f"{data_id}", flush=True)
 
     print(f"Start plugin", flush=True)
@@ -85,7 +85,10 @@ def detect_shots(self, args):
     for shot in data.shots:
         segment_id = uuid.uuid4().hex
         timeline_segment = TimelineSegment.objects.create(
-            timeline=timeline, id=segment_id, start=shot.start, end=shot.end,
+            timeline=timeline,
+            id=segment_id,
+            start=shot.start,
+            end=shot.end,
         )
 
     plugin_run_result_db = PluginRunResult.objects.create(

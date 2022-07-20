@@ -64,7 +64,7 @@ def color_analysis(self, args):
     # print(f"{analyser_host}, {analyser_port}")
 
     client = AnalyserClient(analyser_host, analyser_port)
-    data_id = client.upload_data(video_file)
+    data_id = client.upload_file(video_file)
     job_id = client.run_plugin(
         "color_analyser",
         [{"id": data_id, "name": "video"}],
@@ -83,7 +83,11 @@ def color_analysis(self, args):
 
     parent_timeline = None
     if len(data.data) > 1:
-        parent_timeline = Timeline.objects.create(video=video_db, name=parameters.get("timeline"), type="R",)
+        parent_timeline = Timeline.objects.create(
+            video=video_db,
+            name=parameters.get("timeline"),
+            type="R",
+        )
 
     for i, d in enumerate(data.data):
         plugin_run_result_db = PluginRunResult.objects.create(

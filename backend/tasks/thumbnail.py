@@ -69,7 +69,7 @@ def generate_thumbnails(self, args):
     print(f"{analyser_host}, {analyser_port}")
     client = AnalyserClient(analyser_host, analyser_port)
     logging.info(f"Start uploading")
-    data_id = client.upload_data(video_file)
+    data_id = client.upload_file(video_file)
     logging.info(f"Upload done: {data_id}")
 
     job_id = client.run_plugin("thumbnail_generator", [{"id": data_id, "name": "video"}], [])
