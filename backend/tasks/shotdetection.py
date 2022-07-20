@@ -30,7 +30,8 @@ class Thumbnail:
             "analyser_port": 50051,
         }
 
-    def __call__(self, video, parameters=None):
+    def __call__(self, parameters=None, **kwargs):
+        video = kwargs.get("video")
 
         video_analyse = PluginRun.objects.create(video=video, type="shotdetection", status="Q")
 

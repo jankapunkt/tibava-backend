@@ -74,7 +74,9 @@ class PluginRunNew(View):
             except Video.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
-            plugin_manager(video_db, data["plugin"], parameters)
+            user_db = request.user
+
+            plugin_manager(data["plugin"], parameters, user=user_db, video=video_db)
 
             return JsonResponse({"status": "ok"})
         except Exception as e:

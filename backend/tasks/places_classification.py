@@ -8,6 +8,7 @@ from backend.models import (
     PluginRunResult,
     TimelineSegmentAnnotation,
     Video,
+    User,
     Timeline,
     TimelineSegment,
 )
@@ -28,7 +29,9 @@ class PlacesClassifier:
             "analyser_port": 50051,
         }
 
-    def __call__(self, video, parameters=None):
+    def __call__(self, parameters=None, **kwargs):
+        video = kwargs.get("video")
+        user = kwargs.get("user")
         print(f"[PlacesClassifier] {video}: {parameters}", flush=True)
         if not parameters:
             parameters = []
@@ -47,6 +50,12 @@ class PlacesClassifier:
                 {
                     "id": pluging_run_db.id.hex,
                     "video": video.to_dict(),
+                    "user": {
+                        "username": user.get_username(),
+                        "email": user.email,
+                        "date": user.date_joined,
+                        "id": user.id,
+                    },
                     "config": self.config,
                     "parameters": task_parameter,
                 },
@@ -61,11 +70,13 @@ def places_classification(self, args):
     config = args.get("config")
     parameters = args.get("parameters")
     video = args.get("video")
+    user = args.get("user")
     id = args.get("id")
     output_path = config.get("output_path")
     analyser_host = args.get("analyser_host", "localhost")
     analyser_port = args.get("analyser_port", 50051)
 
+    user_db = User.objects.get(id=user.get("id"))
     video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
@@ -140,18 +151,22 @@ def places_classification(self, args):
     segments = {}
     for shot in shots.shots:
         timeline_segment_db = TimelineSegment.objects.create(
-            timeline=annotation_timeline, start=shot.start, end=shot.end,
+            timeline=annotation_timeline,
+            start=shot.start,
+            end=shot.end,
         )
         segments[shot.start] = timeline_segment_db
 
     category_lut = {"probs_places365": "Places365", "probs_places16": "Places16", "probs_places3": "Places3"}
     for key in result_annotations:
-        category_db, _ = AnnotationCategory.objects.get_or_create(name=category_lut[key], video=video_db)
+        category_db, _ = AnnotationCategory.objects.get_or_create(name=category_lut[key], video=video_db, owner=user_db)
 
         for annotation in result_annotations[key].annotations:
             for label in annotation.labels:
                 # add annotion to TimelineSegment
-                annotation_db, _ = Annotation.objects.get_or_create(name=label, video=video_db, category=category_db)
+                annotation_db, _ = Annotation.objects.get_or_create(
+                    name=label, video=video_db, category=category_db, owner=user_db
+                )
 
                 TimelineSegmentAnnotation.objects.create(
                     annotation=annotation_db, timeline_segment=segments[annotation.start]

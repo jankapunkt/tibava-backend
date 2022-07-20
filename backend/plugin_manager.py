@@ -18,12 +18,12 @@ class PluginManager:
     def __contains__(self, plugin):
         return plugin in self._plugins
 
-    def __call__(self, video, plugin, parameters=None):
+    def __call__(self, plugin, parameters=None, **kwargs):
         print(f"[PluginManager] {plugin}: {parameters}", flush=True)
         if plugin not in self._plugins:
             print(f"Plugin: {plugin} not found")
 
-        self._plugins[plugin]()(video, parameters)
+        self._plugins[plugin]()(parameters, **kwargs)
 
     def get_results(self, analyse):
         if not hasattr(analyse, "type"):

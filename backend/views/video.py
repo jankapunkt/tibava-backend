@@ -28,11 +28,11 @@ from backend.models import Video
 
 
 class VideoUpload(View):
-    def submit_analyse(self, video, plugins):
+    def submit_analyse(self, plugins, **kwargs):
 
         plugin_manager = PluginManager()
         for plugin in plugins:
-            plugin_manager(video, plugin)
+            plugin_manager(plugin, **kwargs)
 
     def post(self, request):
         try:
@@ -92,7 +92,7 @@ class VideoUpload(View):
                     return JsonResponse({"status": "error"})
 
                 analyers = request.POST.get("analyser").split(",")
-                self.submit_analyse(video_db, plugins=["thumbnail"] + analyers)
+                self.submit_analyse(plugins=["thumbnail"] + analyers, video=video_db, user=request.user)
 
                 return JsonResponse(
                     {

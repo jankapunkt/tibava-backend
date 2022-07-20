@@ -16,7 +16,8 @@ class InsightfaceFacesize:
             "analyser_port": 50051,
         }
 
-    def __call__(self, video, parameters=None):
+    def __call__(self, parameters=None, **kwargs):
+        video = kwargs.get("video")
         print(f"[InsightfaceFacesize] {video}: {parameters}", flush=True)
         if not parameters:
             parameters = []
