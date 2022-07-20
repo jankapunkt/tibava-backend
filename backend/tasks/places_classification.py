@@ -73,8 +73,6 @@ def places_classification(self, args):
     plugin_run_db.status = "R"
     plugin_run_db.save()
 
-    print(parameters)
-
     """
     Place Classification
     """
@@ -102,11 +100,9 @@ def places_classification(self, args):
     shots_id = None
     if parameters.get("shot_timeline_id"):
         shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
-        shot_timeline_segments = TimelineSegment.object.filter(timeline=shot_timeline_db)
-        data = ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments])
-        shots_id = client.upload_data(data)
-
-    print(shots_id)
+        shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
+        shots = ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments])
+        shots_id = client.upload_data(shots)
 
     """
     Assign most probable label to each shot boundary
@@ -132,29 +128,34 @@ def places_classification(self, args):
                 if output.name == "annotations":
                     annotation_id = output.id
 
-            result_annotations[key] = client.download_data(annotation_id, args.output_path)
+            result_annotations[key] = client.download_data(annotation_id, output_path)
 
     """
     Create a timeline labeled by most probable places category (per shot)
     """
-    for idx, key in enumerate(result_annotations):
-        timeline_id = uuid.uuid4().hex
-        annotation_timeline = Timeline.objects.create(
-            video=video_db, id=timeline_id, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+    annotation_timeline = Timeline.objects.create(
+        video=video_db, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+    )
+
+    segments = {}
+    for shot in shots.shots:
+        timeline_segment_db = TimelineSegment.objects.create(
+            timeline=annotation_timeline, start=shot.start, end=shot.end,
         )
+        segments[shot.start] = timeline_segment_db
+
+    category_lut = {"probs_places365": "Places365", "probs_places16": "Places16", "probs_places3": "Places3"}
+    for key in result_annotations:
+        category_db, _ = AnnotationCategory.objects.get_or_create(name=category_lut[key], video=video_db)
+
         for annotation in result_annotations[key].annotations:
-            segment_id = uuid.uuid4().hex
-            timeline_segment_db = TimelineSegment.objects.create(
-                timeline=annotation_timeline, id=segment_id, start=annotation.start, end=annotation.end,
-            )
-
-            # TODO cleaner solution to get the category label from key?
-            category_db = AnnotationCategory.objects.get_or_create(name=key.split("_")[-1], video=video.db)
-
             for label in annotation.labels:
                 # add annotion to TimelineSegment
-                annotation_db = Annotation.objects.get_or_create(name=label, video=video_db, category=category_db)
-                TimelineSegmentAnnotation.objects.create(annotation=annotation_db, timeline_segment=timeline_segment_db)
+                annotation_db, _ = Annotation.objects.get_or_create(name=label, video=video_db, category=category_db)
+
+                TimelineSegmentAnnotation.objects.create(
+                    annotation=annotation_db, timeline_segment=segments[annotation.start]
+                )
 
     """
     TODO: Create hierarchical timeline(s) with probability of each place category (per hierarchy level) as scalar data
