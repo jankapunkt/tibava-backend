@@ -110,8 +110,12 @@ class Timeline(models.Model):
         (TYPE_PLUGIN_RESULT, "PLUGIN_RESULT"),
     ]
 
-    type = models.CharField(max_length=2, choices=TYPE, default=TYPE_ANNOTATION,)
-    order = models.IntegerField(default=0)
+    type = models.CharField(
+        max_length=2,
+        choices=TYPE,
+        default=TYPE_ANNOTATION,
+    )
+    order = models.IntegerField(default=-1)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
     collapse = models.BooleanField(default=False)
     visualization = models.CharField(
@@ -119,6 +123,13 @@ class Timeline(models.Model):
         choices=[("C", "COLOR"), ("CC", "CATEGORYCOLOR"), ("SC", "SCALARCOLOR"), ("SL", "SCALARLINE"), ("H", "HIST")],
         default="C",
     )
+
+    def save(self, *args, **kwargs):
+
+        if self.order < 0:
+            self.order = Timeline.objects.filter(video=self.video).count()
+
+        super(Timeline, self).save(*args, **kwargs)
 
     class Meta:
         ordering = ["order"]
@@ -259,7 +270,8 @@ class TimelineSegmentAnnotation(models.Model):
     def clone(self, timeline_segment):
 
         new_timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.create(
-            timeline_segment=timeline_segment, annotation=self.annotation,
+            timeline_segment=timeline_segment,
+            annotation=self.annotation,
         )
         return new_timeline_segment_annotation_db
 

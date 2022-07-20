@@ -78,7 +78,6 @@ class TimelineSegmentAnnotate(View):
                                 owner=request.user,
                             )
                             annotation_category_added.append(annotation_category_db.to_dict())
-                        print(annotation_category_db.to_dict())
 
                     # check if there is a existing annotation with this name and category for this video
                     # TODO check name and color in dict
@@ -88,13 +87,10 @@ class TimelineSegmentAnnotate(View):
                     else:
                         query_dict["category"] = None
                     try:
-                        print(query_dict, flush=True)
                         annotation_db = Annotation.objects.get(**query_dict)
                     except Annotation.DoesNotExist:
-                        print({**query_dict, "color": annotation.get("color")})
                         annotation_db = Annotation.objects.create(**{**query_dict, "color": annotation.get("color")})
                         annotation_added.append(annotation_db.to_dict())
-                    print(annotation_db.to_dict())
 
                     timeline_segment_annotation_db, created = TimelineSegmentAnnotation.objects.get_or_create(
                         timeline_segment=segment_db, annotation=annotation_db
@@ -161,8 +157,6 @@ class TimelineSegmentList(View):
     def get(self, request):
         try:
 
-            start = time.time()
-            print(start)
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error"})
 
@@ -179,12 +173,9 @@ class TimelineSegmentList(View):
             timeline_segments = (
                 TimelineSegment.objects.filter(**query_args).select_related("timeline").prefetch_related("annotations")
             )
-            print(timeline_segments.query)
-            print(time.time() - start)
             entries = []
             for segment in timeline_segments:
                 entries.append(segment.to_dict())
-            print(time.time() - start)
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
             logging.error(traceback.format_exc())
@@ -334,9 +325,9 @@ class TimelineSegmentSplit(View):
                 [x.to_dict() for x in timeline_segment_db_splits[1].timelinesegmentannotation_set.all()]
             )
 
-            timeline_segment_deleted.append(timeline_segment_db.id)
+            timeline_segment_deleted.append(timeline_segment_db.id.hex)
             timeline_segment_annotation_deleted.extend(
-                [x.id for x in timeline_segment_db.timelinesegmentannotation_set.all()]
+                [x.id.hex for x in timeline_segment_db.timelinesegmentannotation_set.all()]
             )
             timeline_segment_db.delete()
 

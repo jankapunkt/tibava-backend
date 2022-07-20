@@ -47,7 +47,7 @@ class VideoUpload(View):
             video_id = video_id_uuid.hex
             if "file" in request.FILES:
                 output_dir = os.path.join(settings.MEDIA_ROOT)
-                print(output_dir, flush=True)
+
                 download_result = download_file(
                     output_dir=output_dir,
                     output_name=video_id,
@@ -56,7 +56,6 @@ class VideoUpload(View):
                     extensions=(".mkv", ".mp4", ".ogv"),
                 )
 
-                print(download_result, flush=True)
                 if download_result["status"] != "ok":
                     logging.error("VideoUpload::download_failed")
                     return JsonResponse(download_result)
@@ -123,8 +122,6 @@ class VideoList(View):
                 return JsonResponse({"status": "error"})
             entries = []
             for video in Video.objects.filter(owner=request.user):
-
-                print(f"Bar {video.id.hex}", flush=True)
                 entries.append(video.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
