@@ -18,6 +18,10 @@ from backend.utils import media_path_to_video
 from celery import shared_task
 
 
+CATEGORY_LUT = {"probs_places365": "Places365", "probs_places16": "Places16", "probs_places3": "Places3"}
+PLUGIN_NAME = "PlacesClassifier"
+
+
 @PluginManager.export("places_classification")
 class PlacesClassifier:
     def __init__(self):
@@ -76,7 +80,7 @@ def places_classification(self, args):
     analyser_port = args.get("analyser_port", 50051)
 
     user_db = User.objects.get(id=user.get("id"))
-    print(f"[PlacesClassifier] {video}: {parameters}", flush=True)
+    print(f"[{PLUGIN_NAME}] {video}: {parameters}", flush=True)
 
     video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
@@ -88,6 +92,7 @@ def places_classification(self, args):
     """
     Place Classification
     """
+    print(f"[{PLUGIN_NAME}] Run place classification", flush=True)
     client = AnalyserClient(analyser_host, analyser_port)
     data_id = client.upload_file(video_file)
     job_id = client.run_plugin(
@@ -113,6 +118,9 @@ def places_classification(self, args):
     """
     Get shots from timeline with shot boundaries (if selected by the user)
     """
+    print(
+        f"[{PLUGIN_NAME}] Get shot boundaries from timeline with id: {parameters.get('shot_timeline_id')}", flush=True
+    )
     shots_id = None
     if parameters.get("shot_timeline_id"):
         shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
@@ -123,6 +131,7 @@ def places_classification(self, args):
     """
     Assign most probable label to each shot boundary
     """
+    print(f"[{PLUGIN_NAME}] Assign most probable class to each shot", flush=True)
     result_annotations = {}
     if shots_id:
         for key in result_ids:
@@ -149,6 +158,7 @@ def places_classification(self, args):
     """
     Create a timeline labeled by most probable places category (per shot)
     """
+    print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
     annotation_timeline = Timeline.objects.create(
         video=video_db, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
     )
@@ -178,6 +188,7 @@ def places_classification(self, args):
     """
     TODO: Create hierarchical timeline(s) with probability of each place category (per hierarchy level) as scalar data
     """
+    print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
     # if parameters.get("show_probs"):
 
     for index, sub_data in zip(result_probs["probs_places3"].index, result_probs["probs_places3"].data):
