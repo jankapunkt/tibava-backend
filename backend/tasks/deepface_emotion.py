@@ -83,8 +83,8 @@ def deepface_emotion(self, args):
     user = args.get("user")
     id = args.get("id")
     output_path = config.get("output_path")
-    analyser_host = args.get("analyser_host", "localhost")
-    analyser_port = args.get("analyser_port", 50051)
+    analyser_host = config.get("analyser_host", "localhost")
+    analyser_port = config.get("analyser_port", 50051)
 
     print(f"[{PLUGIN_NAME}] {video}: {parameters}", flush=True)
 
@@ -180,7 +180,9 @@ def deepface_emotion(self, args):
     for annotation in result_annotations.annotations:
         # create TimelineSegment
         timeline_segment_db = TimelineSegment.objects.create(
-            timeline=annotation_timeline, start=annotation.start, end=annotation.end,
+            timeline=annotation_timeline,
+            start=annotation.start,
+            end=annotation.end,
         )
 
         for label in annotation.labels:
@@ -198,7 +200,10 @@ def deepface_emotion(self, args):
     for index, sub_data in zip(data.index, data.data):
 
         plugin_run_result_db = PluginRunResult.objects.create(
-            plugin_run=plugin_run_db, data_id=sub_data.id, name="face_emotion", type="S",  # S stands for SCALAR_DATA
+            plugin_run=plugin_run_db,
+            data_id=sub_data.id,
+            name="face_emotion",
+            type="S",  # S stands for SCALAR_DATA
         )
         Timeline.objects.create(
             video=video_db,

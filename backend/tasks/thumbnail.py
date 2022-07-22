@@ -56,8 +56,8 @@ def generate_thumbnails(self, args):
     config = args.get("config")
     video = args.get("video")
     id = args.get("id")
-    analyser_host = args.get("analyser_host", "localhost")
-    analyser_port = args.get("analyser_port", 50051)
+    analyser_host = config.get("analyser_host", "localhost")
+    analyser_port = config.get("analyser_port", 50051)
 
     video_db = Video.objects.get(id=video.get("id"))
 

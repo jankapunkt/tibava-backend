@@ -55,8 +55,8 @@ def clip(self, args):
     video = args.get("video")
     id = args.get("id")
     output_path = config.get("output_path")
-    analyser_host = args.get("analyser_host", "localhost")
-    analyser_port = args.get("analyser_port", 50051)
+    analyser_host = config.get("analyser_host", "localhost")
+    analyser_port = config.get("analyser_port", 50051)
 
     print(f"[CLIP] {video}: {parameters}", flush=True)
 
@@ -104,7 +104,9 @@ def clip(self, args):
     logging.info(f"finished job with resulting embedding id: {embd_id}")
     # calculate similarities between image embeddings and search term
     job_id = client.run_plugin(
-        "clip_probs", [{"id": embd_id, "name": "embeddings"}], [{"name": k, "value": v} for k, v in parameters.items()],
+        "clip_probs",
+        [{"id": embd_id, "name": "embeddings"}],
+        [{"name": k, "value": v} for k, v in parameters.items()],
     )
     logging.info(f"Job clip_probs started: {job_id}")
 

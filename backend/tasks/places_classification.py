@@ -76,8 +76,8 @@ def places_classification(self, args):
     user = args.get("user")
     id = args.get("id")
     output_path = config.get("output_path")
-    analyser_host = args.get("analyser_host", "localhost")
-    analyser_port = args.get("analyser_port", 50051)
+    analyser_host = config.get("analyser_host", "localhost")
+    analyser_port = config.get("analyser_port", 50051)
 
     user_db = User.objects.get(id=user.get("id"))
     print(f"[{PLUGIN_NAME}] {video}: {parameters}", flush=True)
@@ -166,7 +166,9 @@ def places_classification(self, args):
     segments = {}
     for shot in shots.shots:
         timeline_segment_db = TimelineSegment.objects.create(
-            timeline=annotation_timeline, start=shot.start, end=shot.end,
+            timeline=annotation_timeline,
+            start=shot.start,
+            end=shot.end,
         )
         segments[shot.start] = timeline_segment_db
 

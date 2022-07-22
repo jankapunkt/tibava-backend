@@ -68,8 +68,8 @@ def audio_amp(self, args):
     video = args.get("video")
     id = args.get("id")
     output_path = config.get("output_path")
-    analyser_host = args.get("analyser_host", "localhost")
-    analyser_port = args.get("analyser_port", 50051)
+    analyser_host = config.get("analyser_host", "localhost")
+    analyser_port = config.get("analyser_port", 50051)
 
     print(f"[AudioAmp] {video}: {parameters}", flush=True)
 
