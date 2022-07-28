@@ -1,8 +1,14 @@
+from random import random
 import uuid
 
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
+from backend.utils.color import rgb_to_hex, random_rgb
+
+
+def random_color_string():
+    return rgb_to_hex(random_rgb())
 
 
 class Video(models.Model):
@@ -178,7 +184,7 @@ class AnnotationCategory(models.Model):
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
-    color = models.CharField(max_length=256, null=True)
+    color = models.CharField(max_length=256, default=random_color_string)
 
     def to_dict(self, **kwargs):
         result = {
@@ -195,7 +201,7 @@ class Annotation(models.Model):
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
-    color = models.CharField(max_length=256, null=True)
+    color = models.CharField(max_length=256, default=random_color_string)
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
