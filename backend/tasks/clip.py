@@ -25,9 +25,9 @@ class CLIP:
 
         task_parameter = {"timeline": "clip"}
         for p in parameters:
-            if p["name"] == ["timeline", "search_term"]:
+            if p["name"] in ["timeline", "search_term"]:
                 task_parameter[p["name"]] = str(p["value"])
-            elif p["name"] == ["fps"]:
+            elif p["name"] in ["fps"]:
                 task_parameter[p["name"]] = int(p["value"])
             else:
                 return False
