@@ -12,6 +12,8 @@ from .annotation import *
 from .shortcut import *
 from .annotation_shortcut import *
 
+from .analyser_api import *
+
 from .user import *
 
 # TODO this is not the best way to do it
