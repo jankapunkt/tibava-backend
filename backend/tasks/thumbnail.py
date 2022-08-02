@@ -23,7 +23,7 @@ from analyser.data import DataManager
 class Thumbnail:
     def __init__(self):
         self.config = {
-            "fps": 1,
+            "fps": 5,
             "max_resolution": 128,
             "output_path": "/predictions/",
             "base_url": "http://localhost/thumbnails/",
