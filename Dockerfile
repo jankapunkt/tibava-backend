@@ -3,7 +3,7 @@ FROM ubuntu:22.04
 
 RUN DEBIAN_FRONTEND=noninteractive apt update --fix-missing -y
 RUN DEBIAN_FRONTEND=noninteractive apt upgrade --fix-missing -y 
-RUN DEBIAN_FRONTEND=noninteractive apt install python3-pip npm git libsndfile1-dev python3-numba python3-opencv python3-psycopg2 python3-numpy ffmpeg python3-imageio -y
+RUN DEBIAN_FRONTEND=noninteractive apt install python3-pip npm git libsndfile1-dev python3-numba python3-opencv python3-psycopg2 python3-numpy ffmpeg -y
 RUN DEBIAN_FRONTEND=noninteractive apt install libmariadbclient-dev-compat imagemagick python3-sklearn -y
 
 
@@ -20,6 +20,8 @@ ENV NUMBA_CACHE_DIR=/tmp/
 COPY requirements.txt .
 RUN python3 -m pip install -r requirements.txt
 RUN python3 -m pip install librosa ffmpeg-python
+RUN python3 -m pip install imageio
+RUN python3 -m pip install "imageio[pyav]"
 RUN python3 -m pip install imageio-ffmpeg
 
 RUN python3 -m pip install msgpack_numpy
