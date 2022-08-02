@@ -18,6 +18,7 @@ from analyser.data import DataManager
 from analyser import analyser_pb2, analyser_pb2_grpc
 
 from django.views.decorators.csrf import csrf_exempt
+from django.http import FileResponse
 
 
 class AnalyserUploadFile(View):
@@ -149,13 +150,14 @@ class AnalyserPluginStatus(View):
                 return JsonResponse({"status": "error"})
 
             if result.status == analyser_pb2.GetPluginStatusResponse.RUNNING:
-                return JsonResponse({"status": "ok", "status": "running"})
+                return JsonResponse({"status": "ok", "plugin_status": "running"})
             elif result.status == analyser_pb2.GetPluginStatusResponse.ERROR:
-                return JsonResponse({"status": "ok", "status": "error"})
+                return JsonResponse({"status": "ok", "plugin_status": "error"})
             elif result.status == analyser_pb2.GetPluginStatusResponse.DONE:
-                return JsonResponse({"status": "ok", "status": "done", "result": result})
+                outputs = [{"name": x.name, "id": x.id} for x in result.outputs]
+                return JsonResponse({"status": "ok", "plugin_status": "done", "outputs": outputs})
 
-            return JsonResponse({"status": "ok", "status": "unknown"})
+            return JsonResponse({"status": "ok", "plugin_status": "unknown"})
 
         except Exception as e:
             print(e, flush=True)
@@ -165,3 +167,53 @@ class AnalyserPluginStatus(View):
     @classmethod
     def as_view(cls):
         return csrf_exempt(super(AnalyserPluginStatus, cls).as_view())
+
+
+class AnalyserDownloadData(View):
+    def __init__(self):
+        self.config = {
+            "analyser_host": "localhost",
+            "analyser_port": 50051,
+        }
+
+    @csrf_exempt
+    def post(self, request):
+        print(request.POST)
+        try:
+            if request.method != "POST":
+                logging.error("AnalyserUploadFile::wrong_method")
+                return JsonResponse({"status": "error"})
+
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+            client = AnalyserClient(self.config["analyser_host"], self.config["analyser_port"])
+
+            tempdir = tempfile.mkdtemp()
+
+            output_dir = os.path.join(tempdir)
+            data_path = client.download_data_to_blob(data.get("data_id"), output_dir)
+            if data is None:
+                return JsonResponse({"status": "error"})
+            response = FileResponse(open(data_path, "rb"))
+            response["Content-Type"] = "application/x-binary"
+            response["Content-Disposition"] = 'attachment; filename="{}.bin"'.format(
+                data.get("data_id")
+            )  # You can set custom filename, which will be visible for clients.
+            return response
+
+        except Exception as e:
+            print(e, flush=True)
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+    @classmethod
+    def as_view(cls):
+        return csrf_exempt(super(AnalyserDownloadData, cls).as_view())
