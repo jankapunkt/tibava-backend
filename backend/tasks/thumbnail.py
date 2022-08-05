@@ -74,7 +74,7 @@ def generate_thumbnails(self, args):
     logging.info(f"Upload done: {data_id}")
 
     job_id = client.run_plugin("thumbnail_generator", [{"id": data_id, "name": "video"}], [])
-    logging.info(f"Job video_to_audio started: {job_id}")
+    logging.info(f"Job thumbnail started: {job_id}")
 
     result = client.get_plugin_results(job_id=job_id)
     if result is None:

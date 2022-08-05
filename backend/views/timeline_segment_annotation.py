@@ -130,6 +130,8 @@ class TimelineSegmentAnnoatationCreate(View):
             return JsonResponse({"status": "error"})
 
 
+import time
+
 # from django.core.exceptions import BadRequest
 class TimelineSegmentAnnoatationToggle(View):
     def parse_timeline_segment_ids(self, data):
@@ -228,6 +230,8 @@ class TimelineSegmentAnnoatationToggle(View):
         return JsonResponse({"status": "error", "type": "missing_values"})
 
     def post(self, request):
+        start = time.time()
+        print(f"toggle {start}")
         try:
 
             # decode data
@@ -260,7 +264,7 @@ class TimelineSegmentAnnoatationToggle(View):
                     timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.get(
                         timeline_segment=timeline_segment_db, annotation=annotation_db
                     )
-                    timeline_segment_annotation_deleted.append(timeline_segment_annotation_db.id)
+                    timeline_segment_annotation_deleted.append(timeline_segment_annotation_db.id.hex)
                     timeline_segment_annotation_db.delete()
                 except TimelineSegmentAnnotation.DoesNotExist:
                     timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.create(
@@ -273,9 +277,11 @@ class TimelineSegmentAnnoatationToggle(View):
                     timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.filter(
                         timeline_segment=timeline_segment_db, annotation=annotation_db
                     )
-                    timeline_segment_annotation_deleted.extend([x.id for x in timeline_segment_annotation_db])
+                    timeline_segment_annotation_deleted.extend([x.id.hex for x in timeline_segment_annotation_db])
                     timeline_segment_annotation_db.delete()
 
+            end = time.time()
+            print(f"toggle {end} {end-start}")
             return JsonResponse(
                 {
                     "status": "ok",
