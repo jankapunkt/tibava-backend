@@ -27,7 +27,7 @@ class Thumbnail:
             "max_resolution": 128,
             "output_path": "/predictions/",
             "base_url": "http://localhost/thumbnails/",
-            "analyser_host": "localhost",
+            "analyser_host": "analyser",
             "analyser_port": 50051,
         }
 

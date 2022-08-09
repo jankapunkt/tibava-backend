@@ -83,7 +83,7 @@ WSGI_APPLICATION = "tibava.wsgi.application"
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.memcached.PyMemcacheCache",
-        "LOCATION": "127.0.0.1:11211",
+        "LOCATION": "memcached:11211",
         "TIMEOUT": 60 * 60 * 24,
     }
 }
@@ -97,7 +97,7 @@ DATABASES = {
         "NAME": "tibava",
         "USER": "postgres",
         "PASSWORD": "postgres",
-        "HOST": "localhost",
+        "HOST": "postgres",
         "PORT": 5432,
     }
 }

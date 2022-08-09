@@ -5,7 +5,7 @@ from celery import Celery
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tibava.settings")
 
-app = Celery("tibava", broker="redis://localhost:6380")
+app = Celery("tibava", broker="redis://backend_redis:6380")
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.

@@ -35,7 +35,7 @@ class DeepfaceEmotion:
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "localhost",
+            "analyser_host": "analyser",
             "analyser_port": 50051,
         }
 
