@@ -47,8 +47,8 @@ def detect_shots(self, args):
     video = args.get("video")
     id = args.get("id")
     output_path = config.get("output_path")
-    analyser_host = args.get("analyser_host", "localhost")
-    analyser_port = args.get("analyser_port", 50051)
+    analyser_host = config.get("analyser_host", "localhost")
+    analyser_port = config.get("analyser_port", 50051)
 
     video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
