@@ -1,3 +1,4 @@
+from .aggregate_scalar import *
 from .audio_amp import *
 from .audio_freq import *
 from .color_analysis import *
