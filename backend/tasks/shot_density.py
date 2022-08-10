@@ -16,7 +16,7 @@ PLUGIN_NAME = "ShotDensity"
 
 
 @PluginManager.export("shot_density")
-class ShotTypeClassifier:
+class ShotDensity:
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
