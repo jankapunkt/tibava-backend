@@ -56,9 +56,22 @@ class PluginRun(models.Model):
     update_date = models.DateTimeField(auto_now_add=True)
     type = models.CharField(max_length=256)
     progress = models.FloatField(default=0.0)
-    status = models.CharField(
-        max_length=2, choices=[("Q", "Queued"), ("R", "Running"), ("D", "Done"), ("E", "Error")], default="U"
-    )
+    STATUS_UNKNOWN = "U"
+    STATUS_ERROR = "E"
+    STATUS_DONE = "D"
+    STATUS_RUNNING = "R"
+    STATUS_QUEUED = "Q"
+    STATUS_WAITING = "W"
+    STATUS = {
+        STATUS_UNKNOWN: "UNKNOWN",
+        STATUS_ERROR: "ERROR",
+        STATUS_DONE: "DONE",
+        STATUS_RUNNING: "RUNNING",
+        STATUS_QUEUED: "QUEUED",
+        STATUS_WAITING: "WAITING",
+    }
+
+    status = models.CharField(max_length=2, choices=[(k, v) for k, v in STATUS.items()], default=STATUS_UNKNOWN)
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
@@ -67,7 +80,7 @@ class PluginRun(models.Model):
             "date": self.date,
             "update_date": self.update_date,
             "progress": self.progress,
-            "status": self.status,
+            "status": self.STATUS[self.status],
         }
         if include_refs_hashes:
             result["video_id"] = self.video.id.hex
@@ -79,23 +92,31 @@ class PluginRunResult(models.Model):
     plugin_run = models.ForeignKey(PluginRun, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
     data_id = models.CharField(null=True, max_length=64)
+    TYPE_VIDEO = "V"
+    TYPE_IMAGES = "I"
+    TYPE_SCALAR = "S"
+    TYPE_HIST = "H"
+    TYPE_SHOTS = "SH"
+    TYPE_RGB_HIST = "R"
+    TYPE = {
+        TYPE_VIDEO: "VIDEO",
+        TYPE_IMAGES: "IMAGES",
+        TYPE_SCALAR: "SCALAR",
+        TYPE_HIST: "HIST",
+        TYPE_SHOTS: "SHOTS",
+        TYPE_RGB_HIST: "RGB_HIST",
+    }
+
     type = models.CharField(
         max_length=2,
-        choices=[
-            ("V", "VIDEO_DATA"),
-            ("I", "IMAGE_DATA"),
-            ("S", "SCALAR_DATA"),
-            ("H", "HIST_DATA"),
-            ("SH", "SHOTS_DATA"),
-            ("R", "RGB_HIST_DATA"),
-        ],
-        default="S",
+        choices=[(k, v) for k, v in TYPE.items()],
+        default=TYPE_SCALAR,
     )
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
             "id": self.id.hex,
-            "type": self.type,
+            "type": self.TYPE[self.type],
             "data_id": self.data_id,
         }
         if include_refs_hashes:
@@ -111,23 +132,36 @@ class Timeline(models.Model):
 
     TYPE_ANNOTATION = "A"
     TYPE_PLUGIN_RESULT = "R"
-    TYPE = [
-        (TYPE_ANNOTATION, "ANNOTATION"),
-        (TYPE_PLUGIN_RESULT, "PLUGIN_RESULT"),
-    ]
+    TYPE = {
+        TYPE_ANNOTATION: "ANNOTATION",
+        TYPE_PLUGIN_RESULT: "PLUGIN_RESULT",
+    }
 
     type = models.CharField(
         max_length=2,
-        choices=TYPE,
+        choices=[(k, v) for k, v in TYPE.items()],
         default=TYPE_ANNOTATION,
     )
     order = models.IntegerField(default=-1)
     parent = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True)
     collapse = models.BooleanField(default=False)
+
+    VISUALIZATION_COLOR = "C"
+    VISUALIZATION_CATEGORY_COLOR = "CC"
+    VISUALIZATION_SCALAR_COLOR = "SC"
+    VISUALIZATION_SCALAR_LINE = "SL"
+    VISUALIZATION_HIST = "H"
+    VISUALIZATION = {
+        VISUALIZATION_COLOR: "COLOR",
+        VISUALIZATION_CATEGORY_COLOR: "CATEGORY_COLOR",
+        VISUALIZATION_SCALAR_COLOR: "SCALAR_COLOR",
+        VISUALIZATION_SCALAR_LINE: "SCALAR_LINE",
+        VISUALIZATION_HIST: "HIST",
+    }
     visualization = models.CharField(
         max_length=2,
-        choices=[("C", "COLOR"), ("CC", "CATEGORYCOLOR"), ("SC", "SCALARCOLOR"), ("SL", "SCALARLINE"), ("H", "HIST")],
-        default="C",
+        choices=[(k, v) for k, v in VISUALIZATION.items()],
+        default=VISUALIZATION_COLOR,
     )
 
     def save(self, *args, **kwargs):
@@ -145,8 +179,8 @@ class Timeline(models.Model):
             "id": self.id.hex,
             "video_id": self.video.id.hex,
             "name": self.name,
-            "type": self.type,
-            "visualization": self.visualization,
+            "type": self.TYPE[self.type],
+            "visualization": self.VISUALIZATION[self.visualization],
             "order": self.order,
             "collapse": self.collapse,
         }

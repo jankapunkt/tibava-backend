@@ -17,7 +17,7 @@ from django.conf import settings
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
-from analyser.client import AnalyserClient
+from .task import TaskAnalyserClient
 from analyser.data import DataManager
 
 
@@ -45,7 +45,7 @@ class AudioAmp:
             else:
                 return False
 
-        video_analyse = PluginRun.objects.create(video=video, type="audio_amp", status="Q")
+        video_analyse = PluginRun.objects.create(video=video, type="audio_amp", status=PluginRun.STATUS_QUEUED)
 
         task = audio_amp.apply_async(
             (
@@ -77,11 +77,11 @@ def audio_amp(self, args):
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
 
-    plugin_run_db.status = "R"
+    plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
     # print(f"{analyser_host}, {analyser_port}")
-    client = AnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(analyser_host, analyser_port)
 
     # print(f"Start uploading", flush=True)
     data_id = client.upload_file(video_file)
@@ -91,7 +91,7 @@ def audio_amp(self, args):
     job_id = client.run_plugin("video_to_audio", [{"id": data_id, "name": "video"}], [])
     # logging.info(f"Job video_to_audio started: {job_id}")
 
-    result = client.get_plugin_results(job_id=job_id)
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         # logging.error("Job is crashing")
         return
@@ -110,7 +110,7 @@ def audio_amp(self, args):
     )
     # logging.info(f"Job audio_amp started: {job_id}")
 
-    result = client.get_plugin_results(job_id=job_id)
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         # logging.error("Job is crashing")
         return
@@ -124,7 +124,7 @@ def audio_amp(self, args):
 
     data = client.download_data(amp_id, output_path)
     plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="audio_amp", type="S"
+        plugin_run=plugin_run_db, data_id=data.id, name="audio_amp", type=PluginRunResult.TYPE_SCALAR
     )
 
     _ = Timeline.objects.create(
@@ -132,11 +132,11 @@ def audio_amp(self, args):
         name=parameters.get("timeline"),
         type=Timeline.TYPE_PLUGIN_RESULT,
         plugin_run_result=plugin_run_result_db,
-        visualization="SL",
+        visualization=Timeline.VISUALIZATION_SCALAR_LINE,
     )
 
     plugin_run_db.progress = 1.0
-    plugin_run_db.status = "D"
+    plugin_run_db.status = PluginRun.STATUS_DONE
     plugin_run_db.save()
 
     return {"status": "done"}

@@ -2,7 +2,7 @@ from celery import shared_task
 import logging
 import redis
 
-from analyser.client import AnalyserClient
+from .task import TaskAnalyserClient
 
 from backend.models import PluginRun, PluginRunResult, Video, Timeline
 from backend.plugin_manager import PluginManager
@@ -32,7 +32,7 @@ class CLIP:
             else:
                 return False
 
-        video_analyse = PluginRun.objects.create(video=video, type="clip", status="Q")
+        video_analyse = PluginRun.objects.create(video=video, type="clip", status=PluginRun.STATUS_QUEUED)
 
         task = clip.apply_async(
             (
@@ -64,11 +64,11 @@ def clip(self, args):
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
 
-    plugin_run_db.status = "R"
+    plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
     # print(f"{analyser_host}, {analyser_port}")
-    client = AnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(analyser_host, analyser_port)
 
     r = redis.Redis()
     data_id = r.get(f"video_{video.get('id')}")
@@ -90,7 +90,7 @@ def clip(self, args):
         )
         logging.info(f"Job clip_image_embedding started: {job_id}")
 
-        result = client.get_plugin_results(job_id=job_id)
+        result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
         if result is None:
             logging.error("Job is crashing")
             return
@@ -110,7 +110,7 @@ def clip(self, args):
     )
     logging.info(f"Job clip_probs started: {job_id}")
 
-    result = client.get_plugin_results(job_id=job_id)
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         logging.error("Job is crashing")
         return
@@ -125,7 +125,7 @@ def clip(self, args):
     data = client.download_data(probs_id, output_path)
 
     plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="clip", type="S"
+        plugin_run=plugin_run_db, data_id=data.id, name="clip", type=PluginRunResult.TYPE_SCALAR
     )
 
     _ = Timeline.objects.create(
@@ -133,11 +133,11 @@ def clip(self, args):
         name=parameters.get("timeline"),
         type=Timeline.TYPE_PLUGIN_RESULT,
         plugin_run_result=plugin_run_result_db,
-        visualization="SC",
+        visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
     )
 
     plugin_run_db.progress = 1.0
-    plugin_run_db.status = "D"
+    plugin_run_db.status = PluginRun.STATUS_DONE
     plugin_run_db.save()
 
     return {"status": "done"}

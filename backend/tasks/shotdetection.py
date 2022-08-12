@@ -17,7 +17,7 @@ from django.conf import settings
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
-from analyser.client import AnalyserClient
+from .task import TaskAnalyserClient
 from analyser.data import DataManager
 
 
@@ -33,7 +33,7 @@ class Thumbnail:
     def __call__(self, parameters=None, **kwargs):
         video = kwargs.get("video")
 
-        video_analyse = PluginRun.objects.create(video=video, type="shotdetection", status="Q")
+        video_analyse = PluginRun.objects.create(video=video, type="shotdetection", status=PluginRun.STATUS_QUEUED)
 
         task = detect_shots.apply_async(
             ({"id": video_analyse.id.hex, "video": video.to_dict(), "config": self.config},)
@@ -54,11 +54,11 @@ def detect_shots(self, args):
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
 
-    plugin_run_db.status = "R"
+    plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
     print(f"{analyser_host}, {analyser_port}")
-    client = AnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(analyser_host, analyser_port)
 
     print(f"Start uploading", flush=True)
     data_id = client.upload_file(video_file)
@@ -66,7 +66,7 @@ def detect_shots(self, args):
 
     print(f"Start plugin", flush=True)
     job_id = client.run_plugin("transnet_shotdetection", [{"id": data_id, "name": "video"}], [])
-    result = client.get_plugin_results(job_id=job_id)
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         logging.error("Job is crashing")
         return
@@ -93,13 +93,13 @@ def detect_shots(self, args):
         )
 
     plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="shots", type="SH"
+        plugin_run=plugin_run_db, data_id=data.id, name="shots", type=PluginRunResult.TYPE_SHOTS
     )
 
     print(f"save results {plugin_run_result_db}", flush=True)
 
     plugin_run_db.progress = 1.0
-    plugin_run_db.status = "D"
+    plugin_run_db.status = PluginRun.STATUS_DONE
     plugin_run_db.save()
 
     return {"status": "done"}

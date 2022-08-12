@@ -15,8 +15,8 @@ from django.conf import settings
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
-from analyser.client import AnalyserClient
-from analyser.data import DataManager
+
+from .task import TaskAnalyserClient
 
 
 @PluginManager.export("thumbnail")
@@ -34,7 +34,7 @@ class Thumbnail:
     def __call__(self, parameters=None, **kwargs):
         video = kwargs.get("video")
 
-        video_analyse = PluginRun.objects.create(video=video, type="thumbnail", status="Q")
+        video_analyse = PluginRun.objects.create(video=video, type="thumbnail", status=PluginRun.STATUS_QUEUED)
 
         task = generate_thumbnails.apply_async(
             ({"id": video_analyse.id, "video": video.to_dict(), "config": self.config},)
@@ -59,16 +59,17 @@ def generate_thumbnails(self, args):
     analyser_host = config.get("analyser_host", "localhost")
     analyser_port = config.get("analyser_port", 50051)
 
+    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
     video_db = Video.objects.get(id=video.get("id"))
 
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
-    plugin_run_db.status = "R"
+    plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
     print(f"{analyser_host}, {analyser_port}")
-    client = AnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(analyser_host, analyser_port)
     logging.info(f"Start uploading")
     data_id = client.upload_file(video_file)
     logging.info(f"Upload done: {data_id}")
@@ -76,7 +77,7 @@ def generate_thumbnails(self, args):
     job_id = client.run_plugin("thumbnail_generator", [{"id": data_id, "name": "video"}], [])
     logging.info(f"Job thumbnail started: {job_id}")
 
-    result = client.get_plugin_results(job_id=job_id)
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         logging.error("Job is crashing")
         return
@@ -89,44 +90,11 @@ def generate_thumbnails(self, args):
     data = client.download_data(images_id, config.get("output_path"))
 
     plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="images", type="I"
+        plugin_run=plugin_run_db, data_id=data.id, name="images", type=PluginRunResult.TYPE_IMAGES
     )
 
-    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
-    plugin_run_db.status = "D"
     plugin_run_db.progress = 1.0
+    plugin_run_db.status = PluginRun.STATUS_DONE
     plugin_run_db.save()
-    # OLD
 
     return {"status": "done"}
-
-    # print(f"Video in analyse {id}", flush=True)
-    # video_db = Video.objects.get(id=video.get("id"))
-
-    # PluginRun.objects.filter(video=video_db, id=id).update(status="R")
-
-    # video_file = media_path_to_video(video.get("id"), video.get("ext"))
-
-    # fps = config.get("fps", 1)
-
-    # max_resolution = config.get("max_resolution")
-    # if max_resolution is not None:
-    #     res = max(video.get("height"), video.get("width"))
-    #     scale = min(max_resolution / res, 1)
-    #     res = (round(video.get("width") * scale), round(video.get("height") * scale))
-    #     video_reader = imageio.get_reader(video_file, fps=fps, size=res)
-    # else:
-    #     video_reader = imageio.get_reader(video_file, fps=fps)
-
-    # os.makedirs(os.path.join(config.get("output_path"), id), exist_ok=True)
-    # results = []
-    # for i, frame in enumerate(video_reader):
-    #     thumbnail_output = os.path.join(config.get("output_path"), id, f"{i}.jpg")
-    #     imageio.imwrite(thumbnail_output, frame)
-    #     results.append({"time": i / fps, "path": f"{i}.jpg"})
-
-    #     PluginRun.objects.filter(video=video_db, id=id).update(progress=i / (fps * video.get("duration")))
-
-    # PluginRun.objects.filter(video=video_db, id=id).update(
-    #     progress=1.0, results=json.dumps(results).encode(), status="D"
-    # )

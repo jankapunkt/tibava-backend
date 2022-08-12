@@ -4,7 +4,7 @@ from backend.models import PluginRun, PluginRunResult, Video, Timeline
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
-from analyser.client import AnalyserClient
+from .task import TaskAnalyserClient
 
 
 @PluginManager.export("insightface_detection")
@@ -30,7 +30,9 @@ class InsightfaceDetector:
             else:
                 return False
 
-        pluging_run_db = PluginRun.objects.create(video=video, type="insightface_detection", status="Q")
+        pluging_run_db = PluginRun.objects.create(
+            video=video, type="insightface_detection", status=PluginRun.STATUS_QUEUED
+        )
 
         insightface_detection.apply_async(
             (
@@ -61,17 +63,17 @@ def insightface_detection(self, args):
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
 
-    plugin_run_db.status = "R"
+    plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
-    client = AnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(analyser_host, analyser_port)
     data_id = client.upload_file(video_file)
     job_id = client.run_plugin(
         "insightface_detector",
         [{"id": data_id, "name": "video"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
-    result = client.get_plugin_results(job_id=job_id)
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
 
@@ -89,7 +91,7 @@ def insightface_detection(self, args):
     # TODO
 
     plugin_run_db.progress = 1.0
-    plugin_run_db.status = "D"
+    plugin_run_db.status = PluginRun.STATUS_DONE
     plugin_run_db.save()
 
     return {"status": "done"}

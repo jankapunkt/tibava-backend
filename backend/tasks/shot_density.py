@@ -1,3 +1,4 @@
+import logging
 from celery import shared_task
 
 from backend.models import (
@@ -9,7 +10,8 @@ from backend.models import (
 )
 from backend.plugin_manager import PluginManager
 
-from analyser.client import AnalyserClient
+
+from .task import TaskAnalyserClient
 from analyser.data import Shot, ShotsData
 
 PLUGIN_NAME = "ShotDensity"
@@ -39,7 +41,7 @@ class ShotDensity:
             else:
                 return False
 
-        pluging_run_db = PluginRun.objects.create(video=video, type="shot_density", status="Q")
+        pluging_run_db = PluginRun.objects.create(video=video, type="shot_density", status=PluginRun.STATUS_QUEUED)
 
         shot_density.apply_async(
             (
@@ -79,10 +81,10 @@ def shot_density(self, args):
     # video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
 
-    plugin_run_db.status = "R"
+    plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
-    client = AnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(analyser_host, analyser_port)
 
     """
     Get shots from timeline with shot boundaries (if selected by the user)
@@ -96,6 +98,12 @@ def shot_density(self, args):
         shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
         shots_id = client.upload_data(ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments]))
 
+    if shots_id is None:
+        logging.error(f"[ShotDensity] upload of shots {parameters.get('shot_timeline_id')} failed")
+        plugin_run_db.progress = 0.0
+        plugin_run_db.status = PluginRun.STATUS_ERROR
+        plugin_run_db.save()
+        return
     """
     Create timeline(s) with probability of each class as scalar data
     """
@@ -104,8 +112,18 @@ def shot_density(self, args):
     job_id = client.run_plugin(
         "shot_density", [{"id": shots_id, "name": "shots"}], [{"name": k, "value": v} for k, v in parameters.items()]
     )
-    result = client.get_plugin_results(job_id=job_id)
+    if job_id is None:
+        logging.error(f"[ShotDensity] starting of plugin {parameters.get('shot_timeline_id')} failed")
+        plugin_run_db.progress = 0.0
+        plugin_run_db.status = PluginRun.STATUS_ERROR
+        plugin_run_db.save()
+        return
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
+        logging.error(f"[ShotDensity] plugin run crash {parameters.get('shot_timeline_id')} failed")
+        plugin_run_db.progress = 0.0
+        plugin_run_db.status = PluginRun.STATUS_ERROR
+        plugin_run_db.save()
         return
 
     shot_density_id = None
@@ -120,18 +138,18 @@ def shot_density(self, args):
         plugin_run=plugin_run_db,
         data_id=data.id,
         name="shot_density",
-        type="S",  # S stands for SCALAR_DATA
+        type=PluginRunResult.TYPE_SCALAR,
     )
     Timeline.objects.create(
         video=video_db,
         name=parameters.get("timeline"),
         type=Timeline.TYPE_PLUGIN_RESULT,
         plugin_run_result=plugin_run_result_db,
-        visualization="SC",
+        visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
     )
 
     plugin_run_db.progress = 1.0
-    plugin_run_db.status = "D"
+    plugin_run_db.status = PluginRun.STATUS_DONE
     plugin_run_db.save()
 
     return {"status": "done"}

@@ -6,7 +6,7 @@ from backend.utils import media_path_to_video
 
 import logging
 
-from analyser.client import AnalyserClient
+from .task import TaskAnalyserClient
 
 
 @PluginManager.export("color_analysis")
@@ -32,7 +32,7 @@ class ColorAnalyser:
             else:
                 return False
 
-        pluging_run_db = PluginRun.objects.create(video=video, type="color_analysis", status="Q")
+        pluging_run_db = PluginRun.objects.create(video=video, type="color_analysis", status=PluginRun.STATUS_QUEUED)
 
         task = color_analysis.apply_async(
             (
@@ -64,19 +64,19 @@ def color_analysis(self, args):
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
 
-    plugin_run_db.status = "R"
+    plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
     # print(f"{analyser_host}, {analyser_port}")
 
-    client = AnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(analyser_host, analyser_port)
     data_id = client.upload_file(video_file)
     job_id = client.run_plugin(
         "color_analyser",
         [{"id": data_id, "name": "video"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
-    result = client.get_plugin_results(job_id=job_id)
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
 
@@ -92,12 +92,15 @@ def color_analysis(self, args):
         parent_timeline = Timeline.objects.create(
             video=video_db,
             name=parameters.get("timeline"),
-            type="R",
+            type=Timeline.TYPE_PLUGIN_RESULT,
         )
 
     for i, d in enumerate(data.data):
         plugin_run_result_db = PluginRunResult.objects.create(
-            plugin_run=plugin_run_db, data_id=d.id, name="color_analysis", type="R"  # R stands for RGB_HIST_DATA
+            plugin_run=plugin_run_db,
+            data_id=d.id,
+            name="color_analysis",
+            type=PluginRunResult.TYPE_RGB_HIST,
         )
 
         _ = Timeline.objects.create(
@@ -105,12 +108,12 @@ def color_analysis(self, args):
             name=parameters.get("timeline") + f" #{i}" if len(data.data) > 1 else parameters.get("timeline"),
             type=Timeline.TYPE_PLUGIN_RESULT,
             plugin_run_result=plugin_run_result_db,
-            visualization="C",
+            visualization=Timeline.VISUALIZATION_COLOR,
             parent=parent_timeline,
         )
 
     plugin_run_db.progress = 1.0
-    plugin_run_db.status = "D"
+    plugin_run_db.status = PluginRun.STATUS_DONE
     plugin_run_db.save()
 
     return {"status": "done"}

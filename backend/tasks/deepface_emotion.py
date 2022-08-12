@@ -14,7 +14,7 @@ from backend.models import (
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
-from analyser.client import AnalyserClient
+from .task import TaskAnalyserClient
 from analyser.data import Shot, ShotsData
 
 
@@ -54,7 +54,7 @@ class DeepfaceEmotion:
             else:
                 return False
 
-        pluging_run_db = PluginRun.objects.create(video=video, type="deepface_emotion", status="Q")
+        pluging_run_db = PluginRun.objects.create(video=video, type="deepface_emotion", status=PluginRun.STATUS_QUEUED)
 
         deepface_emotion.apply_async(
             (
@@ -93,21 +93,21 @@ def deepface_emotion(self, args):
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
 
-    plugin_run_db.status = "R"
+    plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
     """
     Run insightface_detector
     """
     print(f"[{PLUGIN_NAME}] Run insightface_detector", flush=True)
-    client = AnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(analyser_host, analyser_port)
     data_id = client.upload_file(video_file)
     job_id = client.run_plugin(
         "insightface_detector",
         [{"id": data_id, "name": "video"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
-    result = client.get_plugin_results(job_id=job_id)
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
 
@@ -125,7 +125,7 @@ def deepface_emotion(self, args):
         [{"id": faceimg_output_id, "name": "images"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
-    result = client.get_plugin_results(job_id=job_id)
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
 
@@ -157,7 +157,7 @@ def deepface_emotion(self, args):
             "shot_annotator", [{"id": shots_id, "name": "shots"}, {"id": emotions_output_id, "name": "probs"}], []
         )
 
-        result = client.get_plugin_results(job_id=job_id)
+        result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
         if result is None:
             return
 
@@ -203,20 +203,20 @@ def deepface_emotion(self, args):
             plugin_run=plugin_run_db,
             data_id=sub_data.id,
             name="face_emotion",
-            type="S",  # S stands for SCALAR_DATA
+            type=PluginRunResult.TYPE_SCALAR,
         )
         Timeline.objects.create(
             video=video_db,
             name=LABEL_LUT.get(index, index),
             type=Timeline.TYPE_PLUGIN_RESULT,
             plugin_run_result=plugin_run_result_db,
-            visualization="SC",
+            visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
             parent=annotation_timeline,
         )
 
     # set status
     plugin_run_db.progress = 1.0
-    plugin_run_db.status = "D"
+    plugin_run_db.status = PluginRun.STATUS_DONE
     plugin_run_db.save()
 
     return {"status": "done"}
