@@ -51,7 +51,7 @@ class TimelineSegmentAnnotate(View):
 
             # delete all existing annotation for this segment
             timeline_segment_annotation_deleted = [
-                x.id for x in TimelineSegmentAnnotation.objects.filter(timeline_segment=segment_db)
+                x.id.hex for x in TimelineSegmentAnnotation.objects.filter(timeline_segment=segment_db)
             ]
             TimelineSegmentAnnotation.objects.filter(timeline_segment=segment_db).delete()
 
@@ -237,7 +237,7 @@ class TimelineSegmentMerge(View):
             for timeline_segment_db in timeline_segment_dbs:
                 annotations.extend([x.annotation.id for x in timeline_segment_db.timelinesegmentannotation_set.all()])
                 timeline_segment_annotation_deleted.extend(
-                    [x.id for x in timeline_segment_db.timelinesegmentannotation_set.all()]
+                    [x.id.hex for x in timeline_segment_db.timelinesegmentannotation_set.all()]
                 )
                 timeline_segment_deleted.append(timeline_segment_db.id)
                 timeline_segment_db.delete()
