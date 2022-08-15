@@ -118,6 +118,7 @@ def shot_density(self, args):
         plugin_run_db.status = PluginRun.STATUS_ERROR
         plugin_run_db.save()
         return
+
     result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         logging.error(f"[ShotDensity] plugin run crash {parameters.get('shot_timeline_id')} failed")
@@ -132,7 +133,6 @@ def shot_density(self, args):
             shot_density_id = output.id
 
     data = client.download_data(shot_density_id, output_path)
-    print(data)
 
     plugin_run_result_db = PluginRunResult.objects.create(
         plugin_run=plugin_run_db,

@@ -163,6 +163,7 @@ class Timeline(models.Model):
         choices=[(k, v) for k, v in VISUALIZATION.items()],
         default=VISUALIZATION_COLOR,
     )
+    colormap = models.CharField(max_length=256, null=True, blank=True)
 
     def save(self, *args, **kwargs):
 
@@ -183,6 +184,7 @@ class Timeline(models.Model):
             "visualization": self.VISUALIZATION[self.visualization],
             "order": self.order,
             "collapse": self.collapse,
+            "colormap": self.colormap,
         }
 
         if self.parent:

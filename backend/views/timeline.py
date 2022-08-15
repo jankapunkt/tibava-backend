@@ -205,7 +205,18 @@ class TimelineChangeVisualization(View):
             except Timeline.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
-            timeline_db.visualization = data.get("visualization")
+            if data.get("visualization") not in timeline_db.VISUALIZATION.values():
+                return JsonResponse({"status": "error", "type": "wrong_value"})
+
+            inv_map = {v: k for k, v in timeline_db.VISUALIZATION.items()}
+            timeline_db.visualization = inv_map[data.get("visualization")]
+
+            colormap = data.get("colormap")
+            if colormap is not None:
+                if not isinstance(colormap, str):
+                    return JsonResponse({"status": "error", "type": "wrong_request_body"})
+                timeline_db.colormap = colormap
+
             timeline_db.save()
             return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
         except Exception as e:
