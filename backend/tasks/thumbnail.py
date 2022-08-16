@@ -59,8 +59,8 @@ def generate_thumbnails(self, args):
     analyser_host = config.get("analyser_host", "localhost")
     analyser_port = config.get("analyser_port", 50051)
 
-    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
     video_db = Video.objects.get(id=video.get("id"))
+    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
 
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
 
