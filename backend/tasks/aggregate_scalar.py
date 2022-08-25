@@ -80,7 +80,7 @@ def aggregate_scalar(self, args):
     plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
-    client = TaskAnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
 
     """
     Get probabilities from scalar timelines
@@ -101,6 +101,8 @@ def aggregate_scalar(self, args):
         timelines.append(data)
 
     data_id = client.upload_data(ListData(data=[x for x in timelines]))
+    if data_id is None:
+        return
 
     """
     Create timeline(s) with probability of each class as scalar data
@@ -112,6 +114,9 @@ def aggregate_scalar(self, args):
         [{"id": data_id, "name": "timelines"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
+    if job_id is None:
+        return
+
     result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
@@ -121,8 +126,12 @@ def aggregate_scalar(self, args):
         if output.name == "probs":
             probs_id = output.id
 
+    if probs_id is None:
+        return
     data = client.download_data(probs_id, output_path)
 
+    if data is None:
+        return
     plugin_run_result_db = PluginRunResult.objects.create(
         plugin_run=plugin_run_db,
         data_id=data.id,

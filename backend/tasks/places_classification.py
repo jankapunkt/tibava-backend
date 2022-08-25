@@ -96,13 +96,17 @@ def places_classification(self, args):
     Place Classification
     """
     print(f"[{PLUGIN_NAME}] Run place classification", flush=True)
-    client = TaskAnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
     data_id = client.upload_file(video_file)
+    if data_id is None:
+        return
     job_id = client.run_plugin(
         "places_classifier",
         [{"id": data_id, "name": "video"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
+    if job_id is None:
+        return
     result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
@@ -112,11 +116,15 @@ def places_classification(self, args):
         if output.name in result_ids.keys():  # and parameters.get(output.name):
             result_ids[output.name] = output.id
 
+    if result_ids is None:
+        return
     result_probs = {}
     for key in result_ids:
         result_probs[key] = None
         if result_ids[key]:
             result_probs[key] = client.download_data(result_ids[key], output_path)
+            if result_probs[key] is None:
+                return
 
     """
     Get shots from timeline with shot boundaries (if selected by the user)
@@ -146,6 +154,8 @@ def places_classification(self, args):
             job_id = client.run_plugin(
                 "shot_annotator", [{"id": shots_id, "name": "shots"}, {"id": result_ids[key], "name": "probs"}], []
             )
+            if job_id is None:
+                return
 
             result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
             if result is None:
@@ -156,6 +166,8 @@ def places_classification(self, args):
                 if output.name == "annotations":
                     annotation_id = output.id
 
+            if annotation_id is None:
+                return
             result_annotations[key] = client.download_data(annotation_id, output_path)
 
     """

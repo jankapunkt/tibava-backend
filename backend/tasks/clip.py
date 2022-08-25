@@ -68,7 +68,7 @@ def clip(self, args):
     plugin_run_db.save()
 
     # print(f"{analyser_host}, {analyser_port}")
-    client = TaskAnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
 
     r = redis.Redis()
     data_id = r.get(f"video_{video.get('id')}")
@@ -76,6 +76,8 @@ def clip(self, args):
     if data_id is None:
         print(f"Video not exist in the analyser", flush=True)
         data_id = client.upload_file(video_file)
+        if data_id is None:
+            return
         r.set(f"video_{video.get('id')}", data_id)
         # print(f"{data_id}", flush=True)
 
@@ -88,6 +90,8 @@ def clip(self, args):
             [{"id": data_id, "name": "video"}],
             [{"name": k, "value": v} for k, v in parameters.items()],
         )
+        if job_id is None:
+            return
         logging.info(f"Job clip_image_embedding started: {job_id}")
 
         result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
@@ -100,6 +104,9 @@ def clip(self, args):
             if output.name == "embeddings":
                 embd_id = output.id
                 break
+
+        if embd_id is None:
+            return
         r.set(f"data_{data_id}", embd_id)
     logging.info(f"finished job with resulting embedding id: {embd_id}")
     # calculate similarities between image embeddings and search term
@@ -108,6 +115,8 @@ def clip(self, args):
         [{"id": embd_id, "name": "embeddings"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
+    if job_id is None:
+        return
     logging.info(f"Job clip_probs started: {job_id}")
 
     result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
@@ -120,9 +129,13 @@ def clip(self, args):
         if output.name == "probs":
             probs_id = output.id
 
+    if probs_id is None:
+        return
     # logging.info(f"Job clip done: {freq_id}")
 
     data = client.download_data(probs_id, output_path)
+    if data is None:
+        return
 
     plugin_run_result_db = PluginRunResult.objects.create(
         plugin_run=plugin_run_db, data_id=data.id, name="clip", type=PluginRunResult.TYPE_SCALAR

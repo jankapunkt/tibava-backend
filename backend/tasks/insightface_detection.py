@@ -66,13 +66,17 @@ def insightface_detection(self, args):
     plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
-    client = TaskAnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
     data_id = client.upload_file(video_file)
+    if data_id is None:
+        return
     job_id = client.run_plugin(
         "insightface_detector",
         [{"id": data_id, "name": "video"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
+    if job_id is None:
+        return
     result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
@@ -85,6 +89,10 @@ def insightface_detection(self, args):
         if output.name == "images":
             faceimg_output_id = output.id
 
+    if bbox_output_id is None:
+        return
+    if faceimg_output_id is None:
+        return
     bbox_data = client.download_data(bbox_output_id, output_path)
     faceimg_output_data = client.download_data(faceimg_output_id, output_path)
 

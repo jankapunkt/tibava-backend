@@ -84,7 +84,7 @@ def shot_density(self, args):
     plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
-    client = TaskAnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
 
     """
     Get shots from timeline with shot boundaries (if selected by the user)
@@ -131,8 +131,12 @@ def shot_density(self, args):
     for output in result.outputs:
         if output.name == "shot_density":
             shot_density_id = output.id
+    if shot_density_id is None:
+        return
 
     data = client.download_data(shot_density_id, output_path)
+    if data is None:
+        return
 
     plugin_run_result_db = PluginRunResult.objects.create(
         plugin_run=plugin_run_db,

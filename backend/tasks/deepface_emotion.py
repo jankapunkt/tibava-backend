@@ -100,31 +100,39 @@ def deepface_emotion(self, args):
     Run insightface_detector
     """
     print(f"[{PLUGIN_NAME}] Run insightface_detector", flush=True)
-    client = TaskAnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
     data_id = client.upload_file(video_file)
+    if data_id is None:
+        return
     job_id = client.run_plugin(
         "insightface_detector",
         [{"id": data_id, "name": "video"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
+    if job_id is None:
+        return
     result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
 
-    faceimg_output_id = None
+    faceing_output_id = None
     for output in result.outputs:
         if output.name == "images":
-            faceimg_output_id = output.id
+            faceing_output_id = output.id
 
+    if faceing_output_id is None:
+        return
     """
     Get Emotion Classification Results
     """
     print(f"[{PLUGIN_NAME}] Run emotion classification", flush=True)
     job_id = client.run_plugin(
         "deepface_emotion",
-        [{"id": faceimg_output_id, "name": "images"}],
+        [{"id": faceing_output_id, "name": "images"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
+    if job_id is None:
+        return
     result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
@@ -134,8 +142,12 @@ def deepface_emotion(self, args):
         if output.name == "probs":
             emotions_output_id = output.id
 
+    if emotions_output_id is None:
+        return
     data = client.download_data(emotions_output_id, output_path)
 
+    if data is None:
+        return
     """
     Get shots from timeline with shot boundaries (if selected by the user)
     """
@@ -156,6 +168,8 @@ def deepface_emotion(self, args):
         job_id = client.run_plugin(
             "shot_annotator", [{"id": shots_id, "name": "shots"}, {"id": emotions_output_id, "name": "probs"}], []
         )
+        if job_id is None:
+            return
 
         result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
         if result is None:
@@ -165,8 +179,12 @@ def deepface_emotion(self, args):
         for output in result.outputs:
             if output.name == "annotations":
                 annotation_id = output.id
+        if annotation_id is None:
+            return
         result_annotations = client.download_data(annotation_id, output_path)
 
+        if result_annotations is None:
+            return
     """
     Create a timeline labeled by most probable class (per shot)
     """

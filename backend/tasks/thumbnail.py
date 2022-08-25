@@ -69,12 +69,16 @@ def generate_thumbnails(self, args):
     plugin_run_db.save()
 
     print(f"{analyser_host}, {analyser_port}")
-    client = TaskAnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
     logging.info(f"Start uploading")
     data_id = client.upload_file(video_file)
+    if data_id is None:
+        return
     logging.info(f"Upload done: {data_id}")
 
     job_id = client.run_plugin("thumbnail_generator", [{"id": data_id, "name": "video"}], [])
+    if job_id is None:
+        return
     logging.info(f"Job thumbnail started: {job_id}")
 
     result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
@@ -87,7 +91,11 @@ def generate_thumbnails(self, args):
         if output.name == "images":
             images_id = output.id
 
+    if images_id is None:
+        return
     data = client.download_data(images_id, config.get("output_path"))
+    if data is None:
+        return
 
     plugin_run_result_db = PluginRunResult.objects.create(
         plugin_run=plugin_run_db, data_id=data.id, name="images", type=PluginRunResult.TYPE_IMAGES

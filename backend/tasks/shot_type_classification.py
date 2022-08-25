@@ -101,9 +101,13 @@ def shot_type_classification(self, args):
     Run Shot Type Classifier
     """
     print(f"[{PLUGIN_NAME}] Predict shot sizes", flush=True)
-    client = TaskAnalyserClient(analyser_host, analyser_port)
+    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
     data_id = client.upload_file(video_file)
+    if data_id is None:
+        return
     job_id = client.run_plugin("shot_type_classifier", [{"id": data_id, "name": "video"}], [])
+    if job_id is None:
+        return
     result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
@@ -112,9 +116,12 @@ def shot_type_classification(self, args):
     for output in result.outputs:
         if output.name == "probs":
             output_id = output.id
-
+    if output_id is None:
+        return
     data = client.download_data(output_id, output_path)
 
+    if data is None:
+        return
     """
     Get shots from timeline with shot boundaries (if selected by the user)
     """
@@ -135,6 +142,8 @@ def shot_type_classification(self, args):
         job_id = client.run_plugin(
             "shot_annotator", [{"id": shots_id, "name": "shots"}, {"id": output_id, "name": "probs"}], []
         )
+        if job_id is None:
+            return
 
         result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
         if result is None:
@@ -144,7 +153,11 @@ def shot_type_classification(self, args):
         for output in result.outputs:
             if output.name == "annotations":
                 annotation_id = output.id
+        if annotation_id is None:
+            return
         result_annotations = client.download_data(annotation_id, output_path)
+        if result_annotations is None:
+            return
 
     """
     Create a timeline labeled by most probable class (per shot)
