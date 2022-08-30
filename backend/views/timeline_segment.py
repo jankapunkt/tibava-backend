@@ -196,7 +196,7 @@ class TimelineSegmentAnnotateRange(View):
                     right_timeline_segment_db = left_timeline_segment_dbs[0].clone()
                     right_timeline_segment_db.start = data.get("end")
                     right_timeline_segment_db.save()
-                    
+
                     timeline_segment_annotation_added.extend(
                         [x.to_dict() for x in right_timeline_segment_db.timelinesegmentannotation_set.all()]
                     )
@@ -225,9 +225,9 @@ class TimelineSegmentAnnotateRange(View):
                 x.id.hex for x in TimelineSegmentAnnotation.objects.filter(timeline_segment_id__in=timeline_segment_ids)
             ]
 
-            timeline_segment_deleted = [
-                x.id.hex for x in TimelineSegmentAnnotation.objects.filter(timeline_segment__in=timeline_segment_ids)
-            ]
+            timeline_segment_deleted.extend(
+                [x.id.hex for x in TimelineSegmentAnnotation.objects.filter(timeline_segment__in=timeline_segment_ids)]
+            )
             TimelineSegmentAnnotation.objects.filter(timeline_segment__in=timeline_segment_ids).delete()
 
             timeline_segment_dbs.delete()
