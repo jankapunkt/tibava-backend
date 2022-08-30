@@ -43,6 +43,11 @@ urlpatterns = [
     path("timeline/segment/merge", views.TimelineSegmentMerge.as_view(), name="timeline_segment_list"),
     path("timeline/segment/split", views.TimelineSegmentSplit.as_view(), name="timeline_segment_list"),
     path("timeline/segment/annotate", views.TimelineSegmentAnnotate.as_view(), name="timeline_segment_annotate"),
+    path(
+        "timeline/segment/annotate/range",
+        views.TimelineSegmentAnnotateRange.as_view(),
+        name="timeline_segment_annotate_range",
+    ),
     #
     path(
         "timeline/segment/annotation/list",
