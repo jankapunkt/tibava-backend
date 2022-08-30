@@ -7,8 +7,8 @@ from backend.utils import media_path_to_video
 from .task import TaskAnalyserClient
 
 
-@PluginManager.export("insightface_detection")
-class InsightfaceDetector:
+@PluginManager.export("insightface_video_detector")
+class InsightfaceVideoDetector:
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
@@ -57,7 +57,7 @@ def insightface_detection(self, args):
     analyser_host = config.get("analyser_host", "localhost")
     analyser_port = config.get("analyser_port", 50051)
 
-    print(f"[InsightfaceDetector] {video}: {parameters}", flush=True)
+    print(f"[InsightfaceVideoDetector] {video}: {parameters}", flush=True)
 
     video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
@@ -71,7 +71,7 @@ def insightface_detection(self, args):
     if data_id is None:
         return
     job_id = client.run_plugin(
-        "insightface_detector",
+        "insightface_video_detector",
         [{"id": data_id, "name": "video"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )

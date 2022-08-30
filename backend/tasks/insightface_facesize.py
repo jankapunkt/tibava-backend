@@ -98,15 +98,15 @@ def insightface_detection(self, args):
     plugin_run_db.save()
 
     """
-    Run insightface_detector
+    Run insightface_video_detector
     """
-    print(f"[{PLUGIN_NAME}] Run insightface_detector", flush=True)
+    print(f"[{PLUGIN_NAME}] Run insightface_video_detector", flush=True)
     client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
     data_id = client.upload_file(video_file)
     if data_id is None:
         return
     job_id = client.run_plugin(
-        "insightface_detector",
+        "insightface_video_detector",
         [{"id": data_id, "name": "video"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
