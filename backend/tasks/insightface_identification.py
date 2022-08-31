@@ -74,25 +74,6 @@ def insightface_identification(self, args):
     output_path = config.get("output_path")
     analyser_host = config.get("analyser_host", "localhost")
     analyser_port = config.get("analyser_port", 50051)
-    """
-    UPLOAD QUERY IMAGE(S)
-    """
-    print(f"[InsightfaceImageDetector] Upload query images", flush=True)
-    manager = DataManager()
-    images = []
-    for image_path in query_images:
-        image_id = generate_id()
-        output_path = create_data_path(manager.data_dir, image_id, "jpg")
-        image = iio.imread(image_path)
-        iio.imwrite(output_path, image)
-        images.append(ImageData(id=image_id, ext="jpg"))
-
-    data = ImagesData(images=images)
-    query_image_ids = client.upload_data(data)
-
-    """
-    UPLOAD VIDEO
-    """
     print(f"[InsightfaceVideoDetector] {video}: {parameters}", flush=True)
 
     video_db = Video.objects.get(id=video.get("id"))
@@ -104,6 +85,24 @@ def insightface_identification(self, args):
 
     manager = DataManager()
     client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db, manager=manager)
+    """
+    UPLOAD QUERY IMAGE(S)
+    """
+    print(f"[InsightfaceImageDetector] Upload query images", flush=True)
+    images = []
+    for image_path in query_images:
+        image_id = generate_id()
+        image = iio.imread(image_path)
+        tmp_output_path = create_data_path(manager.data_dir, image_id, "jpg")
+        iio.imwrite(tmp_output_path, image)
+        images.append(ImageData(id=image_id, ext="jpg"))
+
+    data = ImagesData(images=images)
+    query_image_ids = client.upload_data(data)
+
+    """
+    UPLOAD VIDEO
+    """
     data_id = client.upload_file(video_file)
     if data_id is None:
         return
@@ -194,27 +193,26 @@ def insightface_identification(self, args):
         if output.name == "probs":
             similarities_id = output.id
 
-    data = client.download_data(similarities_id, args.output_path)
+    data = client.download_data(similarities_id, output_path)
 
     """
     Create timeline with similarity of the faces in the video to the query images
     """
     print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with face similarities", flush=True)
-    for index, sub_data in zip(data.index, data.data):
 
-        plugin_run_result_db = PluginRunResult.objects.create(
-            plugin_run=plugin_run_db,
-            data_id=sub_data.id,
-            name="face_identification",
-            type=PluginRunResult.TYPE_SCALAR,
-        )
-        Timeline.objects.create(
-            video=video_db,
-            name=parameters.get("timeline"),
-            type=Timeline.TYPE_PLUGIN_RESULT,
-            plugin_run_result=plugin_run_result_db,
-            visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-        )
+    plugin_run_result_db = PluginRunResult.objects.create(
+        plugin_run=plugin_run_db,
+        data_id=data.id,
+        name="face_identification",
+        type=PluginRunResult.TYPE_SCALAR,
+    )
+    Timeline.objects.create(
+        video=video_db,
+        name=parameters.get("timeline"),
+        type=Timeline.TYPE_PLUGIN_RESULT,
+        plugin_run_result=plugin_run_result_db,
+        visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+    )
 
     plugin_run_db.progress = 1.0
     plugin_run_db.status = PluginRun.STATUS_DONE
