@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import sys
 import json
@@ -7,6 +8,7 @@ import logging
 import traceback
 import tempfile
 from pathlib import Path
+import tempfile
 
 from urllib.parse import urlparse
 import imageio
@@ -29,54 +31,77 @@ from backend.plugin_manager import PluginManager
 class PluginRunNew(View):
     def post(self, request):
         try:
-            try:
-                body = request.body.decode("utf-8")
-            except (UnicodeDecodeError, AttributeError):
-                body = request.body
-
-            try:
-                data = json.loads(body)
-            except Exception as e:
+            if not request.user.is_authenticated:
+                logging.error("PluginRunNew::not_authenticated")
                 return JsonResponse({"status": "error"})
 
-            # TODO use id
-            if "plugin" not in data:
-                return JsonResponse({"status": "error", "type": "missing_values"})
+            if request.method != "POST":
+                logging.error("PluginRunNew::wrong_method")
+                return JsonResponse({"status": "error"})
 
+            output_dir = tempfile.mkdtemp()
             parameters = []
 
-            if "parameters" in data:
+            for k, v in request.FILES.items():
+                m = re.match(r"^file_(.*?)$", k)
+                if m:
+                    data_id_uuid = uuid.uuid4().hex
+                    download_result = download_file(
+                        output_dir=output_dir,
+                        output_name=data_id_uuid,
+                        file=v,
+                        max_size=11 * 1024 * 1024 * 1024,
+                    )
 
-                if not isinstance(data.get("parameters"), list):
-                    return JsonResponse({"status": "error", "type": "wrong_request_body"})
-
-                for parameter in data.get("parameters"):
-                    if not isinstance(parameter, dict):
-                        return JsonResponse({"status": "error", "type": "wrong_request_body"})
-
-                    if "name" not in parameter:
-                        return JsonResponse({"status": "error", "type": "wrong_request_body"})
-
-                    if "value" not in parameter:
-                        return JsonResponse({"status": "error", "type": "wrong_request_body"})
-                    parameters.append({"name": parameter.get("name"), "value": parameter.get("value")})
-
-            plugin_manager = PluginManager()
-            print(data, flush=True)
-            if data.get("plugin") not in plugin_manager:
-                return JsonResponse({"status": "error", "type": "not_exist"})
-
-            if "video_id" not in data:
+                    if download_result.get("status") == "ok":
+                        parameters.append(
+                            {
+                                "name": m.group(1),
+                                "value": download_result.get("origin"),
+                                "path": download_result.get("path"),
+                            }
+                        )
+            parameters.extend(json.loads(request.POST.get("parameters")))
+            plugin = request.POST.get("plugin")
+            if plugin is None:
                 return JsonResponse({"status": "error", "type": "missing_values"})
 
+            video_id = request.POST.get("video_id")
+            if video_id is None:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+
+            if not isinstance(parameters, list):
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+            valid_parameters = []
+            for parameter in parameters:
+                if not isinstance(parameter, dict):
+                    return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+                if "name" not in parameter:
+                    return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+                if "value" not in parameter:
+                    return JsonResponse({"status": "error", "type": "wrong_request_body"})
+                if "path" in parameter:
+                    valid_parameters.append(
+                        {"name": parameter.get("name"), "value": parameter.get("value"), "path": parameter.get("path")}
+                    )
+
+                else:
+                    valid_parameters.append({"name": parameter.get("name"), "value": parameter.get("value")})
+
+            plugin_manager = PluginManager()
+            if plugin not in plugin_manager:
+                return JsonResponse({"status": "error", "type": "not_exist"})
+
             try:
-                video_db = Video.objects.get(id=data.get("video_id"))
+                video_db = Video.objects.get(id=video_id)
             except Video.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
             user_db = request.user
 
-            plugin_manager(data["plugin"], parameters, user=user_db, video=video_db)
+            plugin_manager(plugin, valid_parameters, user=user_db, video=video_db)
 
             return JsonResponse({"status": "ok"})
         except Exception as e:

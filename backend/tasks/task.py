@@ -6,6 +6,7 @@ import grpc
 from analyser.client import AnalyserClient
 from analyser import analyser_pb2
 from backend.models import PluginRun
+from backend.utils import RetryOnRpcErrorClientInterceptor, ExponentialBackoff
 
 
 def analyser_status_to_task_status(analyser_status):
@@ -27,6 +28,27 @@ class TaskAnalyserClient(AnalyserClient):
         super().__init__(*args, **kwargs)
         self.plugin_run_db = plugin_run_db
         self.timeout = timeout
+        self.host = kwargs.get("host")
+        self.port = kwargs.get("port")
+
+        interceptors = (
+            RetryOnRpcErrorClientInterceptor(
+                max_attempts=4,
+                sleeping_policy=ExponentialBackoff(init_backoff_ms=100, max_backoff_ms=1600, multiplier=2),
+                status_for_retry=(grpc.StatusCode.UNAVAILABLE,),
+            ),
+        )
+
+        self.channel = grpc.intercept_channel(
+            grpc.insecure_channel(
+                f"{self.host}:{self.port}",
+                options=[
+                    ("grpc.max_send_message_length", 50 * 1024 * 1024),
+                    ("grpc.max_receive_message_length", 50 * 1024 * 1024),
+                ],
+            ),
+            *interceptors,
+        )
 
     def list_plugins(self, *args, **kwargs):
         plugin_run_db = self.plugin_run_db

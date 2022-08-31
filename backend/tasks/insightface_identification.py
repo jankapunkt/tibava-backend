@@ -22,8 +22,11 @@ class InsightfaceIdentification:
         }
 
     def __call__(self, parameters=None, **kwargs):
+
         video = kwargs.get("video")
-        query_images = kwargs.get("query_images")
+        user = kwargs.get("user")
+
+        print(f"PARAMETERS ############# {parameters}")
         if not parameters:
             parameters = []
 
@@ -33,6 +36,8 @@ class InsightfaceIdentification:
                 task_parameter[p["name"]] = str(p["value"])
             elif p["name"] in ["fps"]:
                 task_parameter[p["name"]] = int(p["value"])
+            elif p["name"] in ["query_images"]:
+                task_parameter[p["name"]] = [str(p["path"])]
             else:
                 return False
 
@@ -45,7 +50,12 @@ class InsightfaceIdentification:
                 {
                     "id": pluging_run_db.id.hex,
                     "video": video.to_dict(),
-                    "query_images": query_images.to_dict(),
+                    "user": {
+                        "username": user.get_username(),
+                        "email": user.email,
+                        "date": user.date_joined,
+                        "id": user.id,
+                    },
                     "config": self.config,
                     "parameters": task_parameter,
                 },
@@ -59,11 +69,26 @@ def insightface_identification(self, args):
     config = args.get("config")
     parameters = args.get("parameters")
     video = args.get("video")
-    query_images = args.get("query_images")
+    query_images = parameters.get("query_images")
     id = args.get("id")
     output_path = config.get("output_path")
     analyser_host = config.get("analyser_host", "localhost")
     analyser_port = config.get("analyser_port", 50051)
+    """
+    UPLOAD QUERY IMAGE(S)
+    """
+    print(f"[InsightfaceImageDetector] Upload query images", flush=True)
+    manager = DataManager()
+    images = []
+    for image_path in query_images:
+        image_id = generate_id()
+        output_path = create_data_path(manager.data_dir, image_id, "jpg")
+        image = iio.imread(image_path)
+        iio.imwrite(output_path, image)
+        images.append(ImageData(id=image_id, ext="jpg"))
+
+    data = ImagesData(images=images)
+    query_image_ids = client.upload_data(data)
 
     """
     UPLOAD VIDEO
@@ -122,22 +147,6 @@ def insightface_identification(self, args):
     for output in result.outputs:
         if output.name == "features":
             target_features_id = output.id
-
-    """
-    UPLOAD QUERY IMAGE(S)
-    """
-    print(f"[InsightfaceImageDetector] Upload query images", flush=True)
-    manager = DataManager()
-    images = []
-    for image_path in query_images:
-        image_id = generate_id()
-        output_path = create_data_path(manager.data_dir, image_id, "jpg")
-        image = iio.imread(image_path)
-        iio.imwrite(output_path, image)
-        images.append(ImageData(id=image_id, ext="jpg"))
-
-    data = ImagesData(images=images)
-    query_image_ids = client.upload_data(data)
 
     """
     FACE DETECTION FROM QUERY IMAGE(S)
