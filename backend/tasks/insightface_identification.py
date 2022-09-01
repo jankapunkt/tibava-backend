@@ -138,7 +138,7 @@ def insightface_identification(self, args):
     job_id = client.run_plugin(
         "insightface_video_feature_extractor",
         [{"id": data_id, "name": "video"}, {"id": target_kpss_id, "name": "kpss"}],
-        [],
+        [{"name": k, "value": v} for k, v in parameters.items()],
     )
 
     result = client.get_plugin_results(job_id=job_id)
@@ -151,7 +151,11 @@ def insightface_identification(self, args):
     FACE DETECTION FROM QUERY IMAGE(S)
     """
     print(f"[InsightfaceImageDetector] Detect faces in query images: {query_image_ids}", flush=True)
-    job_id = client.run_plugin("insightface_image_detector", [{"id": query_image_ids, "name": "images"}], [])
+    job_id = client.run_plugin(
+        "insightface_image_detector",
+        [{"id": query_image_ids, "name": "images"}],
+        [{"name": k, "value": v} for k, v in parameters.items()],
+    )
 
     result = client.get_plugin_results(job_id=job_id)
     if result is None:
@@ -185,7 +189,7 @@ def insightface_identification(self, args):
     job_id = client.run_plugin(
         "cosine_similarity",
         [{"id": target_features_id, "name": "target_features"}, {"id": query_features_id, "name": "query_features"}],
-        [],
+        [{"name": k, "value": v} for k, v in parameters.items()],
     )
 
     result = client.get_plugin_results(job_id=job_id)
