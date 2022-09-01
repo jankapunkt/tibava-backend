@@ -84,7 +84,14 @@ class TimelineDuplicate(View):
                 new_timeline_db.save()
 
             # create new hash
-            return JsonResponse({"status": "ok", "entry": new_timeline_db.to_dict()})
+            return JsonResponse(
+                {
+                    "status": "ok",
+                    "timeline_added": [new_timeline_db.to_dict()],
+                    "timeline_segment_added": [],
+                    "timeline_segment_annotation_added": [],
+                }
+            )
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
