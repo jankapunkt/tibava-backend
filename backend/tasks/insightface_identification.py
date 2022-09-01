@@ -41,6 +41,11 @@ class InsightfaceIdentification:
             else:
                 return False
 
+        # TODO put in frontend
+        task_parameter["normalize"] = 1
+        task_parameter["normalize_min_val"] = 0.3
+        task_parameter["normalize_max_val"] = 1.0
+
         pluging_run_db = PluginRun.objects.create(
             video=video, type="insightface_identification", status=PluginRun.STATUS_QUEUED
         )
