@@ -38,6 +38,19 @@ class Video(models.Model):
             "width": self.width,
         }
 
+    def clone(self, owner=None, include_timelines=True, include_annotations=True):
+        video_dict = self.to_dict(include_refs_hashes=False, include_refs=False)
+        del video_dict["id"]
+        if owner is not None:
+            video_dict["owner"] = owner
+
+        new_video_db = Video.objects.create(**video_dict)
+        if include_timelines:
+            for timeline in Timeline.objects.filter(video=self):
+                timeline.clone(video=new_video_db, include_annotations=include_annotations)
+
+        return new_timeline_db
+
 
 class Plugin(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -204,13 +217,13 @@ class Timeline(models.Model):
             ]
         return result
 
-    def clone(self, video=None, includeannotations=True):
+    def clone(self, video=None, include_annotations=True):
         if not video:
             video = self.video
         new_timeline_db = Timeline.objects.create(video=video, name=self.name, type=self.type)
 
         for segment in self.timelinesegment_set.all():
-            segment.clone(new_timeline_db, includeannotations)
+            segment.clone(new_timeline_db, include_annotations)
 
         return new_timeline_db
 
@@ -276,14 +289,14 @@ class TimelineSegment(models.Model):
             ]
         return result
 
-    def clone(self, timeline=None, includeannotations=True):
+    def clone(self, timeline=None, include_annotations=True):
         if not timeline:
             timeline = self.timeline
         new_timeline_segment_db = TimelineSegment.objects.create(
             timeline=timeline, color=self.color, start=self.start, end=self.end
         )
 
-        if not includeannotations:
+        if not include_annotations:
             return new_timeline_segment_db
 
         for annotation in self.timelinesegmentannotation_set.all():

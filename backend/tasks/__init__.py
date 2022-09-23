@@ -1,5 +1,6 @@
 from .aggregate_scalar import *
 from .audio_amp import *
+from .audio_rms import *
 from .audio_freq import *
 from .color_analysis import *
 from .deepface_emotion import *
@@ -11,4 +12,5 @@ from .shot_density import *
 from .shot_type_classification import *
 from .shotdetection import *
 from .thumbnail import *
+from .color_brightness_analysis import *
 from .clip import *

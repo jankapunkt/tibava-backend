@@ -73,11 +73,11 @@ class TimelineDuplicate(View):
             if not timeline_db:
                 return JsonResponse({"status": "error"})
 
-            includeannotations = True
-            if data.get("includeannotations") is not None and isinstance(data.get("includeannotations"), bool):
-                includeannotations = data.get("includeannotations")
+            include_annotations = True
+            if data.get("include_annotations") is not None and isinstance(data.get("include_annotations"), bool):
+                include_annotations = data.get("include_annotations")
 
-            new_timeline_db = timeline_db.clone(includeannotations=includeannotations)
+            new_timeline_db = timeline_db.clone(include_annotations=include_annotations)
 
             if data.get("name") and isinstance(data.get("name"), str):
                 new_timeline_db.name = data.get("name")
