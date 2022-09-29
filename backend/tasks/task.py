@@ -150,6 +150,14 @@ class TaskAnalyserClient(AnalyserClient):
                     plugin_run_db.save()
 
                 return None
+            if result is None:
+                logging.error(f"GRPC error: not valid return Code")
+                if plugin_run_db:
+                    plugin_run_db.status = PluginRun.STATUS_ERROR
+                    plugin_run_db.save()
+
+                return None
+
             if plugin_run_db is not None:
                 plugin_run_db.progress = progress_fn(result.progress)
                 status = status_fn(result.status)
