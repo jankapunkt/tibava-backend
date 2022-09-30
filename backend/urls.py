@@ -15,6 +15,7 @@ urlpatterns = [
     path("video/get", views.VideoGet.as_view(), name="video_get"),
     path("video/delete", views.VideoDelete.as_view(), name="video_delete"),
     #
+    path("video/export", views.VideoExport.as_view(), name="video_export"),
     path("video/export/csv", views.VideoExportCSV.as_view(), name="video_export_csv"),
     path("video/export/json", views.VideoExportJson.as_view(), name="video_export_json"),
     #
