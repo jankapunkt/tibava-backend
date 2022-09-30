@@ -213,9 +213,14 @@ class VideoExport(View):
                             )
                         else:
                             annotations.append(segment_annotation_db.annotation.name)
-                    segments.append(
-                        {"annotation": "+".join(annotations), "start": segment_db.start, "end": segment_db.end}
-                    )
+                    if len(annotations) > 0:
+                        segments.append(
+                            {"annotation": "+".join(annotations), "start": segment_db.start, "end": segment_db.end}
+                        )
+
+                if len(segments) == 0:
+                    continue
+
                 col = [timeline_db.name]
 
                 for s, d in time_duration:
