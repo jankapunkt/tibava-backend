@@ -143,19 +143,24 @@ class VideoExportJson(View):
 class VideoExport(View):
     def export_csv(self, parameters, video_db):
 
+        include_category = True
+        if "include_category" in parameters:
+            include_category = parameters.get("include_category")
+
         use_timestamps = True
         if "use_timestamps" in parameters:
-            print("A")
             use_timestamps = parameters.get("use_timestamps")
 
         merge_timeline = True
         if "merge_timeline" in parameters:
-            print("B")
             merge_timeline = parameters.get("merge_timeline")
-        print(use_timestamps, merge_timeline)
+
         num_header_lines = 1
         if not merge_timeline:
-            num_header_lines = 3
+            if include_category:
+                num_header_lines = 3
+            else:
+                num_header_lines = 2
 
         times = []
         durations = []
@@ -200,7 +205,7 @@ class VideoExport(View):
                 for segment_db in timeline_db.timelinesegment_set.all():
                     annotations = []
                     for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
-                        if segment_annotation_db.annotation.category:
+                        if include_category and segment_annotation_db.annotation.category:
                             annotations.append(
                                 segment_annotation_db.annotation.category.name
                                 + "::"
@@ -243,10 +248,11 @@ class VideoExport(View):
                 for _, annotation in timeline["annotations"].items():
                     col = [timeline["name"]]
                     col.append(annotation["name"])
-                    if "category" in annotation:
-                        col.append(annotation["category"]["name"])
-                    else:
-                        col.append("")
+                    if include_category:
+                        if "category" in annotation:
+                            col.append(annotation["category"]["name"])
+                        else:
+                            col.append("")
                     for t, _ in time_duration:
                         print(t, flush=True)
                         label = 0
