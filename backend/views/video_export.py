@@ -151,6 +151,10 @@ class VideoExport(View):
         if "use_timestamps" in parameters:
             use_timestamps = parameters.get("use_timestamps")
 
+        use_seconds = True
+        if "use_seconds" in parameters:
+            use_seconds = parameters.get("use_seconds")
+
         merge_timeline = True
         if "merge_timeline" in parameters:
             merge_timeline = parameters.get("merge_timeline")
@@ -175,21 +179,24 @@ class VideoExport(View):
         # print(len(time_duration), flush=True)
         cols = []
 
-        # first col
+        # start
         if use_timestamps:
             cols.append(
                 ["start"]
                 + ["" for x in range(num_header_lines - 1)]
                 + [time_to_string(t[0], loc="en") for t in time_duration]
             )
+        if use_seconds:
+            cols.append(["start"] + ["" for x in range(num_header_lines - 1)] + [str(t[0]) for t in time_duration])
 
+        # duration
+        if use_timestamps:
             cols.append(
                 ["duration"]
                 + ["" for x in range(num_header_lines - 1)]
                 + [time_to_string(t[1], loc="en") for t in time_duration]
             )
-        else:
-            cols.append(["start"] + ["" for x in range(num_header_lines - 1)] + [str(t[0]) for t in time_duration])
+        if use_seconds:
             cols.append(["duration"] + ["" for x in range(num_header_lines - 1)] + [str(t[1]) for t in time_duration])
 
         annotations = {}
