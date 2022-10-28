@@ -1,3 +1,4 @@
+import json
 from django.core.management.base import BaseCommand, CommandError
 from backend.models import Video
 
@@ -10,6 +11,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--video_ids", nargs="+", type=str)
         parser.add_argument("--plugin", type=str)
+        parser.add_argument("--parameters", type=str)
 
     def handle(self, *args, **options):
         for video_id in options["video_ids"]:
@@ -21,7 +23,10 @@ class Command(BaseCommand):
                 raise CommandError('Poll "%s" does not exist' % video_id)
 
             plugin_manager = PluginManager()
+            parameters = []
+            if options["parameters"]:
+                parameters = json.loads(options["parameters"])
 
-            plugin_manager(options["plugin"], [], user=user_db, video=video_db)
+            plugin_manager(options["plugin"], parameters, user=user_db, video=video_db)
 
             self.stdout.write(self.style.SUCCESS('Successfully start plugin "%s"' % video_id))
