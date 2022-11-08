@@ -127,7 +127,7 @@ class TaskAnalyserClient(AnalyserClient):
                 plugin_run_db.save()
         return None
 
-    def get_plugin_results(self, job_id, plugin_run_db=None, progress_fn=None, status_fn=None, timeout=None):
+    def get_plugin_results(self, job_id, plugin_run_db=None, progress_fn=None, status_fn=None, timeout=3600):
         plugin_run_db = plugin_run_db if plugin_run_db is not None else self.plugin_run_db
 
         result = None
@@ -140,6 +140,10 @@ class TaskAnalyserClient(AnalyserClient):
         while True:
             if timeout:
                 if time.time() - start_time > timeout:
+                    logging.error(f"Timeout")
+                    if plugin_run_db:
+                        plugin_run_db.status = PluginRun.STATUS_ERROR
+                        plugin_run_db.save()
                     return None
             try:
                 result = self.get_plugin_status(job_id)
@@ -163,7 +167,7 @@ class TaskAnalyserClient(AnalyserClient):
                 status = status_fn(result.status)
                 if status is not None:
                     plugin_run_db.status = status
-                print(f"{result.status} {plugin_run_db.progress} task_analyser", flush=True)
+
                 plugin_run_db.save()
 
             if result.status == analyser_pb2.GetPluginStatusResponse.UNKNOWN:
