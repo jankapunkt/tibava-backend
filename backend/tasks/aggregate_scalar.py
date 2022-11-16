@@ -29,9 +29,25 @@ class AggregateScalar:
         if not parameters:
             parameters = []
 
+        aggregation_lut = {0: "or", 1: "and", 2: "mean", 3: "prod"}
+
         task_parameter = {"timeline": "Aggregated Timeline"}
+        print(parameters)
         for p in parameters:
-            if p["name"] in ["timeline", "aggregation"]:
+            if p["name"] == "aggregation":
+                print(p["value"])
+                aggregation = None
+                try:
+                    aggregation_int = int(p["value"])
+                    aggregation = aggregation_lut[aggregation_int]
+                except:
+                    pass
+                if aggregation is None:
+                    aggregation = str(p["value"])
+
+                print(aggregation)
+                task_parameter["aggregation"] = aggregation
+            elif p["name"] in ["timeline"]:
                 task_parameter[p["name"]] = str(p["value"])
             elif p["name"] in ["timeline_ids"]:
                 task_parameter[p["name"]] = p["value"]
