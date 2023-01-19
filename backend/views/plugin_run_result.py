@@ -49,12 +49,13 @@ class PluginRunResultList(View):
                     # print(f"x {x}")
                     # TODO fix me
                     data = data_manager.load(x.data_id)
-                    # print(data, flush=True)
-                    # print(f"data {data}")
-                    if data:
-                        entries.append({**x.to_dict(), "data": data.dumps_to_web()})
-                    else:
+                    if data is None:
                         entries.append({**x.to_dict()})
+                        continue
+                    print(data)
+                    with data:
+                        entries.append({**x.to_dict(), "data": data.to_dict()})
+
             else:
                 entries = [x.to_dict() for x in analyses]
 

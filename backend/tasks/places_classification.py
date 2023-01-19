@@ -1,6 +1,7 @@
 from .task import TaskAnalyserClient
 
 from analyser.data import Shot, ShotsData
+from analyser.data import DataManager
 
 from backend.models import (
     Annotation,
@@ -96,7 +97,11 @@ def places_classification(self, args):
     Place Classification
     """
     print(f"[{PLUGIN_NAME}] Run place classification", flush=True)
-    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
+
+    data_manager = DataManager(output_path)
+    client = TaskAnalyserClient(
+        host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db, manager=data_manager
+    )
     data_id = client.upload_file(video_file)
     if data_id is None:
         return
@@ -136,7 +141,11 @@ def places_classification(self, args):
     if parameters.get("shot_timeline_id"):
         shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
         shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
-        shots = ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments])
+        # shots = ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments])
+        shots = data_manager.create_data("ShotsData")
+        with shots:
+            for x in shot_timeline_segments:
+                shots.shots.append(Shot(start=x.start, end=x.end))
         shots_id = client.upload_data(shots)
 
     """
@@ -190,40 +199,42 @@ def places_classification(self, args):
     category_lut = {"probs_places365": "Places365", "probs_places16": "Places16", "probs_places3": "Places3"}
     for key in result_annotations:
         category_db, _ = AnnotationCategory.objects.get_or_create(name=category_lut[key], video=video_db, owner=user_db)
+        with result_annotations[key] as annotations:
+            for annotation in annotations.annotations:
+                for label in annotation.labels:
+                    # add annotion to TimelineSegment
+                    annotation_db, _ = Annotation.objects.get_or_create(
+                        name=label, video=video_db, category=category_db, owner=user_db
+                    )
 
-        for annotation in result_annotations[key].annotations:
-            for label in annotation.labels:
-                # add annotion to TimelineSegment
-                annotation_db, _ = Annotation.objects.get_or_create(
-                    name=label, video=video_db, category=category_db, owner=user_db
-                )
-
-                TimelineSegmentAnnotation.objects.create(
-                    annotation=annotation_db, timeline_segment=segments[annotation.start]
-                )
+                    TimelineSegmentAnnotation.objects.create(
+                        annotation=annotation_db, timeline_segment=segments[annotation.start]
+                    )
 
     """
     TODO: Create hierarchical timeline(s) with probability of each place category (per hierarchy level) as scalar data
     """
     print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
     # if parameters.get("show_probs"):
+    with result_probs["probs_places3"] as probs:
+        probs.extract_all(data_manager)
 
-    for index, sub_data in zip(result_probs["probs_places3"].index, result_probs["probs_places3"].data):
+        for index, sub_data in zip(probs.index, probs.data):
 
-        plugin_run_result_db = PluginRunResult.objects.create(
-            plugin_run=plugin_run_db,
-            data_id=sub_data.id,
-            name="places_classification",
-            type=PluginRunResult.TYPE_SCALAR,
-        )
-        Timeline.objects.create(
-            video=video_db,
-            name=index,
-            type=Timeline.TYPE_PLUGIN_RESULT,
-            plugin_run_result=plugin_run_result_db,
-            visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-            parent=annotation_timeline,
-        )
+            plugin_run_result_db = PluginRunResult.objects.create(
+                plugin_run=plugin_run_db,
+                data_id=sub_data,
+                name="places_classification",
+                type=PluginRunResult.TYPE_SCALAR,
+            )
+            Timeline.objects.create(
+                video=video_db,
+                name=index,
+                type=Timeline.TYPE_PLUGIN_RESULT,
+                plugin_run_result=plugin_run_result_db,
+                visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+                parent=annotation_timeline,
+            )
 
     plugin_run_db.progress = 1.0
     plugin_run_db.status = PluginRun.STATUS_DONE

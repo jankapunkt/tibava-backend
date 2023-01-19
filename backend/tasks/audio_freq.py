@@ -135,20 +135,22 @@ def audio_freq(self, args):
     if data is None:
         return
 
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="audio_freq", type=PluginRunResult.TYPE_HIST
-    )
+    with data:
 
-    _ = Timeline.objects.create(
-        video=video_db,
-        name=parameters.get("timeline"),
-        type=Timeline.TYPE_PLUGIN_RESULT,
-        plugin_run_result=plugin_run_result_db,
-        visualization=Timeline.VISUALIZATION_HIST,
-    )
+        plugin_run_result_db = PluginRunResult.objects.create(
+            plugin_run=plugin_run_db, data_id=data.id, name="audio_freq", type=PluginRunResult.TYPE_HIST
+        )
 
-    plugin_run_db.progress = 1.0
-    plugin_run_db.status = PluginRun.STATUS_DONE
-    plugin_run_db.save()
+        _ = Timeline.objects.create(
+            video=video_db,
+            name=parameters.get("timeline"),
+            type=Timeline.TYPE_PLUGIN_RESULT,
+            plugin_run_result=plugin_run_result_db,
+            visualization=Timeline.VISUALIZATION_HIST,
+        )
 
-    return {"status": "done"}
+        plugin_run_db.progress = 1.0
+        plugin_run_db.status = PluginRun.STATUS_DONE
+        plugin_run_db.save()
+
+        return {"status": "done"}

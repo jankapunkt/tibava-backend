@@ -70,18 +70,18 @@ def clip(self, args):
     # print(f"{analyser_host}, {analyser_port}")
     client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
 
-    r = redis.Redis()
-    data_id = r.get(f"video_{video.get('id')}")
+    # r = redis.Redis(port=6380)
+    # data_id = r.get(f"video_{video.get('id')}")
     # data_id = None
+    # if data_id is None:
+    print(f"Video not exist in the analyser", flush=True)
+    data_id = client.upload_file(video_file)
     if data_id is None:
-        print(f"Video not exist in the analyser", flush=True)
-        data_id = client.upload_file(video_file)
-        if data_id is None:
-            return
-        r.set(f"video_{video.get('id')}", data_id)
-        # print(f"{data_id}", flush=True)
+        return
+    # r.set(f"video_{video.get('id')}", data_id)
+    # print(f"{data_id}", flush=True)
 
-    embd_id = r.get(f"data_{data_id}")
+    embd_id = None
     if embd_id is None:
         print(f"Video Embedding not exist in the analyser", flush=True)
         # generate image embeddings
@@ -107,7 +107,7 @@ def clip(self, args):
 
         if embd_id is None:
             return
-        r.set(f"data_{data_id}", embd_id)
+        # r.set(f"data_{data_id}", embd_id)
     logging.info(f"finished job with resulting embedding id: {embd_id}")
     # calculate similarities between image embeddings and search term
     job_id = client.run_plugin(
@@ -136,21 +136,21 @@ def clip(self, args):
     data = client.download_data(probs_id, output_path)
     if data is None:
         return
+    with data:
+        plugin_run_result_db = PluginRunResult.objects.create(
+            plugin_run=plugin_run_db, data_id=data.id, name="clip", type=PluginRunResult.TYPE_SCALAR
+        )
 
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="clip", type=PluginRunResult.TYPE_SCALAR
-    )
+        _ = Timeline.objects.create(
+            video=video_db,
+            name=parameters.get("timeline"),
+            type=Timeline.TYPE_PLUGIN_RESULT,
+            plugin_run_result=plugin_run_result_db,
+            visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+        )
 
-    _ = Timeline.objects.create(
-        video=video_db,
-        name=parameters.get("timeline"),
-        type=Timeline.TYPE_PLUGIN_RESULT,
-        plugin_run_result=plugin_run_result_db,
-        visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-    )
+        plugin_run_db.progress = 1.0
+        plugin_run_db.status = PluginRun.STATUS_DONE
+        plugin_run_db.save()
 
-    plugin_run_db.progress = 1.0
-    plugin_run_db.status = PluginRun.STATUS_DONE
-    plugin_run_db.save()
-
-    return {"status": "done"}
+        return {"status": "done"}

@@ -181,6 +181,7 @@ config_lut = {
     "grpc_host": "GRPC_HOST",
     "grpc_port": "GRPC_PORT",
     "image_resolutions": "IMAGE_RESOLUTIONS",
+    "pipelines": "PIPELINES",
 }
 
 config_path = os.environ.get("TIBAVA_BACKEND_CONFIG")

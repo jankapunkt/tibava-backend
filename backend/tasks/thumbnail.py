@@ -17,6 +17,7 @@ from backend.utils import media_path_to_video
 
 
 from .task import TaskAnalyserClient
+from analyser.data import DataManager
 
 
 @PluginManager.export("thumbnail")
@@ -96,10 +97,10 @@ def generate_thumbnails(self, args):
     data = client.download_data(images_id, config.get("output_path"))
     if data is None:
         return
-
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="images", type=PluginRunResult.TYPE_IMAGES
-    )
+    with data:
+        plugin_run_result_db = PluginRunResult.objects.create(
+            plugin_run=plugin_run_db, data_id=data.id, name="images", type=PluginRunResult.TYPE_IMAGES
+        )
 
     plugin_run_db.progress = 1.0
     plugin_run_db.status = PluginRun.STATUS_DONE

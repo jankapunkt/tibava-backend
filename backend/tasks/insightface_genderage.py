@@ -17,8 +17,6 @@ from backend.utils import media_path_to_video
 from .task import TaskAnalyserClient
 from analyser.data import Shot, ShotsData
 
-from analyser.data import DataManager
-
 
 LABEL_LUT = {
     "p_ECU": "Extreme Close-Up",
@@ -27,11 +25,11 @@ LABEL_LUT = {
     "p_FS": "Full Shot",
     "p_LS": "Long Shot",
 }
-PLUGIN_NAME = "ShotTypeClassifier"
+PLUGIN_NAME = "InsightfaceFacesize"
 
 
-@PluginManager.export("shot_type_classification")
-class ShotTypeClassifier:
+@PluginManager.export("insightface_facesize")
+class InsightfaceFacesize:
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
@@ -45,7 +43,7 @@ class ShotTypeClassifier:
         if not parameters:
             parameters = []
 
-        task_parameter = {"timeline": "Camera Setting"}
+        task_parameter = {"timeline": "Face Detection"}
         for p in parameters:
             if p["name"] in ["timeline", "shot_timeline_id"]:
                 task_parameter[p["name"]] = str(p["value"])
@@ -55,10 +53,10 @@ class ShotTypeClassifier:
                 return False
 
         pluging_run_db = PluginRun.objects.create(
-            video=video, type="shot_type_classification", status=PluginRun.STATUS_QUEUED
+            video=video, type="insightface_facesize", status=PluginRun.STATUS_QUEUED
         )
 
-        shot_type_classification.apply_async(
+        insightface_detection.apply_async(
             (
                 {
                     "id": pluging_run_db.id.hex,
@@ -78,7 +76,7 @@ class ShotTypeClassifier:
 
 
 @shared_task(bind=True)
-def shot_type_classification(self, args):
+def insightface_detection(self, args):
 
     config = args.get("config")
     parameters = args.get("parameters")
@@ -100,30 +98,55 @@ def shot_type_classification(self, args):
     plugin_run_db.save()
 
     """
-    Run Shot Type Classifier
+    Run insightface_video_detector_torch
     """
-    print(f"[{PLUGIN_NAME}] Predict shot sizes", flush=True)
-    data_manager = DataManager(output_path)
-    client = TaskAnalyserClient(
-        host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db, manager=data_manager
-    )
+    print(f"[{PLUGIN_NAME}] Run insightface_video_detector_torch", flush=True)
+    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
     data_id = client.upload_file(video_file)
     if data_id is None:
         return
-    job_id = client.run_plugin("shot_type_classifier", [{"id": data_id, "name": "video"}], [])
+    job_id = client.run_plugin(
+        "insightface_video_detector_torch",
+        [{"id": data_id, "name": "video"}],
+        [{"name": k, "value": v} for k, v in parameters.items()],
+    )
     if job_id is None:
         return
     result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
     if result is None:
         return
 
-    output_id = None
+    bbox_output_id = None
+    for output in result.outputs:
+        if output.name == "bboxes":
+            bbox_output_id = output.id
+
+    if bbox_output_id is None:
+        return
+    """
+    Get Shot Size from Face Size
+    """
+    print(f"[{PLUGIN_NAME}] Predict shot sizes from face sizes", flush=True)
+    job_id = client.run_plugin(
+        "insightface_facesize",
+        [{"id": bbox_output_id, "name": "bboxes"}],
+        [{"name": k, "value": v} for k, v in parameters.items()],
+    )
+    if job_id is None:
+        return
+    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
+    if result is None:
+        return
+
+    # get results
+    facesize_output_id = None
     for output in result.outputs:
         if output.name == "probs":
-            output_id = output.id
-    if output_id is None:
+            facesize_output_id = output.id
+
+    if facesize_output_id is None:
         return
-    data = client.download_data(output_id, output_path)
+    data = client.download_data(facesize_output_id, output_path)
 
     if data is None:
         return
@@ -137,11 +160,7 @@ def shot_type_classification(self, args):
     if parameters.get("shot_timeline_id"):
         shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
         shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
-        shots = data_manager.create_data("ShotsData")
-        with shots:
-            for x in shot_timeline_segments:
-                shots.shots.append(Shot(start=x.start, end=x.end))
-        shots_id = client.upload_data(shots)
+        shots_id = client.upload_data(ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments]))
 
     """
     Assign most probable label to each shot boundary
@@ -149,7 +168,7 @@ def shot_type_classification(self, args):
     print(f"[{PLUGIN_NAME}] Assign most probable class to each shot", flush=True)
     if shots_id:
         job_id = client.run_plugin(
-            "shot_annotator", [{"id": shots_id, "name": "shots"}, {"id": output_id, "name": "probs"}], []
+            "shot_annotator", [{"id": shots_id, "name": "shots"}, {"id": facesize_output_id, "name": "probs"}], []
         )
         if job_id is None:
             return
@@ -178,46 +197,42 @@ def shot_type_classification(self, args):
 
     category_db, _ = AnnotationCategory.objects.get_or_create(name="Shot Size", video=video_db, owner=user_db)
 
-    with result_annotations:
-        for annotation in result_annotations.annotations:
-            # create TimelineSegment
-            timeline_segment_db = TimelineSegment.objects.create(
-                timeline=annotation_timeline,
-                start=annotation.start,
-                end=annotation.end,
+    for annotation in result_annotations.annotations:
+        # create TimelineSegment
+        timeline_segment_db = TimelineSegment.objects.create(
+            timeline=annotation_timeline,
+            start=annotation.start,
+            end=annotation.end,
+        )
+
+        for label in annotation.labels:
+            # add annotion to TimelineSegment
+            annotation_db, _ = Annotation.objects.get_or_create(
+                name=LABEL_LUT.get(label, label), video=video_db, category=category_db, owner=user_db
             )
 
-            for label in annotation.labels:
-                # add annotion to TimelineSegment
-                annotation_db, _ = Annotation.objects.get_or_create(
-                    name=LABEL_LUT.get(label, label), video=video_db, category=category_db, owner=user_db
-                )
-
-                TimelineSegmentAnnotation.objects.create(annotation=annotation_db, timeline_segment=timeline_segment_db)
+            TimelineSegmentAnnotation.objects.create(annotation=annotation_db, timeline_segment=timeline_segment_db)
 
     """
     Create timeline(s) with probability of each class as scalar data
     """
     print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
-    with data:
+    for index, sub_data in zip(data.index, data.data):
 
-        data.extract_all(data_manager)
-        for index, sub_data in zip(data.index, data.data):
-
-            plugin_run_result_db = PluginRunResult.objects.create(
-                plugin_run=plugin_run_db,
-                data_id=sub_data,
-                name="shot_type_classification",
-                type=PluginRunResult.TYPE_SCALAR,
-            )
-            Timeline.objects.create(
-                video=video_db,
-                name=LABEL_LUT.get(index, index),
-                type=Timeline.TYPE_PLUGIN_RESULT,
-                plugin_run_result=plugin_run_result_db,
-                visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-                parent=annotation_timeline,
-            )
+        plugin_run_result_db = PluginRunResult.objects.create(
+            plugin_run=plugin_run_db,
+            data_id=sub_data.id,
+            name="insightface_facesizes",
+            type=PluginRunResult.TYPE_SCALAR,
+        )
+        Timeline.objects.create(
+            video=video_db,
+            name=LABEL_LUT.get(index, index),
+            type=Timeline.TYPE_PLUGIN_RESULT,
+            plugin_run_result=plugin_run_result_db,
+            visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+            parent=annotation_timeline,
+        )
 
     plugin_run_db.progress = 1.0
     plugin_run_db.status = PluginRun.STATUS_DONE

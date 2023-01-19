@@ -1,7 +1,7 @@
 from celery import shared_task
 import imageio.v3 as iio
 
-from analyser.data import DataManager, ImageData, ImagesData, generate_id, create_data_path
+from analyser.data import DataManager, ImageData, ImagesData
 from backend.models import PluginRun, PluginRunResult, Video, Timeline
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
@@ -117,7 +117,7 @@ def insightface_identification(self, args):
     """
     print(f"[InsightfaceVideoDetector] Detect faces in video: {data_id}", flush=True)
     job_id = client.run_plugin(
-        "insightface_video_detector",
+        "insightface_video_detector_torch",
         [{"id": data_id, "name": "video"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )

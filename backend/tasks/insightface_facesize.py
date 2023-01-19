@@ -15,7 +15,7 @@ from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
 from .task import TaskAnalyserClient
-from analyser.data import Shot, ShotsData
+from analyser.data import Shot, ShotsData, DataManager
 
 
 LABEL_LUT = {
@@ -98,15 +98,18 @@ def insightface_detection(self, args):
     plugin_run_db.save()
 
     """
-    Run insightface_video_detector
+    Run insightface_video_detector_torch
     """
-    print(f"[{PLUGIN_NAME}] Run insightface_video_detector", flush=True)
-    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
+    print(f"[{PLUGIN_NAME}] Run insightface_video_detector_torch", flush=True)
+    data_manager = DataManager(output_path)
+    client = TaskAnalyserClient(
+        host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db, manager=data_manager
+    )
     data_id = client.upload_file(video_file)
     if data_id is None:
         return
     job_id = client.run_plugin(
-        "insightface_video_detector",
+        "insightface_video_detector_torch",
         [{"id": data_id, "name": "video"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
@@ -160,7 +163,12 @@ def insightface_detection(self, args):
     if parameters.get("shot_timeline_id"):
         shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
         shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
-        shots_id = client.upload_data(ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments]))
+
+        shots = data_manager.create_data("ShotsData")
+        with shots:
+            for x in shot_timeline_segments:
+                shots.shots.append(Shot(start=x.start, end=x.end))
+        shots_id = client.upload_data(shots)
 
     """
     Assign most probable label to each shot boundary
@@ -196,46 +204,50 @@ def insightface_detection(self, args):
     )
 
     category_db, _ = AnnotationCategory.objects.get_or_create(name="Shot Size", video=video_db, owner=user_db)
-
-    for annotation in result_annotations.annotations:
-        # create TimelineSegment
-        timeline_segment_db = TimelineSegment.objects.create(
-            timeline=annotation_timeline,
-            start=annotation.start,
-            end=annotation.end,
-        )
-
-        for label in annotation.labels:
-            # add annotion to TimelineSegment
-            annotation_db, _ = Annotation.objects.get_or_create(
-                name=LABEL_LUT.get(label, label), video=video_db, category=category_db, owner=user_db
+    with result_annotations:
+        for annotation in result_annotations.annotations:
+            # create TimelineSegment
+            timeline_segment_db = TimelineSegment.objects.create(
+                timeline=annotation_timeline,
+                start=annotation.start,
+                end=annotation.end,
             )
 
-            TimelineSegmentAnnotation.objects.create(annotation=annotation_db, timeline_segment=timeline_segment_db)
+            for label in annotation.labels:
+                # add annotion to TimelineSegment
+                annotation_db, _ = Annotation.objects.get_or_create(
+                    name=LABEL_LUT.get(label, label), video=video_db, category=category_db, owner=user_db
+                )
+
+                TimelineSegmentAnnotation.objects.create(annotation=annotation_db, timeline_segment=timeline_segment_db)
 
     """
     Create timeline(s) with probability of each class as scalar data
     """
-    print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
-    for index, sub_data in zip(data.index, data.data):
+    with data:
 
-        plugin_run_result_db = PluginRunResult.objects.create(
-            plugin_run=plugin_run_db,
-            data_id=sub_data.id,
-            name="insightface_facesizes",
-            type=PluginRunResult.TYPE_SCALAR,
-        )
-        Timeline.objects.create(
-            video=video_db,
-            name=LABEL_LUT.get(index, index),
-            type=Timeline.TYPE_PLUGIN_RESULT,
-            plugin_run_result=plugin_run_result_db,
-            visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-            parent=annotation_timeline,
-        )
+        print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
 
-    plugin_run_db.progress = 1.0
-    plugin_run_db.status = PluginRun.STATUS_DONE
-    plugin_run_db.save()
+        data.extract_all(data_manager)
+        for index, sub_data in zip(data.index, data.data):
 
-    return {"status": "done"}
+            plugin_run_result_db = PluginRunResult.objects.create(
+                plugin_run=plugin_run_db,
+                data_id=sub_data,
+                name="insightface_facesizes",
+                type=PluginRunResult.TYPE_SCALAR,
+            )
+            Timeline.objects.create(
+                video=video_db,
+                name=LABEL_LUT.get(index, index),
+                type=Timeline.TYPE_PLUGIN_RESULT,
+                plugin_run_result=plugin_run_result_db,
+                visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+                parent=annotation_timeline,
+            )
+
+        plugin_run_db.progress = 1.0
+        plugin_run_db.status = PluginRun.STATUS_DONE
+        plugin_run_db.save()
+
+        return {"status": "done"}

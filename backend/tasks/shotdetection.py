@@ -87,27 +87,28 @@ def detect_shots(self, args):
     if data is None:
         return
     logging.info(data)
+    with data:
 
-    timeline_id = uuid.uuid4().hex
-    # TODO translate the name
-    timeline = Timeline.objects.create(video=video_db, id=timeline_id, name="Shots", type=Timeline.TYPE_ANNOTATION)
-    for shot in data.shots:
-        segment_id = uuid.uuid4().hex
-        timeline_segment = TimelineSegment.objects.create(
-            timeline=timeline,
-            id=segment_id,
-            start=shot.start,
-            end=shot.end,
+        timeline_id = uuid.uuid4().hex
+        # TODO translate the name
+        timeline = Timeline.objects.create(video=video_db, id=timeline_id, name="Shots", type=Timeline.TYPE_ANNOTATION)
+        for shot in data.shots:
+            segment_id = uuid.uuid4().hex
+            timeline_segment = TimelineSegment.objects.create(
+                timeline=timeline,
+                id=segment_id,
+                start=shot.start,
+                end=shot.end,
+            )
+
+        plugin_run_result_db = PluginRunResult.objects.create(
+            plugin_run=plugin_run_db, data_id=data.id, name="shots", type=PluginRunResult.TYPE_SHOTS
         )
 
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="shots", type=PluginRunResult.TYPE_SHOTS
-    )
+        print(f"save results {plugin_run_result_db}", flush=True)
 
-    print(f"save results {plugin_run_result_db}", flush=True)
+        plugin_run_db.progress = 1.0
+        plugin_run_db.status = PluginRun.STATUS_DONE
+        plugin_run_db.save()
 
-    plugin_run_db.progress = 1.0
-    plugin_run_db.status = PluginRun.STATUS_DONE
-    plugin_run_db.save()
-
-    return {"status": "done"}
+        return {"status": "done"}
