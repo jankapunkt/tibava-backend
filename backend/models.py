@@ -49,7 +49,7 @@ class Video(models.Model):
             for timeline in Timeline.objects.filter(video=self):
                 timeline.clone(video=new_video_db, include_annotations=include_annotations)
 
-        return new_timeline_db
+        return new_timeline_db  # FIXME
 
 
 class Plugin(models.Model):
@@ -222,10 +222,20 @@ class Timeline(models.Model):
             video = self.video
         new_timeline_db = Timeline.objects.create(video=video, name=self.name, type=self.type)
 
+        new_timeline_segments_db = []
+        timeline_segment_annotations_added = []
         for segment in self.timelinesegment_set.all():
-            segment.clone(new_timeline_db, include_annotations)
+            new_timeline_segment_db, timeline_segment_annotation_added = segment.clone(
+                new_timeline_db, include_annotations
+            )
+            new_timeline_segments_db.append(new_timeline_segment_db)
+            timeline_segment_annotations_added.extend(timeline_segment_annotation_added)
 
-        return new_timeline_db
+        return {
+            "timeline_added": new_timeline_db,
+            "timeline_segment_added": new_timeline_segments_db,
+            "timeline_segment_annotation_added": timeline_segment_annotations_added,
+        }
 
 
 class AnnotationCategory(models.Model):
@@ -299,10 +309,11 @@ class TimelineSegment(models.Model):
         if not include_annotations:
             return new_timeline_segment_db
 
+        annotations = []
         for annotation in self.timelinesegmentannotation_set.all():
-            annotation.clone(new_timeline_segment_db)
+            annotations.append(annotation.clone(new_timeline_segment_db))
 
-        return new_timeline_segment_db
+        return new_timeline_segment_db, annotations
 
 
 # This is basically a many to many connection

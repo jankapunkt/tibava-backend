@@ -1,28 +1,12 @@
-import os
-import shutil
-import sys
 import json
-import uuid
 import logging
 import traceback
-import tempfile
-from pathlib import Path
-
-from urllib.parse import urlparse
-import imageio
-
-import wand.image as wimage
-
-from backend.utils import download_url, download_file, media_url_to_video
 
 from django.views import View
-from django.http import HttpResponse, JsonResponse
-from django.conf import settings
-
-# from django.core.exceptions import BadRequest
+from django.http import JsonResponse
 
 
-from backend.models import Video, Timeline, TimelineSegment, TimelineSegmentAnnotation
+from backend.models import Video, Timeline, TimelineSegment
 
 
 class TimelineList(View):
@@ -80,16 +64,17 @@ class TimelineDuplicate(View):
             new_timeline_db = timeline_db.clone(include_annotations=include_annotations)
 
             if data.get("name") and isinstance(data.get("name"), str):
-                new_timeline_db.name = data.get("name")
-                new_timeline_db.save()
+                new_timeline_db["timeline_added"].name = data.get("name")
+                new_timeline_db["timeline_added"].save()
 
-            # create new hash
             return JsonResponse(
                 {
                     "status": "ok",
-                    "timeline_added": [new_timeline_db.to_dict()],
-                    "timeline_segment_added": [],
-                    "timeline_segment_annotation_added": [],
+                    "timeline_added": [new_timeline_db["timeline_added"].to_dict()],
+                    "timeline_segment_added": [x.to_dict() for x in new_timeline_db["timeline_segment_added"]],
+                    "timeline_segment_annotation_added": [
+                        x.to_dict() for x in new_timeline_db["timeline_segment_annotation_added"]
+                    ],
                 }
             )
         except Exception as e:
