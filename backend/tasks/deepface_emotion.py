@@ -115,12 +115,15 @@ def deepface_emotion(self, args):
     if result is None:
         return
 
-    faceing_output_id = None
+    faceimg_id = None
+    faces_id = None
     for output in result.outputs:
         if output.name == "images":
-            faceing_output_id = output.id
+            faceimg_id = output.id
+        if output.name == "faces":
+            faces_id = output.id
 
-    if faceing_output_id is None:
+    if faceimg_id is None:
         return
     """
     Get Emotion Classification Results
@@ -128,7 +131,7 @@ def deepface_emotion(self, args):
     print(f"[{PLUGIN_NAME}] Run emotion classification", flush=True)
     job_id = client.run_plugin(
         "deepface_emotion",
-        [{"id": faceing_output_id, "name": "images"}],
+        [{"id": faceimg_id, "name": "images"}, {"id": faces_id, "name": "faces"}],
         [{"name": k, "value": v} for k, v in parameters.items()],
     )
     if job_id is None:
@@ -142,12 +145,35 @@ def deepface_emotion(self, args):
         if output.name == "probs":
             emotions_output_id = output.id
 
-    if emotions_output_id is None:
-        return
-    data = client.download_data(emotions_output_id, output_path)
+    # if emotions_output_id is None:
+    #     return
+    # data = client.download_data(emotions_output_id, output_path)
 
+    # if data is None:
+    #     return
+
+    """
+    Aggregate emotions of faces found in the same frame
+    """
+    print(f"[{PLUGIN_NAME}] Aggregate emotions of faces found in the same frame", flush=True)
+    job_id = client.run_plugin("aggregate_scalar_per_time", [{"id": emotions_output_id, "name": "timeline"}], [])
+
+    if job_id is None:
+        return
+
+    result = client.get_plugin_results(job_id=job_id)
+    if result is None:
+        return
+
+    aggregated_emotions_output_id = None
+    for output in result.outputs:
+        if output.name == "aggregated_timeline":
+            aggregated_emotions_output_id = output.id
+
+    data = client.download_data(aggregated_emotions_output_id, output_path)
     if data is None:
         return
+
     """
     Get shots from timeline with shot boundaries (if selected by the user)
     """
