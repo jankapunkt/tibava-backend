@@ -15,7 +15,7 @@ from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
 from .task import TaskAnalyserClient
-from analyser.data import Shot, ShotsData
+from analyser.data import Shot, ShotsData, DataManager
 
 
 LABEL_LUT = {
@@ -100,6 +100,7 @@ def deepface_emotion(self, args):
     Run insightface_video_detector
     """
     print(f"[{PLUGIN_NAME}] Run insightface_video_detector", flush=True)
+    data_manager = DataManager(output_path)
     client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
     data_id = client.upload_file(video_file)
     if data_id is None:
@@ -174,93 +175,97 @@ def deepface_emotion(self, args):
     if data is None:
         return
 
-    """
-    Get shots from timeline with shot boundaries (if selected by the user)
-    """
-    print(
-        f"[{PLUGIN_NAME}] Get shot boundaries from timeline with id: {parameters.get('shot_timeline_id')}", flush=True
-    )
-    shots_id = None
-    if parameters.get("shot_timeline_id"):
-        shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
-        shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
-        shots_id = client.upload_data(ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments]))
-
-    """
-    Assign most probable label to each shot boundary
-    """
-    print(f"[{PLUGIN_NAME}] Assign most probable class to each shot", flush=True)
-    if shots_id:
-        job_id = client.run_plugin(
-            "shot_annotator", [{"id": shots_id, "name": "shots"}, {"id": emotions_output_id, "name": "probs"}], []
+    with data:
+        """
+        Get shots from timeline with shot boundaries (if selected by the user)
+        """
+        print(
+            f"[{PLUGIN_NAME}] Get shot boundaries from timeline with id: {parameters.get('shot_timeline_id')}",
+            flush=True,
         )
-        if job_id is None:
-            return
-
-        result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
-        if result is None:
-            return
-
-        annotation_id = None
-        for output in result.outputs:
-            if output.name == "annotations":
-                annotation_id = output.id
-        if annotation_id is None:
-            return
-        result_annotations = client.download_data(annotation_id, output_path)
-
-        if result_annotations is None:
-            return
-    """
-    Create a timeline labeled by most probable class (per shot)
-    """
-    print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
-    annotation_timeline = Timeline.objects.create(
-        video=video_db, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
-    )
-
-    category_db, _ = AnnotationCategory.objects.get_or_create(name="Emotion", video=video_db, owner=user_db)
-
-    for annotation in result_annotations.annotations:
-        # create TimelineSegment
-        timeline_segment_db = TimelineSegment.objects.create(
-            timeline=annotation_timeline,
-            start=annotation.start,
-            end=annotation.end,
-        )
-
-        for label in annotation.labels:
-            # add annotion to TimelineSegment
-            annotation_db, _ = Annotation.objects.get_or_create(
-                name=LABEL_LUT.get(label, label), video=video_db, category=category_db, owner=user_db
+        shots_id = None
+        if parameters.get("shot_timeline_id"):
+            shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
+            shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
+            shots_id = client.upload_data(
+                ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments])
             )
 
-            TimelineSegmentAnnotation.objects.create(annotation=annotation_db, timeline_segment=timeline_segment_db)
+        """
+        Assign most probable label to each shot boundary
+        """
+        print(f"[{PLUGIN_NAME}] Assign most probable class to each shot", flush=True)
+        if shots_id:
+            job_id = client.run_plugin(
+                "shot_annotator", [{"id": shots_id, "name": "shots"}, {"id": emotions_output_id, "name": "probs"}], []
+            )
+            if job_id is None:
+                return
 
-    """
-    Create timeline(s) with probability of each class as scalar data
-    """
-    print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
-    for index, sub_data in zip(data.index, data.data):
+            result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
+            if result is None:
+                return
 
-        plugin_run_result_db = PluginRunResult.objects.create(
-            plugin_run=plugin_run_db,
-            data_id=sub_data.id,
-            name="face_emotion",
-            type=PluginRunResult.TYPE_SCALAR,
+            annotation_id = None
+            for output in result.outputs:
+                if output.name == "annotations":
+                    annotation_id = output.id
+            if annotation_id is None:
+                return
+            result_annotations = client.download_data(annotation_id, output_path)
+
+            if result_annotations is None:
+                return
+        """
+        Create a timeline labeled by most probable class (per shot)
+        """
+        print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
+        annotation_timeline = Timeline.objects.create(
+            video=video_db, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
         )
-        Timeline.objects.create(
-            video=video_db,
-            name=LABEL_LUT.get(index, index),
-            type=Timeline.TYPE_PLUGIN_RESULT,
-            plugin_run_result=plugin_run_result_db,
-            visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-            parent=annotation_timeline,
-        )
 
-    # set status
-    plugin_run_db.progress = 1.0
-    plugin_run_db.status = PluginRun.STATUS_DONE
-    plugin_run_db.save()
+        category_db, _ = AnnotationCategory.objects.get_or_create(name="Emotion", video=video_db, owner=user_db)
 
-    return {"status": "done"}
+        for annotation in result_annotations.annotations:
+            # create TimelineSegment
+            timeline_segment_db = TimelineSegment.objects.create(
+                timeline=annotation_timeline,
+                start=annotation.start,
+                end=annotation.end,
+            )
+
+            for label in annotation.labels:
+                # add annotion to TimelineSegment
+                annotation_db, _ = Annotation.objects.get_or_create(
+                    name=LABEL_LUT.get(label, label), video=video_db, category=category_db, owner=user_db
+                )
+
+                TimelineSegmentAnnotation.objects.create(annotation=annotation_db, timeline_segment=timeline_segment_db)
+
+        """
+        Create timeline(s) with probability of each class as scalar data
+        """
+        print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
+        for index, sub_data in zip(data.index, data.data):
+
+            plugin_run_result_db = PluginRunResult.objects.create(
+                plugin_run=plugin_run_db,
+                data_id=sub_data.id,
+                name="face_emotion",
+                type=PluginRunResult.TYPE_SCALAR,
+            )
+            Timeline.objects.create(
+                video=video_db,
+                name=LABEL_LUT.get(index, index),
+                type=Timeline.TYPE_PLUGIN_RESULT,
+                plugin_run_result=plugin_run_result_db,
+                visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+                parent=annotation_timeline,
+            )
+
+        # set status
+        plugin_run_db.progress = 1.0
+        plugin_run_db.status = PluginRun.STATUS_DONE
+        plugin_run_db.save()
+
+        return {"status": "done"}

@@ -4,6 +4,8 @@ from backend.models import PluginRun, PluginRunResult, Video, Timeline, Timeline
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
+from analyser.data import DataManager
+
 import logging
 
 from .task import TaskAnalyserClient
@@ -68,7 +70,7 @@ def color_analysis(self, args):
     plugin_run_db.save()
 
     # print(f"{analyser_host}, {analyser_port}")
-
+    data_manager = DataManager(output_path)
     client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
     data_id = client.upload_file(video_file)
     if data_id is None:
@@ -95,33 +97,35 @@ def color_analysis(self, args):
 
     if data is None:
         return
-    parent_timeline = None
-    if len(data.data) > 1:
-        parent_timeline = Timeline.objects.create(
-            video=video_db,
-            name=parameters.get("timeline"),
-            type=Timeline.TYPE_PLUGIN_RESULT,
-        )
+    with data:
+        data.extract_all(data_manager)
+        parent_timeline = None
+        if len(data.data) > 1:
+            parent_timeline = Timeline.objects.create(
+                video=video_db,
+                name=parameters.get("timeline"),
+                type=Timeline.TYPE_PLUGIN_RESULT,
+            )
 
-    for i, d in enumerate(data.data):
-        plugin_run_result_db = PluginRunResult.objects.create(
-            plugin_run=plugin_run_db,
-            data_id=d.id,
-            name="color_analysis",
-            type=PluginRunResult.TYPE_RGB_HIST,
-        )
+        for i, d in enumerate(data.data):
+            plugin_run_result_db = PluginRunResult.objects.create(
+                plugin_run=plugin_run_db,
+                data_id=d,
+                name="color_analysis",
+                type=PluginRunResult.TYPE_RGB_HIST,
+            )
 
-        _ = Timeline.objects.create(
-            video=video_db,
-            name=parameters.get("timeline") + f" #{i}" if len(data.data) > 1 else parameters.get("timeline"),
-            type=Timeline.TYPE_PLUGIN_RESULT,
-            plugin_run_result=plugin_run_result_db,
-            visualization=Timeline.VISUALIZATION_COLOR,
-            parent=parent_timeline,
-        )
+            _ = Timeline.objects.create(
+                video=video_db,
+                name=parameters.get("timeline") + f" #{i}" if len(data.data) > 1 else parameters.get("timeline"),
+                type=Timeline.TYPE_PLUGIN_RESULT,
+                plugin_run_result=plugin_run_result_db,
+                visualization=Timeline.VISUALIZATION_COLOR,
+                parent=parent_timeline,
+            )
 
-    plugin_run_db.progress = 1.0
-    plugin_run_db.status = PluginRun.STATUS_DONE
-    plugin_run_db.save()
+        plugin_run_db.progress = 1.0
+        plugin_run_db.status = PluginRun.STATUS_DONE
+        plugin_run_db.save()
 
-    return {"status": "done"}
+        return {"status": "done"}

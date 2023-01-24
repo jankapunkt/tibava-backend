@@ -14,6 +14,8 @@ from backend.plugin_manager import PluginManager
 from .task import TaskAnalyserClient
 from analyser.data import Shot, ShotsData
 
+from analyser.data import DataManager
+
 PLUGIN_NAME = "ShotDensity"
 
 
@@ -84,7 +86,10 @@ def shot_density(self, args):
     plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
-    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
+    data_manager = DataManager(output_path)
+    client = TaskAnalyserClient(
+        host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db, manager=data_manager
+    )
 
     """
     Get shots from timeline with shot boundaries (if selected by the user)
@@ -96,7 +101,11 @@ def shot_density(self, args):
     if parameters.get("shot_timeline_id"):
         shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
         shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
-        shots_id = client.upload_data(ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments]))
+        shots = data_manager.create_data("ShotsData")
+        with shots:
+            for x in shot_timeline_segments:
+                shots.shots.append(Shot(start=x.start, end=x.end))
+        shots_id = client.upload_data(shots)
 
     if shots_id is None:
         logging.error(f"[ShotDensity] upload of shots {parameters.get('shot_timeline_id')} failed")
@@ -137,20 +146,20 @@ def shot_density(self, args):
     data = client.download_data(shot_density_id, output_path)
     if data is None:
         return
-
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db,
-        data_id=data.id,
-        name="shot_density",
-        type=PluginRunResult.TYPE_SCALAR,
-    )
-    Timeline.objects.create(
-        video=video_db,
-        name=parameters.get("timeline"),
-        type=Timeline.TYPE_PLUGIN_RESULT,
-        plugin_run_result=plugin_run_result_db,
-        visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-    )
+    with data:
+        plugin_run_result_db = PluginRunResult.objects.create(
+            plugin_run=plugin_run_db,
+            data_id=data.id,
+            name="shot_density",
+            type=PluginRunResult.TYPE_SCALAR,
+        )
+        Timeline.objects.create(
+            video=video_db,
+            name=parameters.get("timeline"),
+            type=Timeline.TYPE_PLUGIN_RESULT,
+            plugin_run_result=plugin_run_result_db,
+            visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+        )
 
     plugin_run_db.progress = 1.0
     plugin_run_db.status = PluginRun.STATUS_DONE

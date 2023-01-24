@@ -5,6 +5,7 @@ from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
 from .task import TaskAnalyserClient
+from analyser.data import DataManager
 
 
 @PluginManager.export("insightface_video_detector")
@@ -66,6 +67,7 @@ def insightface_detection(self, args):
     plugin_run_db.status = PluginRun.STATUS_WAITING
     plugin_run_db.save()
 
+    data_manager = DataManager(output_path)
     client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
     data_id = client.upload_file(video_file)
     if data_id is None:

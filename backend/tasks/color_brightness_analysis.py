@@ -97,21 +97,24 @@ def color_brightness_analysis(self, args):
 
     if data is None:
         return
+    with data:
+        plugin_run_result_db = PluginRunResult.objects.create(
+            plugin_run=plugin_run_db,
+            data_id=data.id,
+            name="color_brightness_analysis",
+            type=PluginRunResult.TYPE_SCALAR,
+        )
 
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db, data_id=data.id, name="color_brightness_analysis", type=PluginRunResult.TYPE_SCALAR
-    )
+        _ = Timeline.objects.create(
+            video=video_db,
+            name=parameters.get("timeline"),
+            type=Timeline.TYPE_PLUGIN_RESULT,
+            plugin_run_result=plugin_run_result_db,
+            visualization=Timeline.VISUALIZATION_SCALAR_LINE,
+        )
 
-    _ = Timeline.objects.create(
-        video=video_db,
-        name=parameters.get("timeline"),
-        type=Timeline.TYPE_PLUGIN_RESULT,
-        plugin_run_result=plugin_run_result_db,
-        visualization=Timeline.VISUALIZATION_SCALAR_LINE,
-    )
+        plugin_run_db.progress = 1.0
+        plugin_run_db.status = PluginRun.STATUS_DONE
+        plugin_run_db.save()
 
-    plugin_run_db.progress = 1.0
-    plugin_run_db.status = PluginRun.STATUS_DONE
-    plugin_run_db.save()
-
-    return {"status": "done"}
+        return {"status": "done"}
