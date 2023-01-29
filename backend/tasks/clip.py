@@ -2,7 +2,7 @@ from celery import shared_task
 import logging
 import redis
 
-from .task import TaskAnalyserClient
+from ..utils.analyser_client import TaskAnalyserClient
 
 from backend.models import PluginRun, PluginRunResult, Video, Timeline
 from backend.plugin_manager import PluginManager

@@ -8,7 +8,7 @@ from analyser.data import DataManager
 
 import logging
 
-from .task import TaskAnalyserClient
+from ..utils.analyser_client import TaskAnalyserClient
 
 
 @PluginManager.export("color_analysis")

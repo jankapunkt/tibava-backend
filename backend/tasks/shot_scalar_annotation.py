@@ -2,7 +2,7 @@ import random
 
 from backend.utils import rgb_to_hex, hsv_to_rgb
 
-from .task import TaskAnalyserClient
+from ..utils.analyser_client import TaskAnalyserClient
 
 from analyser.data import Shot, ShotsData
 

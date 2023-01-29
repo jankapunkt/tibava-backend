@@ -16,7 +16,7 @@ from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
 
-from .task import TaskAnalyserClient
+from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import DataManager
 
 

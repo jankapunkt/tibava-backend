@@ -6,7 +6,7 @@ from backend.utils import media_path_to_video
 
 import logging
 
-from .task import TaskAnalyserClient
+from ..utils.analyser_client import TaskAnalyserClient
 
 
 @PluginManager.export("color_brightness_analysis")

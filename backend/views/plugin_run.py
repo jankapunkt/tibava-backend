@@ -101,9 +101,12 @@ class PluginRunNew(View):
 
             user_db = request.user
 
-            plugin_manager(plugin, valid_parameters, user=user_db, video=video_db)
+            result = plugin_manager(plugin, valid_parameters, user=user_db, video=video_db)
 
-            return JsonResponse({"status": "ok"})
+            if result:
+
+                return JsonResponse({"status": "ok"})
+            return JsonResponse({"status": "error", "type": "plugin_not_started"})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

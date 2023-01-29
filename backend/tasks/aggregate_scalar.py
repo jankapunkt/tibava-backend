@@ -8,7 +8,7 @@ from backend.models import (
 )
 from backend.plugin_manager import PluginManager
 
-from .task import TaskAnalyserClient
+from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import DataManager, ListData
 
 PLUGIN_NAME = "AggregateScalar"
