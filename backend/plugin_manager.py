@@ -1,6 +1,9 @@
-from celery import shared_task
 import logging
+import traceback
+import sys
 from typing import List
+
+from celery import shared_task
 from backend.models import PluginRun, Video, User
 
 
@@ -31,13 +34,16 @@ class PluginManager:
         return plugin in self._plugins
 
     def __call__(self, plugin: str, parameters: List, video: Video, user: User, run_async: bool = True, **kwargs):
+        print(f"########## 4 {parameters}", flush=True)
         print(f"[PluginManager] {plugin}: {parameters}", flush=True)
         if plugin not in self._plugins:
             # TODO
             return False
 
+        print(f"########## 3 {parameters}", flush=True)
         if plugin in self._parser:
-            parameters = self._parser[plugin](parameters)
+            parameters = self._parser[plugin]()(parameters)
+        print(f"########## 2 {parameters}", flush=True)
 
         plugin_run = PluginRun.objects.create(video=video, type=plugin, status=PluginRun.STATUS_QUEUED)
         if run_async:
@@ -50,7 +56,7 @@ class PluginManager:
                         "user": user.id,
                         "plugin_run": plugin_run.id,
                         "kwargs": kwargs,
-                    }
+                    },
                 )
             )
         else:
@@ -79,6 +85,7 @@ class PluginManager:
 def run_plugin(self, args):
     plugin = args.get("plugin")
     parameters = args.get("parameters")
+    print(f"########## 1 {parameters}", flush=True)
     video = args.get("video")
     user = args.get("user")
     plugin_run = args.get("plugin_run")
@@ -97,8 +104,18 @@ def run_plugin(self, args):
             plugin_run_db.progress = 1.0
             plugin_run_db.status = PluginRun.STATUS_DONE
             plugin_run_db.save()
+        return
 
     except Exception as e:
-        logging.error(f"{plugin} {e}")
+        logging.error(f"{plugin}: {e}")
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+
+        traceback.print_exception(
+            exc_type,
+            exc_value,
+            exc_traceback,
+            limit=2,
+            file=sys.stdout,
+        )
     plugin_run_db.status = PluginRun.STATUS_ERROR
     plugin_run_db.save()

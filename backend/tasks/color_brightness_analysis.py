@@ -9,7 +9,7 @@ import logging
 from ..utils.analyser_client import TaskAnalyserClient
 
 
-@PluginManager.export("color_brightness_analysis")
+@PluginManager.export_plugin("color_brightness_analysis")
 class ColorBrightnessAnalyser:
     def __init__(self):
         self.config = {

@@ -28,7 +28,7 @@ LABEL_LUT = {
 PLUGIN_NAME = "InsightfaceFacesize"
 
 
-@PluginManager.export("insightface_facesize")
+@PluginManager.export_plugin("insightface_facesize")
 class InsightfaceFacesize:
     def __init__(self):
         self.config = {

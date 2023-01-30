@@ -21,7 +21,7 @@ from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import DataManager
 
 
-@PluginManager.export("shotdetection")
+@PluginManager.export_plugin("shotdetection")
 class Thumbnail:
     def __init__(self):
         self.config = {

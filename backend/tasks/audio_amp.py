@@ -21,7 +21,7 @@ from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import DataManager
 
 
-@PluginManager.export("audio_amp")
+@PluginManager.export_plugin("audio_amp")
 class AudioAmp:
     def __init__(self):
         self.config = {

@@ -11,7 +11,7 @@ import logging
 from ..utils.analyser_client import TaskAnalyserClient
 
 
-@PluginManager.export("color_analysis")
+@PluginManager.export_plugin("color_analysis")
 class ColorAnalyser:
     def __init__(self):
         self.config = {

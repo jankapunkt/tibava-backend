@@ -8,7 +8,7 @@ from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import DataManager
 
 
-@PluginManager.export("insightface_video_detector")
+@PluginManager.export_plugin("insightface_video_detector")
 class InsightfaceVideoDetector:
     def __init__(self):
         self.config = {

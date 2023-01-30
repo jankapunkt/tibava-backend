@@ -24,7 +24,7 @@ CATEGORY_LUT = {"probs_places365": "Places365", "probs_places16": "Places16", "p
 PLUGIN_NAME = "PlacesClassifier"
 
 
-@PluginManager.export("places_classification")
+@PluginManager.export_plugin("places_classification")
 class PlacesClassifier:
     def __init__(self):
         self.config = {

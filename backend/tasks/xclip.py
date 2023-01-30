@@ -10,8 +10,8 @@ from backend.models import PluginRun, PluginRunResult, Video, Timeline
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
-from backend.backend.utils.parser import Parser
-from backend.backend.utils.task import Task
+from backend.utils.parser import Parser
+from backend.utils.task import Task
 
 from analyser.data import DataManager
 
@@ -38,7 +38,7 @@ class XCLIP(Task):
 
     def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
 
-        manager = DataManager()
+        manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
             port=self.config["analyser_port"],

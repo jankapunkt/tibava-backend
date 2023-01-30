@@ -17,7 +17,7 @@ class Task:
 
     def upload_video(self, client: TaskAnalyserClient, video: Video) -> str:
 
-        video_file = media_path_to_video(video.id, video.ext)
+        video_file = media_path_to_video(video.id.hex, video.ext)
 
         data_id = client.upload_file(video_file)
         return data_id
@@ -26,12 +26,21 @@ class Task:
         self,
         client: TaskAnalyserClient,
         analyser: str,
-        parameters: Dict,
-        inputs: Dict,
-        outputs: List,
-        downloads: List,
+        parameters: Dict = None,
+        inputs: Dict = None,
+        outputs: List = None,
+        downloads: List = None,
         plugin_run: PluginRun = None,
     ) -> str:
+
+        if parameters is None:
+            parameters = {}
+        if inputs is None:
+            inputs = {}
+        if outputs is None:
+            outputs = []
+        if downloads is None:
+            downloads = []
 
         job_id = client.run_plugin(
             analyser,

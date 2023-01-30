@@ -20,7 +20,7 @@ from backend.utils import media_path_to_video
 from ..utils.analyser_client import TaskAnalyserClient
 
 
-@PluginManager.export("audio_freq")
+@PluginManager.export_plugin("audio_freq")
 class AudioFreq:
     def __init__(self):
         self.config = {

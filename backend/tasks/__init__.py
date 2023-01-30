@@ -14,4 +14,5 @@ from .shotdetection import *
 from .thumbnail import *
 from .color_brightness_analysis import *
 from .clip import *
+from .xclip import *
 from .shot_scalar_annotation import *

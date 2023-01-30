@@ -26,7 +26,7 @@ from analyser.data import DataManager
 PLUGIN_NAME = "ShotScalarAnnotation"
 
 
-@PluginManager.export("shot_scalar_annotation")
+@PluginManager.export_plugin("shot_scalar_annotation")
 class ShotScalarAnnotation:
     def __init__(self):
         self.config = {

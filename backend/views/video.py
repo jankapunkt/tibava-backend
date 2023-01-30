@@ -15,7 +15,7 @@ from backend.plugin_manager import PluginManager
 
 import wand.image as wimage
 
-from backend.utils import download_url, download_file, media_url_to_video
+from backend.utils import download_url, download_file, media_url_to_video, media_path_to_video, media_dir_to_video
 
 from django.views import View
 from django.http import HttpResponse, JsonResponse
@@ -46,7 +46,7 @@ class VideoUpload(View):
             video_id_uuid = uuid.uuid4()
             video_id = video_id_uuid.hex
             if "file" in request.FILES:
-                output_dir = os.path.join(settings.MEDIA_ROOT)
+                output_dir = media_dir_to_video(video_id)
 
                 download_result = download_file(
                     output_dir=output_dir,

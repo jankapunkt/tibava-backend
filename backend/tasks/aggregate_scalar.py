@@ -14,7 +14,7 @@ from analyser.data import DataManager, ListData
 PLUGIN_NAME = "AggregateScalar"
 
 
-@PluginManager.export("aggregate_scalar")
+@PluginManager.export_plugin("aggregate_scalar")
 class AggregateScalar:
     def __init__(self):
         self.config = {

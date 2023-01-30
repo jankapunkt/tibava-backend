@@ -30,7 +30,7 @@ LABEL_LUT = {
 PLUGIN_NAME = "ShotTypeClassifier"
 
 
-@PluginManager.export("shot_type_classification")
+@PluginManager.export_plugin("shot_type_classification")
 class ShotTypeClassifier:
     def __init__(self):
         self.config = {

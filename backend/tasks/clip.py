@@ -9,7 +9,7 @@ from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
 
-@PluginManager.export("clip")
+@PluginManager.export_plugin("clip")
 class CLIP:
     def __init__(self):
         self.config = {

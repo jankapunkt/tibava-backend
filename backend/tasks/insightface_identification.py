@@ -12,7 +12,7 @@ from ..utils.analyser_client import TaskAnalyserClient
 PLUGIN_NAME = "InsightfaceIdentification"
 
 
-@PluginManager.export("insightface_identification")
+@PluginManager.export_plugin("insightface_identification")
 class InsightfaceIdentification:
     def __init__(self):
         self.config = {

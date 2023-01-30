@@ -21,7 +21,7 @@ from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import DataManager
 
 
-@PluginManager.export("audio_rms")
+@PluginManager.export_plugin("audio_rms")
 class AudioRms:
     def __init__(self):
         self.config = {

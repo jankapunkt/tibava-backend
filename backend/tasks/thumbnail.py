@@ -20,7 +20,7 @@ from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import DataManager
 
 
-@PluginManager.export("thumbnail")
+@PluginManager.export_plugin("thumbnail")
 class Thumbnail:
     def __init__(self):
         self.config = {

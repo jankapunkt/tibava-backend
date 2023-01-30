@@ -19,7 +19,7 @@ from analyser.data import DataManager
 PLUGIN_NAME = "ShotDensity"
 
 
-@PluginManager.export("shot_density")
+@PluginManager.export_plugin("shot_density")
 class ShotDensity:
     def __init__(self):
         self.config = {

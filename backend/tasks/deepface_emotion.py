@@ -30,7 +30,7 @@ LABEL_LUT = {
 PLUGIN_NAME = "DeepfaceEmotion"
 
 
-@PluginManager.export("deepface_emotion")
+@PluginManager.export_plugin("deepface_emotion")
 class DeepfaceEmotion:
     def __init__(self):
         self.config = {
