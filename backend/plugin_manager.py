@@ -33,7 +33,12 @@ class PluginManager:
     def __contains__(self, plugin):
         return plugin in self._plugins
 
-    def __call__(self, plugin: str, parameters: List, video: Video, user: User, run_async: bool = True, **kwargs):
+    def __call__(
+        self, plugin: str, video: Video, user: User, parameters: List = None, run_async: bool = True, **kwargs
+    ):
+        if parameters is None:
+            parameters = []
+
         print(f"########## 4 {parameters}", flush=True)
         print(f"[PluginManager] {plugin}: {parameters}", flush=True)
         if plugin not in self._plugins:
@@ -97,13 +102,10 @@ def run_plugin(self, args):
 
     plugin_manager = PluginManager()
     try:
-        result = plugin_manager._plugins[plugin]()(
-            parameters, user=user_db, video=video_db, plugin_run=plugin_run_db, **kwargs
-        )
-        if result:
-            plugin_run_db.progress = 1.0
-            plugin_run_db.status = PluginRun.STATUS_DONE
-            plugin_run_db.save()
+        plugin_manager._plugins[plugin]()(parameters, user=user_db, video=video_db, plugin_run=plugin_run_db, **kwargs)
+        plugin_run_db.progress = 1.0
+        plugin_run_db.status = PluginRun.STATUS_DONE
+        plugin_run_db.save()
         return
 
     except Exception as e:

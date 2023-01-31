@@ -1,4 +1,4 @@
-from celery import shared_task
+from typing import Dict, List
 
 from backend.models import (
     Annotation,
@@ -16,6 +16,8 @@ from backend.utils import media_path_to_video
 
 from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import Shot, ShotsData, DataManager
+from backend.utils.parser import Parser
+from backend.utils.task import Task
 
 
 LABEL_LUT = {
@@ -30,8 +32,20 @@ LABEL_LUT = {
 PLUGIN_NAME = "DeepfaceEmotion"
 
 
+@PluginManager.export_parser("deepface_emotion")
+class DeepfaceEmotionParser(Parser):
+    def __init__(self):
+
+        self.valid_parameter = {
+            "timeline": {"parser": str, "default": "Face Emotion"},
+            "shot_timeline_id": {"default": None},
+            "fps": {"parser": float, "default": 2},
+            "min_facesize": {"parser": int, "default": 48},
+        }
+
+
 @PluginManager.export_plugin("deepface_emotion")
-class DeepfaceEmotion:
+class DeepfaceEmotion(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
@@ -39,233 +53,122 @@ class DeepfaceEmotion:
             "analyser_port": 50051,
         }
 
-    def __call__(self, parameters=None, **kwargs):
-        video = kwargs.get("video")
-        user = kwargs.get("user")
-        if not parameters:
-            parameters = []
+    def __call__(
+        self, parameters: Dict, video: Video = None, user: User = None, plugin_run: PluginRun = None, **kwargs
+    ):
+        # Debug
+        # parameters["fps"] = 0.05
 
-        task_parameter = {"timeline": "Face Detection"}
-        for p in parameters:
-            if p["name"] in ["timeline", "shot_timeline_id"]:
-                task_parameter[p["name"]] = str(p["value"])
-            elif p["name"] in ["fps", "min_facesize"]:
-                task_parameter[p["name"]] = int(p["value"])
-            else:
-                return False
-
-        pluging_run_db = PluginRun.objects.create(video=video, type="deepface_emotion", status=PluginRun.STATUS_QUEUED)
-
-        deepface_emotion.apply_async(
-            (
-                {
-                    "id": pluging_run_db.id.hex,
-                    "video": video.to_dict(),
-                    "user": {
-                        "username": user.get_username(),
-                        "email": user.email,
-                        "date": user.date_joined,
-                        "id": user.id,
-                    },
-                    "config": self.config,
-                    "parameters": task_parameter,
-                },
-            )
+        manager = DataManager(self.config["output_path"])
+        client = TaskAnalyserClient(
+            host=self.config["analyser_host"],
+            port=self.config["analyser_port"],
+            plugin_run_db=plugin_run,
+            manager=manager,
         )
-        return True
+        # upload all data
+        video_id = self.upload_video(client, video)
 
-
-@shared_task(bind=True)
-def deepface_emotion(self, args):
-    config = args.get("config")
-    parameters = args.get("parameters")
-    video = args.get("video")
-    user = args.get("user")
-    id = args.get("id")
-    output_path = config.get("output_path")
-    analyser_host = config.get("analyser_host", "localhost")
-    analyser_port = config.get("analyser_port", 50051)
-
-    print(f"[{PLUGIN_NAME}] {video}: {parameters}", flush=True)
-
-    user_db = User.objects.get(id=user.get("id"))
-    video_db = Video.objects.get(id=video.get("id"))
-    video_file = media_path_to_video(video.get("id"), video.get("ext"))
-    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
-
-    plugin_run_db.status = PluginRun.STATUS_WAITING
-    plugin_run_db.save()
-
-    """
-    Run insightface_video_detector
-    """
-    print(f"[{PLUGIN_NAME}] Run insightface_video_detector", flush=True)
-    data_manager = DataManager(output_path)
-    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
-    data_id = client.upload_file(video_file)
-    if data_id is None:
-        return
-    job_id = client.run_plugin(
-        "insightface_video_detector",
-        [{"id": data_id, "name": "video"}],
-        [{"name": k, "value": v} for k, v in parameters.items()],
-    )
-    if job_id is None:
-        return
-    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
-    if result is None:
-        return
-
-    faceimg_id = None
-    faces_id = None
-    for output in result.outputs:
-        if output.name == "images":
-            faceimg_id = output.id
-        if output.name == "faces":
-            faces_id = output.id
-
-    if faceimg_id is None:
-        return
-    """
-    Get Emotion Classification Results
-    """
-    print(f"[{PLUGIN_NAME}] Run emotion classification", flush=True)
-    job_id = client.run_plugin(
-        "deepface_emotion",
-        [{"id": faceimg_id, "name": "images"}, {"id": faces_id, "name": "faces"}],
-        [{"name": k, "value": v} for k, v in parameters.items()],
-    )
-    if job_id is None:
-        return
-    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
-    if result is None:
-        return
-
-    emotions_output_id = None
-    for output in result.outputs:
-        if output.name == "probs":
-            emotions_output_id = output.id
-
-    # if emotions_output_id is None:
-    #     return
-    # data = client.download_data(emotions_output_id, output_path)
-
-    # if data is None:
-    #     return
-
-    """
-    Aggregate emotions of faces found in the same frame
-    """
-    print(f"[{PLUGIN_NAME}] Aggregate emotions of faces found in the same frame", flush=True)
-    job_id = client.run_plugin("aggregate_scalar_per_time", [{"id": emotions_output_id, "name": "timeline"}], [])
-
-    if job_id is None:
-        return
-
-    result = client.get_plugin_results(job_id=job_id)
-    if result is None:
-        return
-
-    aggregated_emotions_output_id = None
-    for output in result.outputs:
-        if output.name == "aggregated_timeline":
-            aggregated_emotions_output_id = output.id
-
-    data = client.download_data(aggregated_emotions_output_id, output_path)
-    if data is None:
-        return
-
-    with data:
-        """
-        Get shots from timeline with shot boundaries (if selected by the user)
-        """
-        print(
-            f"[{PLUGIN_NAME}] Get shot boundaries from timeline with id: {parameters.get('shot_timeline_id')}",
-            flush=True,
-        )
         shots_id = None
         if parameters.get("shot_timeline_id"):
             shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
             shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
-            shots_id = client.upload_data(
-                ShotsData(shots=[Shot(start=x.start, end=x.end) for x in shot_timeline_segments])
-            )
 
-        """
-        Assign most probable label to each shot boundary
-        """
-        print(f"[{PLUGIN_NAME}] Assign most probable class to each shot", flush=True)
-        if shots_id:
-            job_id = client.run_plugin(
-                "shot_annotator", [{"id": shots_id, "name": "shots"}, {"id": emotions_output_id, "name": "probs"}], []
-            )
-            if job_id is None:
-                return
+            shots = manager.create_data("ShotsData")
+            with shots:
+                for x in shot_timeline_segments:
+                    shots.shots.append(Shot(start=x.start, end=x.end))
+            shots_id = client.upload_data(shots)
 
-            result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
-            if result is None:
-                return
-
-            annotation_id = None
-            for output in result.outputs:
-                if output.name == "annotations":
-                    annotation_id = output.id
-            if annotation_id is None:
-                return
-            result_annotations = client.download_data(annotation_id, output_path)
-
-            if result_annotations is None:
-                return
-        """
-        Create a timeline labeled by most probable class (per shot)
-        """
-        print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
-        annotation_timeline = Timeline.objects.create(
-            video=video_db, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+        # start plugins
+        result = self.run_analyser(
+            client,
+            "insightface_video_detector_torch",
+            parameters={
+                "fps": parameters.get("fps"),
+                "min_facesize": parameters.get("min_facesize"),
+            },
+            inputs={"video": video_id},
+            outputs=["images", "faces"],
         )
 
-        category_db, _ = AnnotationCategory.objects.get_or_create(name="Emotion", video=video_db, owner=user_db)
+        if result is None:
+            raise Exception
 
-        for annotation in result_annotations.annotations:
-            # create TimelineSegment
-            timeline_segment_db = TimelineSegment.objects.create(
-                timeline=annotation_timeline,
-                start=annotation.start,
-                end=annotation.end,
-            )
+        emotion_result = self.run_analyser(
+            client,
+            "deepface_emotion",
+            inputs={**result[0]},
+            outputs=["probs"],
+            downloads=["probs"],
+        )
 
-            for label in annotation.labels:
-                # add annotion to TimelineSegment
-                annotation_db, _ = Annotation.objects.get_or_create(
-                    name=LABEL_LUT.get(label, label), video=video_db, category=category_db, owner=user_db
+        if emotion_result is None:
+            raise Exception
+
+        aggregate_result = self.run_analyser(
+            client,
+            "aggregate_scalar_per_time",
+            inputs={"timelines": emotion_result[0]["probs"]},
+            downloads=["aggregated_timeline"],
+        )
+
+        if aggregate_result is None:
+            raise Exception
+
+        with aggregate_result[1]["aggregated_timeline"] as data:
+            # Annotate shots
+            if shots_id:
+
+                annotater_result = self.run_analyser(
+                    client,
+                    "shot_annotator",
+                    inputs={"shots": shots_id, "probs": data.id},
+                    downloads=["annotations"],
                 )
 
-                TimelineSegmentAnnotation.objects.create(annotation=annotation_db, timeline_segment=timeline_segment_db)
+                if annotater_result is None:
+                    raise Exception
+                with annotater_result[1]["annotations"] as annotations_data:
 
-        """
-        Create timeline(s) with probability of each class as scalar data
-        """
-        print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
-        for index, sub_data in zip(data.index, data.data):
+                    annotation_timeline = Timeline.objects.create(
+                        video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                    )
 
-            plugin_run_result_db = PluginRunResult.objects.create(
-                plugin_run=plugin_run_db,
-                data_id=sub_data.id,
-                name="face_emotion",
-                type=PluginRunResult.TYPE_SCALAR,
-            )
-            Timeline.objects.create(
-                video=video_db,
-                name=LABEL_LUT.get(index, index),
-                type=Timeline.TYPE_PLUGIN_RESULT,
-                plugin_run_result=plugin_run_result_db,
-                visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-                parent=annotation_timeline,
-            )
+                    category_db, _ = AnnotationCategory.objects.get_or_create(name="Emotion", video=video, owner=user)
 
-        # set status
-        plugin_run_db.progress = 1.0
-        plugin_run_db.status = PluginRun.STATUS_DONE
-        plugin_run_db.save()
+                    for annotation in annotations_data.annotations:
+                        # create TimelineSegment
+                        timeline_segment_db = TimelineSegment.objects.create(
+                            timeline=annotation_timeline,
+                            start=annotation.start,
+                            end=annotation.end,
+                        )
 
-        return {"status": "done"}
+                        for label in annotation.labels:
+                            # add annotion to TimelineSegment
+                            annotation_db, _ = Annotation.objects.get_or_create(
+                                name=LABEL_LUT.get(label, label), video=video, category=category_db, owner=user
+                            )
+
+                            TimelineSegmentAnnotation.objects.create(
+                                annotation=annotation_db, timeline_segment=timeline_segment_db
+                            )
+
+            data.extract_all(manager)
+            for index, sub_data in zip(data.index, data.data):
+
+                plugin_run_result_db = PluginRunResult.objects.create(
+                    plugin_run=plugin_run,
+                    data_id=sub_data,
+                    name="face_emotion",
+                    type=PluginRunResult.TYPE_SCALAR,
+                )
+                Timeline.objects.create(
+                    video=video,
+                    name=LABEL_LUT.get(index, index),
+                    type=Timeline.TYPE_PLUGIN_RESULT,
+                    plugin_run_result=plugin_run_result_db,
+                    visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+                    parent=annotation_timeline,
+                )

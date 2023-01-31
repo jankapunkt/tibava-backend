@@ -13,7 +13,7 @@ def media_path_to_video(id, ext):
     return settings.MEDIA_ROOT + id[0:2] + "/" + id[2:4] + "/" + id + ext
 
 
-def media_dir_to_video(id, ext):
+def media_dir_to_video(id):
     # todo
     return settings.MEDIA_ROOT + id[0:2] + "/" + id[2:4] + "/"
 

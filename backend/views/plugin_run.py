@@ -101,7 +101,7 @@ class PluginRunNew(View):
 
             user_db = request.user
 
-            result = plugin_manager(plugin, valid_parameters, user=user_db, video=video_db)
+            result = plugin_manager(plugin, user=user_db, video=video_db, parameters=valid_parameters)
 
             if result:
 

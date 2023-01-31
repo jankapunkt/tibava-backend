@@ -1,4 +1,5 @@
-from celery import shared_task
+from typing import Dict, List
+
 
 from backend.models import (
     PluginRun,
@@ -10,12 +11,26 @@ from backend.plugin_manager import PluginManager
 
 from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import DataManager, ListData
+from backend.utils.parser import Parser
+from backend.utils.task import Task
+
 
 PLUGIN_NAME = "AggregateScalar"
 
 
+@PluginManager.export_parser("aggregate_scalar")
+class AggregateScalarParser(Parser):
+    def __init__(self):
+        self.aggregation_lut = {0: "or", 1: "and", 2: "mean", 3: "prod"}
+        self.valid_parameter = {
+            "timeline": {"parser": str, "default": "Aggregated Timeline"},
+            "timeline_ids": {"required": True},
+            "aggregation": {"parser": lambda x: self.aggregation_lut[x], "default": 0},
+        }
+
+
 @PluginManager.export_plugin("aggregate_scalar")
-class AggregateScalar:
+class AggregateScalar(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
@@ -23,147 +38,58 @@ class AggregateScalar:
             "analyser_port": 50051,
         }
 
-    def __call__(self, parameters=None, **kwargs):
-        video = kwargs.get("video")
-        user = kwargs.get("user")
-        if not parameters:
-            parameters = []
+    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
 
-        aggregation_lut = {0: "or", 1: "and", 2: "mean", 3: "prod"}
+        manager = DataManager(self.config["output_path"])
+        client = TaskAnalyserClient(
+            host=self.config["analyser_host"],
+            port=self.config["analyser_port"],
+            plugin_run_db=plugin_run,
+            manager=manager,
+        )
 
-        task_parameter = {"timeline": "Aggregated Timeline"}
-        print(parameters)
-        for p in parameters:
-            if p["name"] == "aggregation":
-                print(p["value"])
-                aggregation = None
-                try:
-                    aggregation_int = int(p["value"])
-                    aggregation = aggregation_lut[aggregation_int]
-                except:
-                    pass
-                if aggregation is None:
-                    aggregation = str(p["value"])
+        timelines = manager.create_data("ListData")
 
-                print(aggregation)
-                task_parameter["aggregation"] = aggregation
-            elif p["name"] in ["timeline"]:
-                task_parameter[p["name"]] = str(p["value"])
-            elif p["name"] in ["timeline_ids"]:
-                task_parameter[p["name"]] = p["value"]
-            else:
-                return False
+        with timelines:
+            for timeline_id in parameters.get("timeline_ids"):
+                print(
+                    f"[{PLUGIN_NAME}] Get probabilities from scalar timeline with id: {timeline_id}",
+                    flush=True,
+                )
 
-        pluging_run_db = PluginRun.objects.create(video=video, type="aggregate_scalar", status=PluginRun.STATUS_QUEUED)
-        aggregate_scalar.apply_async(
-            (
-                {
-                    "id": pluging_run_db.id.hex,
-                    "video": video.to_dict(),
-                    "user": {
-                        "username": user.get_username(),
-                        "email": user.email,
-                        "date": user.date_joined,
-                        "id": user.id,
-                    },
-                    "config": self.config,
-                    "parameters": task_parameter,
-                },
+                timeline_db = Timeline.objects.get(id=timeline_id)
+                plugin_data_id = timeline_db.plugin_run_result.data_id
+
+                data = manager.load(plugin_data_id)
+
+                timelines.add_data(data)
+
+        timelines_id = client.upload_data(timelines)
+
+        result = self.run_analyser(
+            client,
+            "aggregate_scalar",
+            parameters={
+                "aggregation": parameters.get("aggregation"),
+            },
+            inputs={"timelines": timelines_id},
+            downloads=["probs"],
+        )
+
+        if result is None:
+            raise Exception
+
+        with result[1]["probs"] as data:
+            plugin_run_result_db = PluginRunResult.objects.create(
+                plugin_run=plugin_run,
+                data_id=data.id,
+                name="aggregate_scalar",
+                type=PluginRunResult.TYPE_SCALAR,  # S stands for SCALAR_DATA
             )
-        )
-        return True
-
-
-@shared_task(bind=True)
-def aggregate_scalar(self, args):
-
-    config = args.get("config")
-    parameters = args.get("parameters")
-    video = args.get("video")
-    # user = args.get("user")
-    id = args.get("id")
-    output_path = config.get("output_path")
-    analyser_host = config.get("analyser_host", "localhost")
-    analyser_port = config.get("analyser_port", 50051)
-
-    print(f"[{PLUGIN_NAME}] {video}: {parameters}", flush=True)
-
-    # user_db = User.objects.get(id=user.get("id"))
-    video_db = Video.objects.get(id=video.get("id"))
-    # video_file = media_path_to_video(video.get("id"), video.get("ext"))
-    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
-
-    plugin_run_db.status = PluginRun.STATUS_WAITING
-    plugin_run_db.save()
-
-    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
-
-    """
-    Get probabilities from scalar timelines
-    """
-    timelines = []
-    for timeline_id in parameters.get("timeline_ids"):
-        print(
-            f"[{PLUGIN_NAME}] Get probabilities from scalar timeline with id: {timeline_id}",
-            flush=True,
-        )
-
-        timeline_db = Timeline.objects.get(id=timeline_id)
-        plugin_data_id = timeline_db.plugin_run_result.data_id
-
-        data_manager = DataManager("/predictions/")
-        data = data_manager.load(plugin_data_id)
-
-        timelines.append(data)
-
-    data_id = client.upload_data(ListData(data=[x for x in timelines]))
-    if data_id is None:
-        return
-
-    """
-    Create timeline(s) with probability of each class as scalar data
-    """
-    print(f"[{PLUGIN_NAME}] Aggregate probabilities", flush=True)
-
-    job_id = client.run_plugin(
-        "aggregate_scalar",
-        [{"id": data_id, "name": "timelines"}],
-        [{"name": k, "value": v} for k, v in parameters.items()],
-    )
-    if job_id is None:
-        return
-
-    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
-    if result is None:
-        return
-
-    probs_id = None
-    for output in result.outputs:
-        if output.name == "probs":
-            probs_id = output.id
-
-    if probs_id is None:
-        return
-    data = client.download_data(probs_id, output_path)
-
-    if data is None:
-        return
-    plugin_run_result_db = PluginRunResult.objects.create(
-        plugin_run=plugin_run_db,
-        data_id=data.id,
-        name="aggregate_scalar",
-        type=PluginRunResult.TYPE_SCALAR,  # S stands for SCALAR_DATA
-    )
-    Timeline.objects.create(
-        video=video_db,
-        name=parameters.get("timeline"),
-        type=Timeline.TYPE_PLUGIN_RESULT,
-        plugin_run_result=plugin_run_result_db,
-        visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-    )
-
-    plugin_run_db.progress = 1.0
-    plugin_run_db.status = PluginRun.STATUS_DONE
-    plugin_run_db.save()
-
-    return {"status": "done"}
+            Timeline.objects.create(
+                video=video,
+                name=parameters.get("timeline"),
+                type=Timeline.TYPE_PLUGIN_RESULT,
+                plugin_run_result=plugin_run_result_db,
+                visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+            )

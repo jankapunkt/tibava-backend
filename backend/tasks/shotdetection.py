@@ -7,6 +7,7 @@ import math
 import imageio
 import requests
 import json
+from typing import Dict, List
 
 from time import sleep
 
@@ -19,10 +20,22 @@ from backend.utils import media_path_to_video
 
 from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import DataManager
+from backend.utils.parser import Parser
+from backend.utils.task import Task
+
+
+@PluginManager.export_parser("shotdetection")
+class ShotDetectionParser(Parser):
+    def __init__(self):
+
+        self.valid_parameter = {
+            "timeline": {"parser": str, "default": "Shots"},
+            "fps": {"parser": float, "default": 2.0},
+        }
 
 
 @PluginManager.export_plugin("shotdetection")
-class Thumbnail:
+class ShotDetection(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
@@ -30,85 +43,42 @@ class Thumbnail:
             "analyser_port": 50051,
         }
 
-    def __call__(self, parameters=None, **kwargs):
-        video = kwargs.get("video")
-
-        video_analyse = PluginRun.objects.create(video=video, type="shotdetection", status=PluginRun.STATUS_QUEUED)
-
-        task = detect_shots.apply_async(
-            ({"id": video_analyse.id.hex, "video": video.to_dict(), "config": self.config},)
+    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+        manager = DataManager(self.config["output_path"])
+        client = TaskAnalyserClient(
+            host=self.config["analyser_host"],
+            port=self.config["analyser_port"],
+            plugin_run_db=plugin_run,
+            manager=manager,
         )
 
+        video_id = self.upload_video(client, video)
+        result = self.run_analyser(
+            client,
+            "transnet_shotdetection",
+            parameters={"fps": parameters.get("fps")},
+            inputs={"video": video_id},
+            downloads=["shots"],
+        )
 
-@shared_task(bind=True)
-def detect_shots(self, args):
+        if result is None:
+            raise Exception
 
-    config = args.get("config")
-    video = args.get("video")
-    id = args.get("id")
-    output_path = config.get("output_path")
-    analyser_host = config.get("analyser_host", "localhost")
-    analyser_port = config.get("analyser_port", 50051)
-
-    video_db = Video.objects.get(id=video.get("id"))
-    video_file = media_path_to_video(video.get("id"), video.get("ext"))
-    plugin_run_db = PluginRun.objects.get(video=video_db, id=id)
-
-    plugin_run_db.status = PluginRun.STATUS_WAITING
-    plugin_run_db.save()
-
-    print(f"{analyser_host}, {analyser_port}")
-    client = TaskAnalyserClient(host=analyser_host, port=analyser_port, plugin_run_db=plugin_run_db)
-
-    print(f"Start uploading", flush=True)
-    data_id = client.upload_file(video_file)
-    if data_id is None:
-        return
-    print(f"{data_id}", flush=True)
-
-    print(f"Start plugin", flush=True)
-    job_id = client.run_plugin("transnet_shotdetection", [{"id": data_id, "name": "video"}], [])
-    if job_id is None:
-        return
-    result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run_db)
-
-    if result is None:
-        logging.error("Job is crashing")
-        return
-
-    shots_id = None
-    for output in result.outputs:
-        if output.name == "shots":
-            shots_id = output.id
-    if shots_id is None:
-        return
-    logging.info(f"shots_id: {shots_id} {output_path}")
-    data = client.download_data(shots_id, output_path)
-    if data is None:
-        return
-    logging.info(data)
-    with data:
-
-        timeline_id = uuid.uuid4().hex
-        # TODO translate the name
-        timeline = Timeline.objects.create(video=video_db, id=timeline_id, name="Shots", type=Timeline.TYPE_ANNOTATION)
-        for shot in data.shots:
-            segment_id = uuid.uuid4().hex
-            timeline_segment = TimelineSegment.objects.create(
-                timeline=timeline,
-                id=segment_id,
-                start=shot.start,
-                end=shot.end,
+        with result[1]["shots"] as d:
+            timeline_id = uuid.uuid4().hex
+            # TODO translate the name
+            timeline = Timeline.objects.create(
+                video=video, id=timeline_id, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
             )
+            for shot in d.shots:
+                segment_id = uuid.uuid4().hex
+                timeline_segment = TimelineSegment.objects.create(
+                    timeline=timeline,
+                    id=segment_id,
+                    start=shot.start,
+                    end=shot.end,
+                )
 
-        plugin_run_result_db = PluginRunResult.objects.create(
-            plugin_run=plugin_run_db, data_id=data.id, name="shots", type=PluginRunResult.TYPE_SHOTS
-        )
-
-        print(f"save results {plugin_run_result_db}", flush=True)
-
-        plugin_run_db.progress = 1.0
-        plugin_run_db.status = PluginRun.STATUS_DONE
-        plugin_run_db.save()
-
-        return {"status": "done"}
+            plugin_run_result_db = PluginRunResult.objects.create(
+                plugin_run=plugin_run, data_id=d.id, name="shots", type=PluginRunResult.TYPE_SHOTS
+            )

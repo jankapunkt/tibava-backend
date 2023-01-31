@@ -1,7 +1,3 @@
-from celery import shared_task
-import logging
-import redis
-
 from typing import Dict, List
 
 from ..utils.analyser_client import TaskAnalyserClient
@@ -21,7 +17,7 @@ class XCLIPParser(Parser):
     def __init__(self):
 
         self.valid_parameter = {
-            "timeline": {"parser": str, "default": "clip"},
+            "timeline": {"parser": str, "default": "x_clip"},
             "search_term": {"parser": str, "required": True},
             "fps": {"parser": float, "default": 2.0},
         }
@@ -80,5 +76,3 @@ class XCLIP(Task):
                 plugin_run_result=plugin_run_result_db,
                 visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
             )
-
-        return True
