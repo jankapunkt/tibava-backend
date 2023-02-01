@@ -20,7 +20,7 @@ class InsightfaceIdentificationParser(Parser):
         self.valid_parameter = {
             "timeline": {"parser": str, "default": "Face Identification"},
             "fps": {"parser": float, "default": 2},
-            "query_images": {"required": True},
+            "query_images": {"parser": str, "required": True},
             "normalize": {"parser": float, "default": 1},
             "normalize_min_val": {"parser": float, "default": 0.3},
             "normalize_max_val": {"parser": float, "default": 1.0},
@@ -40,7 +40,7 @@ class InsightfaceIdentification(Task):
         self, parameters: Dict, video: Video = None, user: User = None, plugin_run: PluginRun = None, **kwargs
     ):
         # Debug
-        # parameters["fps"] = 0.05
+        # parameters["fps"] = 0.1
 
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
@@ -53,9 +53,10 @@ class InsightfaceIdentification(Task):
         video_id = self.upload_video(client, video)
         image_data = manager.create_data("ImagesData")
         with image_data:
-            for image_path in parameters.get("query_images"):
-                image = iio.imread(image_path)
-                image_data.save_image(image)
+            print(parameters.get("query_images"), flush=True)
+            image_path = parameters.get("query_images")
+            image = iio.imread(image_path)
+            image_data.save_image(image)
 
         query_image_id = client.upload_data(image_data)
 
@@ -87,9 +88,6 @@ class InsightfaceIdentification(Task):
         image_result = self.run_analyser(
             client,
             "insightface_image_detector_torch",
-            parameters={
-                "fps": parameters.get("fps"),
-            },
             inputs={"images": query_image_id},
             outputs=["kpss", "faces"],
         )
@@ -100,7 +98,7 @@ class InsightfaceIdentification(Task):
         image_feature_result = self.run_analyser(
             client,
             "insightface_image_feature_extractor",
-            inputs={"images": query_image_id, "kpss": image_result[0]["kpss"]},
+            inputs={"images": query_image_id, "kpss": image_result[0]["kpss"], "faces": image_result[0]["faces"]},
             outputs=["features"],
         )
 

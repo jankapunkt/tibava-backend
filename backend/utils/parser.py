@@ -22,8 +22,11 @@ class Parser:
 
             try:
                 parser = self.valid_parameter[p["name"]].get("parser", lambda x: x)
-
-                value = parser(p["value"])
+                # TODO make this more generic
+                if "path" in p:
+                    value = parser(p["path"])
+                else:
+                    value = parser(p["value"])
                 task_parameter[p["name"]] = value
 
             except Exception as e:

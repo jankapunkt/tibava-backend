@@ -57,6 +57,8 @@ class ShotTypeClassifier(Task):
     def __call__(
         self, parameters: Dict, video: Video = None, user: User = None, plugin_run: PluginRun = None, **kwargs
     ):
+        # Debug
+        parameters["fps"] = 0.1
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
@@ -134,7 +136,7 @@ class ShotTypeClassifier(Task):
         """
         print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
 
-        with result[1]["annotations"] as data:
+        with result[1]["probs"] as data:
 
             data.extract_all(manager)
             for index, sub_data in zip(data.index, data.data):

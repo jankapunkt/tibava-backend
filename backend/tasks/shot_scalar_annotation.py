@@ -78,7 +78,12 @@ class ShotScalarAnnotation(Task):
         if scalar_timeline_db.plugin_run_result.type != PluginRunResult.TYPE_SCALAR:
             raise Exception
 
+        print(f"++++++++++++++++++ {scalar_timeline_db.plugin_run_result.data_id}", flush=True)
         scalar_data = manager.load(scalar_timeline_db.plugin_run_result.data_id)
+        if scalar_data is None:
+            raise Exception
+
+        print(f"++++++++++++++++++ {scalar_data}", flush=True)
         scalar_id = client.upload_data(scalar_data)
 
         result = self.run_analyser(
