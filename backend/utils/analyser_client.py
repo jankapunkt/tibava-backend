@@ -127,7 +127,8 @@ class TaskAnalyserClient(AnalyserClient):
                 plugin_run_db.save()
         return None
 
-    def get_plugin_results(self, job_id, plugin_run_db=None, progress_fn=None, status_fn=None, timeout=3600):
+    # 24 hours timeout
+    def get_plugin_results(self, job_id, plugin_run_db=None, progress_fn=None, status_fn=None, timeout=86400):
         plugin_run_db = plugin_run_db if plugin_run_db is not None else self.plugin_run_db
 
         result = None

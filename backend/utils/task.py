@@ -53,7 +53,7 @@ class Task:
 
         result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run)
         if result is None:
-            logging.error("Analyser is crashing: {job_id}")
+            logging.error(f"Analyser is crashing: {job_id}")
             return None
 
         result_ids = {}
