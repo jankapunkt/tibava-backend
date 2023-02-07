@@ -39,16 +39,12 @@ class PluginManager:
         if parameters is None:
             parameters = []
 
-        print(f"########## 4 {parameters}", flush=True)
-        print(f"[PluginManager] {plugin}: {parameters}", flush=True)
         if plugin not in self._plugins:
             # TODO
             return False
 
-        print(f"########## 3 {parameters}", flush=True)
         if plugin in self._parser:
             parameters = self._parser[plugin]()(parameters)
-        print(f"########## 2 {parameters}", flush=True)
 
         plugin_run = PluginRun.objects.create(video=video, type=plugin, status=PluginRun.STATUS_QUEUED)
         if run_async:
@@ -90,7 +86,6 @@ class PluginManager:
 def run_plugin(self, args):
     plugin = args.get("plugin")
     parameters = args.get("parameters")
-    print(f"########## 1 {parameters}", flush=True)
     video = args.get("video")
     user = args.get("user")
     plugin_run = args.get("plugin_run")
@@ -99,6 +94,12 @@ def run_plugin(self, args):
     video_db = Video.objects.get(id=video)
     user_db = User.objects.get(id=user)
     plugin_run_db = PluginRun.objects.get(id=plugin_run)
+    # this job is already started in another jobqueue https://github.com/celery/celery/issues/4400
+    if plugin_run_db.in_scheduler:
+        logging.warning("Job was rescheduled and will be canceled")
+        return
+    plugin_run_db.in_scheduler = True
+    plugin_run_db.save()
 
     plugin_manager = PluginManager()
     try:

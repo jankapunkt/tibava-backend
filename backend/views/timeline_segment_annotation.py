@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 import imageio
 from numpy import isin
+import time
 
 import wand.image as wimage
 
@@ -129,8 +130,6 @@ class TimelineSegmentAnnoatationCreate(View):
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
-
-import time
 
 # from django.core.exceptions import BadRequest
 class TimelineSegmentAnnoatationToggle(View):
@@ -300,10 +299,15 @@ class TimelineSegmentAnnoatationToggle(View):
 class TimelineSegmentAnnoatationList(View):
     def get(self, request):
         try:
+            start = time.time()
+            print(f"list {start}")
             query_args = {}
 
             if "timeline_segment_id" in request.GET:
                 query_args["timeline_segment_set__id"] = request.GET.get("timeline_segment_id")
+
+            if "video_id" in request.GET:
+                query_args["timeline_segment__timeline__video__id"] = request.GET.get("video_id")
 
             query_results = (
                 TimelineSegmentAnnotation.objects.filter(**query_args)
@@ -314,6 +318,9 @@ class TimelineSegmentAnnoatationList(View):
             entries = []
             for timeline_segment_annotation in query_results:
                 entries.append(timeline_segment_annotation.to_dict())
+
+            end = time.time()
+            print(f"list {end} {end-start}")
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
             logging.error(traceback.format_exc())

@@ -49,7 +49,7 @@ class Video(models.Model):
             for timeline in Timeline.objects.filter(video=self):
                 timeline.clone(video=new_video_db, include_annotations=include_annotations)
 
-        return new_timeline_db  # FIXME
+        return new_video_db  # FIXME
 
 
 class Plugin(models.Model):
@@ -69,6 +69,8 @@ class PluginRun(models.Model):
     update_date = models.DateTimeField(auto_now_add=True)
     type = models.CharField(max_length=256)
     progress = models.FloatField(default=0.0)
+    in_scheduler = models.BooleanField(default=False)
+
     STATUS_UNKNOWN = "U"
     STATUS_ERROR = "E"
     STATUS_DONE = "D"
