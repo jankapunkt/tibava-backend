@@ -108,15 +108,15 @@ class DeepfaceEmotion(Task):
 
         aggregate_result = self.run_analyser(
             client,
-            "aggregate_scalar_per_time",
-            inputs={"timelines": emotion_result[0]["probs"]},
-            downloads=["aggregated_timeline"],
+            "aggregate_list_scalar_per_time",
+            inputs={"scalars": emotion_result[0]["probs"]},
+            downloads=["aggregated_scalars"],
         )
 
         if aggregate_result is None:
             raise Exception
 
-        with aggregate_result[1]["aggregated_timeline"] as data:
+        with aggregate_result[1]["aggregated_scalars"] as data:
             # Annotate shots
             if shots_id:
 

@@ -108,13 +108,30 @@ class InsightfaceIdentification(Task):
         result = self.run_analyser(
             client,
             "cosine_similarity",
+            parameters={
+                "normalize": 1,
+            },
             inputs={
                 "target_features": video_feature_result[0]["features"],
                 "query_features": image_feature_result[0]["features"],
             },
-            downloads=["probs"],
+            outputs=["probs"],
         )
-        with result[1]["probs"] as data:
+
+        if result is None:
+            raise Exception
+
+        aggregated_result = self.run_analyser(
+            client,
+            "aggregate_scalar_per_time",
+            inputs={"scalar": result[0]["probs"]},
+            downloads=["aggregated_scalar"],
+        )
+
+        if aggregated_result is None:
+            raise Exception
+
+        with aggregated_result[1]["aggregated_scalar"] as data:
             plugin_run_result_db = PluginRunResult.objects.create(
                 plugin_run=plugin_run,
                 data_id=data.id,
