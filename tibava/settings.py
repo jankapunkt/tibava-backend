@@ -145,6 +145,7 @@ STATIC_URL = FORCE_SCRIPT_NAME + "/static/"
 # MEDIA_ROOT = os.path.join(os.path.dirname(__file__), "..", "media")
 
 MEDIA_ROOT = os.path.join("/media/")
+DATA_CACHE_ROOT = os.path.join("/cache/")
 
 
 GRPC_HOST = "localhost"
