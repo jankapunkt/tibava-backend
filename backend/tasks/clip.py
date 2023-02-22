@@ -14,7 +14,6 @@ from analyser.data import DataManager
 @PluginManager.export_parser("clip")
 class CLIPParser(Parser):
     def __init__(self):
-
         self.valid_parameter = {
             "timeline": {"parser": str, "default": "clip"},
             "search_term": {"parser": str, "required": True},
@@ -57,12 +56,21 @@ class CLIP(Task):
             "clip_probs",
             parameters={"search_term": parameters.get("search_term")},
             inputs={**result[0]},
-            downloads=["probs"],
+            outputs=["probs"],
         )
         if result is None:
             raise Exception
 
-        with result[1]["probs"] as data:
+        result = self.run_analyser(
+            client,
+            "min_max_norm",
+            inputs={"scalar": result[0]["probs"]},
+            downloads=["scalar"],
+        )
+        if result is None:
+            raise Exception
+
+        with result[1]["scalar"] as data:
             plugin_run_result_db = PluginRunResult.objects.create(
                 plugin_run=plugin_run, data_id=data.id, name="clip", type=PluginRunResult.TYPE_SCALAR
             )

@@ -15,7 +15,6 @@ from analyser.data import DataManager
 @PluginManager.export_parser("x_clip")
 class XCLIPParser(Parser):
     def __init__(self):
-
         self.valid_parameter = {
             "timeline": {"parser": str, "default": "x_clip"},
             "search_term": {"parser": str, "required": True},
@@ -33,7 +32,6 @@ class XCLIP(Task):
         }
 
     def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
-
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
@@ -59,12 +57,21 @@ class XCLIP(Task):
             "x_clip_probs",
             parameters={"search_term": parameters.get("search_term")},
             inputs={**result[0]},
-            downloads=["probs"],
+            outputs=["probs"],
         )
         if result is None:
             raise Exception
 
-        with result[1]["probs"] as d:
+        result = self.run_analyser(
+            client,
+            "min_max_norm",
+            inputs={"scalar": result[0]["probs"]},
+            downloads=["scalar"],
+        )
+        if result is None:
+            raise Exception
+
+        with result[1]["scalar"] as d:
             plugin_run_result_db = PluginRunResult.objects.create(
                 plugin_run=plugin_run, data_id=d.id, name="x_clip", type=PluginRunResult.TYPE_SCALAR
             )

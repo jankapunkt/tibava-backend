@@ -41,22 +41,28 @@ class PluginRunResultList(View):
                     cache_path = os.path.join(settings.DATA_CACHE_ROOT, f"{x.data_id}.json")
                     # print("C", flush=True)
                     # print(cache_path, flush=True)
-                    if os.path.exists(cache_path):
-                        with open(cache_path, "r") as f:
-                            entries.append(json.load(f))
-                    else:
-                        # print(f"x {x}")
-                        # TODO fix me
-                        data = data_manager.load(x.data_id)
-                        if data is None:
-                            entries.append({**x.to_dict()})
-                            continue
-                        # print(data)
-                        with data:
-                            result_dict = {**x.to_dict(), "data": data.to_dict()}
-                            with open(cache_path, "w") as f:
-                                json.dump(result_dict, f)
-                            entries.append(result_dict)
+                    cached = False
+                    try:
+                        if os.path.exists(cache_path):
+                            with open(cache_path, "r") as f:
+                                entries.append(json.load(f))
+                                cached = True
+                    except Exception as e:
+                        logging.error(f"Cache couldn't read {e}")
+                    if cached:
+                        continue
+                    # print(f"x {x}")
+                    # TODO fix me
+                    data = data_manager.load(x.data_id)
+                    if data is None:
+                        entries.append({**x.to_dict()})
+                        continue
+                    # print(data)
+                    with data:
+                        result_dict = {**x.to_dict(), "data": data.to_dict()}
+                        with open(cache_path, "w") as f:
+                            json.dump(result_dict, f)
+                        entries.append(result_dict)
 
             else:
                 entries = [x.to_dict() for x in analyses]
