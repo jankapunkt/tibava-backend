@@ -104,7 +104,6 @@ class PluginRunNew(View):
             result = plugin_manager(plugin, user=user_db, video=video_db, parameters=valid_parameters)
 
             if result:
-
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error", "type": "plugin_not_started"})
         except Exception as e:
@@ -114,15 +113,18 @@ class PluginRunNew(View):
 
 class PluginRunList(View):
     def get(self, request):
+        if not request.user.is_authenticated:
+            logging.error("PluginRunNew::not_authenticated")
+            return JsonResponse({"status": "error"})
+
         plugin_manager = PluginManager()
         try:
             video_id = request.GET.get("video_id")
             if video_id:
-                video_db = Video.objects.get(id=video_id)
-                analyses = PluginRun.objects.filter(video=video_db)
+                analyses = PluginRun.objects.filter(video__id=video_id, video__owner=request.user)
             else:
-                analyses = PluginRun.objects.all()
-
+                analyses = PluginRun.objects.filter(video__owner=request.user)
+            # print(len(analyses), flush=True)
             add_results = request.GET.get("add_results")
             if add_results:
                 entries = []
