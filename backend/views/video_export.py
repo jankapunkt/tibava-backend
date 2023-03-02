@@ -2,6 +2,7 @@ import json
 import logging
 import traceback
 import logging
+import sys
 
 from numpy import isin
 
@@ -12,10 +13,12 @@ from django.views import View
 from django.http import JsonResponse
 from django.conf import settings
 
-# from django.core.exceptions import BadRequest
+from pympi.Elan import Eaf, to_eaf
+from xml.etree import cElementTree as etree
+from io import StringIO
 
 
-from backend.models import Video, Annotation, AnnotationCategory
+from backend.models import Video, Annotation, AnnotationCategory, Timeline
 
 
 def time_to_string(sec, loc="en"):
@@ -31,6 +34,58 @@ def time_to_string(sec, loc="en"):
     if loc == "de":
         return f"{hours}:{min}:{sec},{sec_frac}"
     return f"{hours}:{min}:{sec}.{sec_frac}"
+
+
+class VideoExportElan(View):
+    def get(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+
+            if "video_id" not in request.GET:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+
+            try:
+                video_db = Video.objects.get(id=request.GET.get("video_id"))
+            except Video.DoesNotExist:
+                return JsonResponse({"status": "error", "type": "not_exist"})
+
+            annotations = {}
+            for annotation in Annotation.objects.filter(video=video_db):
+                annotation_dict = annotation.to_dict()
+                if annotation.category:
+                    annotation_dict["category"] = annotation.category.to_dict()
+                annotations[annotation.id] = annotation_dict
+            eaf = Eaf(author="")
+            # specific timeline
+            for timeline_id in request.GET.get("timeline_ids"):
+                timeline_db = Timeline.objects.get(id=timeline_id)
+                tier = timeline_db.name
+                # ignore timelines with the same name TODO: check if there is a better way
+                if tier in list(eaf.tiers.keys()):
+                    continue
+                eaf.add_tier(tier_id=tier)
+                # store all annotations
+                for segment_db in timeline_db.timelinesegment_set.all():
+                    start_time = int(segment_db.start * 1000)
+                    end_time = int(segment_db.end * 1000)
+                    for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
+                        category = segment_annotation_db.annotation.category
+                        name = segment_annotation_db.annotation.name
+                        anno = f"{name} ({category}"
+                        eaf.add_annotation(tier, start=start_time, end=end_time, value=anno)
+            # if request.GET.get("format") == "textgrid":
+            #    textgrid = eaf.to_textgrid()
+            # else:
+            stdout = sys.stdout
+            sys.stdout = str_out = StringIO()
+            to_eaf(file_path="-", eaf_obj=eaf)
+            sys.stdout = stdout
+            result = str_out.getvalue()
+            return JsonResponse({"status": "ok", "file": result})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
 
 
 class VideoExportCSV(View):
@@ -82,7 +137,6 @@ class VideoExportCSV(View):
             cols.append(["duration", "", ""] + [str(t[1]) for t in time_duration])
             cols.append(["duration", "", ""] + [time_to_string(t[1], loc="en") for t in time_duration])
             for _, timeline in timeline_headers.items():
-
                 for _, annotation in timeline["annotations"].items():
                     col = [timeline["name"]]
                     col.append(annotation["name"])
@@ -142,7 +196,6 @@ class VideoExportJson(View):
 
 class VideoExport(View):
     def export_csv(self, parameters, video_db):
-
         include_category = True
         if "include_category" in parameters:
             include_category = parameters.get("include_category")
@@ -256,7 +309,6 @@ class VideoExport(View):
                 timeline_headers[timeline_db.id] = {"name": timeline_db.name, "annotations": annotations_headers}
 
             for _, timeline in timeline_headers.items():
-
                 for _, annotation in timeline["annotations"].items():
                     col = [timeline["name"]]
                     col.append(annotation["name"])
@@ -280,6 +332,45 @@ class VideoExport(View):
 
         # Back to a single string
         result = "\n".join([",".join(r) for r in rows])
+
+        return result
+
+    def export_elan(self, parameters, video_db):
+        eaf = Eaf(author="")
+        eaf.remove_tier("default")
+        eaf.add_linked_file(file_path=f"{video_db.id.hex}.mp4", mimetype="video/mp4")
+        # specific timeline
+        # for timeline_id in request.GET.get("timeline_ids"):
+        for timeline_db in Timeline.objects.filter(video=video_db, type=Timeline.TYPE_ANNOTATION):
+            tier = timeline_db.name
+            # ignore timelines with the same name TODO: check if there is a better way
+            if tier in list(eaf.tiers.keys()):
+                continue
+            eaf.add_tier(tier_id=tier)
+            # store all annotations
+
+            for segment_db in timeline_db.timelinesegment_set.all():
+                start_time = int(segment_db.start * 1000)
+                end_time = int(segment_db.end * 1000)
+                annotations = []
+                for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
+                    category = segment_annotation_db.annotation.category
+                    name = segment_annotation_db.annotation.name
+                    if category is not None:
+                        anno = f"{category.name}:{name}"
+                    else:
+                        anno = f"{name}"
+                    annotations.append(anno)
+                if len(annotations) > 0:
+                    eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
+        # if request.GET.get("format") == "textgrid":
+        #    textgrid = eaf.to_textgrid()
+        # else:
+        stdout = sys.stdout
+        sys.stdout = str_out = StringIO()
+        to_eaf(file_path="-", eaf_obj=eaf)
+        sys.stdout = stdout
+        result = str_out.getvalue()
 
         return result
 
@@ -321,6 +412,10 @@ class VideoExport(View):
             if request.POST.get("format") == "csv":
                 result = self.export_csv(parameters, video_db)
                 return JsonResponse({"status": "ok", "file": result, "extension": "csv"})
+
+            elif request.POST.get("format") == "elan":
+                result = self.export_elan(parameters, video_db)
+                return JsonResponse({"status": "ok", "file": result, "extension": "eaf"})
 
             return JsonResponse({"status": "error", "type": "unknown_format"})
         except Exception as e:
