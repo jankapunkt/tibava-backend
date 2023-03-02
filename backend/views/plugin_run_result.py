@@ -60,8 +60,12 @@ class PluginRunResultList(View):
                     # print(data)
                     with data:
                         result_dict = {**x.to_dict(), "data": data.to_dict()}
-                        with open(cache_path, "w") as f:
-                            json.dump(result_dict, f)
+                        try:
+                            with open(cache_path, "w") as f:
+                                json.dump(result_dict, f)
+                        except Exception as e:
+                            logging.error(f"Cache couldn't write {e}")
+
                         entries.append(result_dict)
 
             else:

@@ -151,7 +151,7 @@ class TimelineSegmentAnnotateRange(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error"})
-
+            print(data, flush=True)
             if "start" not in data:
                 return JsonResponse({"status": "error", "type": "missing_values"})
             if "end" not in data:
@@ -174,6 +174,9 @@ class TimelineSegmentAnnotateRange(View):
             timeline_segment_dbs = TimelineSegment.objects.filter(
                 timeline=timeline_db, start__gte=data.get("start"), end__lte=data.get("end")
             )
+            for x in timeline_segment_dbs:
+                print(x.to_dict())
+            # print(timeline_segment_dbs)
             timeline_segment_ids = [x.id for x in timeline_segment_dbs]
 
             # left segment
@@ -185,7 +188,14 @@ class TimelineSegmentAnnotateRange(View):
                 timeline=timeline_db, start__lte=data.get("end"), end__gte=data.get("end")
             )
 
+            # delete all old stuff
             timeline_segment_deleted = []
+            timeline_segment_deleted.extend([x.id.hex for x in timeline_segment_dbs])
+            timeline_segment_deleted.extend([x.id.hex for x in left_timeline_segment_dbs])
+            timeline_segment_deleted.extend([x.id.hex for x in right_timeline_segment_dbs])
+            timeline_segment_deleted = list(set(timeline_segment_deleted))
+
+            # clone new sgements
             timeline_segment_added = []
             timeline_segment_annotation_added = []
             annotation_added = []
@@ -193,7 +203,7 @@ class TimelineSegmentAnnotateRange(View):
             # Move everything to the left and right
             if len(left_timeline_segment_dbs) == 1 and len(right_timeline_segment_dbs) == 1:
                 if left_timeline_segment_dbs[0].id == right_timeline_segment_dbs[0].id:
-                    right_timeline_segment_db = left_timeline_segment_dbs[0].clone()
+                    right_timeline_segment_db = left_timeline_segment_dbs[0].clone()["timeline_segment_added"][0]
                     right_timeline_segment_db.start = data.get("end")
                     right_timeline_segment_db.save()
 
@@ -203,21 +213,16 @@ class TimelineSegmentAnnotateRange(View):
 
                     left_timeline_segment_dbs[0].end = data.get("start")
                     left_timeline_segment_dbs[0].save()
-                    timeline_segment_deleted.append(left_timeline_segment_dbs[0].id.hex)
                     timeline_segment_added.append(left_timeline_segment_dbs[0].to_dict())
                     timeline_segment_added.append(right_timeline_segment_db.to_dict())
                 else:
                     left_timeline_segment_dbs.update(end=data.get("start"))
                     right_timeline_segment_dbs.update(start=data.get("end"))
-                    timeline_segment_deleted.extend([x.id.hex for x in left_timeline_segment_dbs])
-                    timeline_segment_deleted.extend([x.id.hex for x in right_timeline_segment_dbs])
                     timeline_segment_added.extend([x.to_dict() for x in left_timeline_segment_dbs])
                     timeline_segment_added.extend([x.to_dict() for x in right_timeline_segment_dbs])
             else:
                 left_timeline_segment_dbs.update(end=data.get("start"))
                 right_timeline_segment_dbs.update(start=data.get("end"))
-                timeline_segment_deleted.extend([x.id.hex for x in left_timeline_segment_dbs])
-                timeline_segment_deleted.extend([x.id.hex for x in right_timeline_segment_dbs])
                 timeline_segment_added.extend([x.to_dict() for x in left_timeline_segment_dbs])
                 timeline_segment_added.extend([x.to_dict() for x in right_timeline_segment_dbs])
 
@@ -225,9 +230,6 @@ class TimelineSegmentAnnotateRange(View):
                 x.id.hex for x in TimelineSegmentAnnotation.objects.filter(timeline_segment_id__in=timeline_segment_ids)
             ]
 
-            timeline_segment_deleted.extend(
-                [x.id.hex for x in TimelineSegmentAnnotation.objects.filter(timeline_segment__in=timeline_segment_ids)]
-            )
             TimelineSegmentAnnotation.objects.filter(timeline_segment__in=timeline_segment_ids).delete()
 
             timeline_segment_dbs.delete()
@@ -320,7 +322,6 @@ class TimelineSegmentGet(View):
 class TimelineSegmentList(View):
     def get(self, request):
         try:
-
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error"})
 
@@ -349,7 +350,6 @@ class TimelineSegmentList(View):
 class TimelineSegmentMerge(View):
     def post(self, request):
         try:
-
             if not request.user.is_authenticated:
                 logging.error("VideoUpload::not_authenticated")
                 return JsonResponse({"status": "error"})
@@ -438,7 +438,6 @@ class TimelineSegmentMerge(View):
 class TimelineSegmentSplit(View):
     def post(self, request):
         try:
-
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error"})
 
@@ -473,7 +472,10 @@ class TimelineSegmentSplit(View):
             if timeline_segment_db.start > data.get("time") and timeline_segment_db.end < data.get("time"):
                 return JsonResponse({"status": "error", "type": "wrong_request_body"})
 
-            timeline_segment_db_splits = [timeline_segment_db.clone(), timeline_segment_db.clone()]
+            timeline_segment_db_splits = [
+                timeline_segment_db.clone()["timeline_segment_added"][0],
+                timeline_segment_db.clone()["timeline_segment_added"][0],
+            ]
             timeline_segment_db_splits[0].end = data.get("time")
             timeline_segment_db_splits[1].start = data.get("time")
             timeline_segment_db_splits[0].save()

@@ -25,7 +25,6 @@ class Video(models.Model):
     width = models.IntegerField(blank=True, null=True)
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
-
         return {
             "name": self.name,
             "license": self.license,
@@ -181,7 +180,6 @@ class Timeline(models.Model):
     colormap = models.CharField(max_length=256, null=True, blank=True)
 
     def save(self, *args, **kwargs):
-
         if self.order < 0:
             self.order = Timeline.objects.filter(video=self.video).count()
 
@@ -224,18 +222,16 @@ class Timeline(models.Model):
             video = self.video
         new_timeline_db = Timeline.objects.create(video=video, name=self.name, type=self.type)
 
-        new_timeline_segments_db = []
+        timeline_segment_added = []
         timeline_segment_annotations_added = []
         for segment in self.timelinesegment_set.all():
-            new_timeline_segment_db, timeline_segment_annotation_added = segment.clone(
-                new_timeline_db, include_annotations
-            )
-            new_timeline_segments_db.append(new_timeline_segment_db)
-            timeline_segment_annotations_added.extend(timeline_segment_annotation_added)
+            result = segment.clone(new_timeline_db, include_annotations)
+            timeline_segment_added.extend(result["timeline_segment_added"])
+            timeline_segment_annotations_added.extend(result["timeline_segment_annotation_added"])
 
         return {
             "timeline_added": new_timeline_db,
-            "timeline_segment_added": new_timeline_segments_db,
+            "timeline_segment_added": timeline_segment_added,
             "timeline_segment_annotation_added": timeline_segment_annotations_added,
         }
 
@@ -311,11 +307,16 @@ class TimelineSegment(models.Model):
         if not include_annotations:
             return new_timeline_segment_db
 
-        annotations = []
+        timeline_segment_annotation_added = []
         for annotation in self.timelinesegmentannotation_set.all():
-            annotations.append(annotation.clone(new_timeline_segment_db))
+            timeline_segment_annotation_added.extend(
+                annotation.clone(new_timeline_segment_db)["timeline_segment_annotation_added"]
+            )
 
-        return new_timeline_segment_db, annotations
+        return {
+            "timeline_segment_added": [new_timeline_segment_db],
+            "timeline_segment_annotation_added": timeline_segment_annotation_added,
+        }
 
 
 # This is basically a many to many connection
@@ -336,12 +337,11 @@ class TimelineSegmentAnnotation(models.Model):
         return result
 
     def clone(self, timeline_segment):
-
         new_timeline_segment_annotation_db = TimelineSegmentAnnotation.objects.create(
             timeline_segment=timeline_segment,
             annotation=self.annotation,
         )
-        return new_timeline_segment_annotation_db
+        return {"timeline_segment_annotation_added": [new_timeline_segment_annotation_db]}
 
 
 class Shortcut(models.Model):
