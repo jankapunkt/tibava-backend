@@ -29,7 +29,6 @@ from backend.models import Video
 
 class VideoUpload(View):
     def submit_analyse(self, plugins, **kwargs):
-
         plugin_manager = PluginManager()
         for plugin in plugins:
             plugin_manager(plugin, **kwargs)
@@ -144,9 +143,43 @@ class VideoGet(View):
                     }
                 )
             if len(entries) != 1:
-
                 return JsonResponse({"status": "error"})
             return JsonResponse({"status": "ok", "entry": entries[0]})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+class VideoRename(View):
+    def post(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+
+            if "id" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+            if "name" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values"})
+            if not isinstance(data.get("name"), str):
+                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+
+            try:
+                video_db = Video.objects.get(id=data.get("id"))
+            except Video.DoesNotExist:
+                return JsonResponse({"status": "error", "type": "not_exist"})
+
+            video_db.name = data.get("name")
+            video_db.save()
+            return JsonResponse({"status": "ok", "entry": video_db.to_dict()})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
@@ -155,7 +188,6 @@ class VideoGet(View):
 class VideoDelete(View):
     def post(self, request):
         try:
-
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error"})
             try:

@@ -13,6 +13,7 @@ urlpatterns = [
     path("video/upload", views.VideoUpload.as_view(), name="video_upload"),
     path("video/list", views.VideoList.as_view(), name="video_list"),
     path("video/get", views.VideoGet.as_view(), name="video_get"),
+    path("video/rename", views.VideoRename.as_view(), name="video_rename"),
     path("video/delete", views.VideoDelete.as_view(), name="video_delete"),
     #
     path("video/export", views.VideoExport.as_view(), name="video_export"),
