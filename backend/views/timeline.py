@@ -12,7 +12,6 @@ from backend.models import Video, Timeline, TimelineSegment
 class TimelineList(View):
     def get(self, request):
         try:
-
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error"})
             video_id = request.GET.get("video_id")
@@ -27,6 +26,10 @@ class TimelineList(View):
                 .prefetch_related("timelinesegment_set")
             )
 
+            print("TimelineList")
+            for x in timelines:
+                if x.plugin_run_result:
+                    print(f"\t {x.id.hex} {x.plugin_run_result.id.hex}")
             entries = []
             for timeline in timelines:
                 result = timeline.to_dict()
@@ -40,7 +43,6 @@ class TimelineList(View):
 class TimelineDuplicate(View):
     def post(self, request):
         try:
-
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error"})
             try:
@@ -85,7 +87,6 @@ class TimelineDuplicate(View):
 class TimelineCreate(View):
     def post(self, request):
         try:
-
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error"})
             try:
@@ -137,7 +138,6 @@ class TimelineCreate(View):
 class TimelineRename(View):
     def post(self, request):
         try:
-
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error"})
             try:

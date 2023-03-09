@@ -19,17 +19,39 @@ from analyser.data import DataManager
 class PluginRunResultList(View):
     def get(self, request):
         start_time = time.time()
+        if not request.user.is_authenticated:
+            logging.error("PluginRunResultList::not_authenticated")
+            return JsonResponse({"status": "error"})
+
         # analyser = Analyser()
         # TODO parameters
         data_manager = DataManager("/predictions/")
         # if True:
         try:
+            query_dict = {}
+
             video_id = request.GET.get("video_id")
             if video_id:
-                video_db = Video.objects.get(id=video_id)
-                analyses = PluginRunResult.objects.filter(plugin_run__video=video_db)
-            else:
-                analyses = PluginRunResult.objects.all()
+                try:
+                    video_db = Video.objects.get(id=video_id)
+                except Video.DoesNotExist:
+                    return JsonResponse({"status": "error", "type": "not_exist"})
+
+                query_dict["plugin_run__video"] = video_db
+
+            plugin_run_id = request.GET.get("plugin_run_id")
+            if plugin_run_id:
+                try:
+                    plugin_run_db = PluginRun.objects.get(id=plugin_run_id)
+                except PluginRun.DoesNotExist:
+                    return JsonResponse({"status": "error", "type": "not_exist"})
+
+                query_dict["plugin_run"] = plugin_run_db
+
+            analyses = PluginRunResult.objects.filter(**query_dict)
+            print("PluginRunResultList")
+            for x in analyses:
+                print(f"\t {x.id.hex}")
 
             add_results = request.GET.get("add_results", True)
             if add_results:
@@ -38,7 +60,7 @@ class PluginRunResultList(View):
                 entries = []
                 for x in analyses:
                     # print("B", flush=True)
-                    cache_path = os.path.join(settings.DATA_CACHE_ROOT, f"{x.data_id}.json")
+                    cache_path = os.path.join(settings.DATA_CACHE_ROOT, f"{x.id}.json")
                     # print("C", flush=True)
                     # print(cache_path, flush=True)
                     cached = False
@@ -70,6 +92,7 @@ class PluginRunResultList(View):
 
             else:
                 entries = [x.to_dict() for x in analyses]
+            print(f"\t\t {[x['id'] for x in entries]}")
             logging.warning(f"PluginRunResultList {time.time() - start_time}")
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:

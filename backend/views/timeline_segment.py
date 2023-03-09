@@ -31,7 +31,7 @@ class TimelineSegmentAnnotate(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
-                logging.error("VideoUpload::not_authenticated")
+                logging.error("TimelineSegmentAnnotate::not_authenticated")
                 return JsonResponse({"status": "error"})
 
             try:
