@@ -46,6 +46,7 @@ class PluginManager:
         if plugin in self._parser:
             parameters = self._parser[plugin]()(parameters)
 
+        result = {"status": True}
         plugin_run = PluginRun.objects.create(video=video, type=plugin, status=PluginRun.STATUS_QUEUED)
         if run_async:
             run_plugin.apply_async(
@@ -62,14 +63,16 @@ class PluginManager:
             )
         else:
             try:
-                self._plugins[plugin]()(parameters, video=video, plugin_run=plugin_run, **kwargs)
+                plugin_result = self._plugins[plugin]()(parameters, video=video, plugin_run=plugin_run, **kwargs)
+                if plugin_result:
+                    result["result"] = plugin_result
 
             except Exception as e:
                 logging.error(f"{plugin} {e}")
                 plugin_run.status = PluginRun.STATUS_ERROR
                 plugin_run.save()
-                return False
-        return True
+                return result
+        return result
 
     def get_results(self, analyse):
         if not hasattr(analyse, "type"):

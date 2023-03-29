@@ -45,7 +45,6 @@ class Thumbnail(Task):
         }
 
     def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
-
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
@@ -72,6 +71,8 @@ class Thumbnail(Task):
             plugin_run_result_db = PluginRunResult.objects.create(
                 plugin_run=plugin_run, data_id=d.id, name="images", type=PluginRunResult.TYPE_IMAGES
             )
+
+        return {"plugin_run": plugin_run.id.hex, "plugin_run_results": [plugin_run_result_db.id.hex]}
 
     def get_results(self, analyse):
         try:

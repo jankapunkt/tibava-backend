@@ -27,7 +27,6 @@ from backend.utils.task import Task
 @PluginManager.export_parser("shotdetection")
 class ShotDetectionParser(Parser):
     def __init__(self):
-
         self.valid_parameter = {
             "timeline": {"parser": str, "default": "Shots"},
             "fps": {"parser": float, "default": 2.0},
@@ -65,10 +64,9 @@ class ShotDetection(Task):
             raise Exception
 
         with result[1]["shots"] as d:
-            timeline_id = uuid.uuid4().hex
             # TODO translate the name
             timeline = Timeline.objects.create(
-                video=video, id=timeline_id, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
             )
             for shot in d.shots:
                 segment_id = uuid.uuid4().hex
@@ -82,3 +80,11 @@ class ShotDetection(Task):
             plugin_run_result_db = PluginRunResult.objects.create(
                 plugin_run=plugin_run, data_id=d.id, name="shots", type=PluginRunResult.TYPE_SHOTS
             )
+        print(plugin_run.id)
+        print(plugin_run_result_db.id)
+        print(timeline.id)
+        return {
+            "plugin_run": plugin_run.id.hex,
+            "plugin_run_results": [plugin_run_result_db.id.hex],
+            "timelines": [timeline.id.hex],
+        }
