@@ -47,7 +47,7 @@ class TimelineSegmentAnnotate(View):
             timeline_segment_ids = data.get("timeline_segment_ids")
             try:
                 segment_dbs = TimelineSegment.objects.filter(id__in=timeline_segment_ids)
-                if len(segment_dbs) != len(segment_dbs):
+                if len(segment_dbs) != len(timeline_segment_ids):
                     return JsonResponse({"status": "error", "type": "not_exist"})
 
                 if len(segment_dbs) <= 0:
@@ -151,7 +151,6 @@ class TimelineSegmentAnnotateRange(View):
                 data = json.loads(body)
             except Exception as e:
                 return JsonResponse({"status": "error"})
-            print(data, flush=True)
             if "start" not in data:
                 return JsonResponse({"status": "error", "type": "missing_values"})
             if "end" not in data:
@@ -174,8 +173,8 @@ class TimelineSegmentAnnotateRange(View):
             timeline_segment_dbs = TimelineSegment.objects.filter(
                 timeline=timeline_db, start__gte=data.get("start"), end__lte=data.get("end")
             )
-            for x in timeline_segment_dbs:
-                print(x.to_dict())
+            # for x in timeline_segment_dbs:
+            #     print(x.to_dict())
             # print(timeline_segment_dbs)
             timeline_segment_ids = [x.id for x in timeline_segment_dbs]
 
