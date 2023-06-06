@@ -81,7 +81,7 @@ class Whisper(Task):
                 video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
             )
 
-            category_db, _ = AnnotationCategory.objects.get_or_create(name="value", video=video, owner=user)
+            category_db, _ = AnnotationCategory.objects.get_or_create(name="Transcript", video=video, owner=user)
 
 
             for annotation in data.annotations:
@@ -93,7 +93,7 @@ class Whisper(Task):
                 for label in annotation.labels:
                     # color = rgb_to_hex(hsv_to_rgb(h, s, v))
                     annotation_db, _ = Annotation.objects.get_or_create(
-                        name=str(label),
+                        name=str(label[:256]),
                         video=video,
                         category=category_db,
                         owner=user,
