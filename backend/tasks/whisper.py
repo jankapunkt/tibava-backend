@@ -91,9 +91,8 @@ class Whisper(Task):
                     end=annotation.end,
                 )
                 for label in annotation.labels:
-                    # color = rgb_to_hex(hsv_to_rgb(h, s, v))
                     annotation_db, _ = Annotation.objects.get_or_create(
-                        name=str(label[:256]),
+                        name=str(label),
                         video=video,
                         category=category_db,
                         owner=user,

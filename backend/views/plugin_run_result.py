@@ -49,9 +49,9 @@ class PluginRunResultList(View):
                 query_dict["plugin_run"] = plugin_run_db
 
             analyses = PluginRunResult.objects.filter(**query_dict)
-            print("PluginRunResultList")
-            for x in analyses:
-                print(f"\t {x.id.hex}")
+            # print("PluginRunResultList")
+            # for x in analyses:
+            #     print(f"\t {x.id.hex}")
 
             add_results = request.GET.get("add_results", True)
             if add_results:

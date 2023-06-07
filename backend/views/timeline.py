@@ -26,10 +26,10 @@ class TimelineList(View):
                 .prefetch_related("timelinesegment_set")
             )
 
-            print("TimelineList")
-            for x in timelines:
-                if x.plugin_run_result:
-                    print(f"\t {x.id.hex} {x.plugin_run_result.id.hex}")
+            # print("TimelineList")
+            # for x in timelines:
+            #     if x.plugin_run_result:
+            #         print(f"\t {x.id.hex} {x.plugin_run_result.id.hex}")
             entries = []
             for timeline in timelines:
                 result = timeline.to_dict()
