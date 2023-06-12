@@ -3,6 +3,8 @@ import logging
 import traceback
 import logging
 import sys
+import io
+import csv
 
 from numpy import isin
 
@@ -21,6 +23,7 @@ from io import StringIO
 from backend.models import Video, Annotation, AnnotationCategory, Timeline, TimelineSegment, PluginRunResult
 from analyser.data import DataManager, Shot
 import numpy as np
+
 
 def time_to_string(sec, loc="en"):
     sec, sec_frac = divmod(sec, 1)
@@ -159,9 +162,13 @@ class VideoExportCSV(View):
             rows = list(map(list, zip(*cols)))
 
             # Back to a single string
-            result = "\n".join([",".join(r) for r in rows])
-
-            return JsonResponse({"status": "ok", "file": result})
+            buffer = io.StringIO()
+            with csv.writer(buffer, quoting=csv.QUOTE_ALL) as f:
+                for line in rows:
+                    f.writerow(line)
+                # result = "\n".join([",".join(r) for r in rows])
+            print(buffer)
+            return JsonResponse({"status": "ok", "file": buffer})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
@@ -332,27 +339,32 @@ class VideoExport(View):
         rows = list(map(list, zip(*cols)))
 
         # Back to a single string
-        result = "\n".join([",".join(r) for r in rows])
 
-        return result
+        # result = "\n".join([",".join(r) for r in rows])
+        buffer = io.StringIO()
+        writer = csv.writer(buffer, quoting=csv.QUOTE_ALL)
+        for line in rows:
+            writer.writerow(line)
+
+        return buffer.getvalue()
 
     def export_elan(self, parameters, video_db):
         eaf = Eaf(author="")
         eaf.remove_tier("default")
         eaf.add_linked_file(file_path=f"{video_db.id.hex}.mp4", mimetype="video/mp4")
-        
+
         # get the boundary information from the timeline selected in parameters
         try:
             shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
         except Timeline.DoesNotExist:
             raise Exception
-        
+
         aggregation = ["max", "min", "mean"][parameters.get("aggregation")]
 
         # if the timeline is not of type annotation, raise an Exception
         if shot_timeline_db.type != Timeline.TYPE_ANNOTATION:
             raise Exception
-        
+
         # get the shots from the boundary timeline
         shots = []
         shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
@@ -370,9 +382,9 @@ class VideoExport(View):
                 continue
             eaf.add_tier(tier_id=tier)
             # store all annotations
-            
+
             tl_type = timeline_db.plugin_run_result
-            
+
             # if the type of the timeline is scalar convert it to elan format
             if tl_type is not None:
                 # if it is not of type SCALAR, skip it
@@ -391,14 +403,14 @@ class VideoExport(View):
                             continue
 
                         y_agg = 0
-                        
+
                         if aggregation == "mean":
                             y_agg = np.mean(shot_y_data)
                         if aggregation == "max":
                             y_agg = np.max(shot_y_data)
                         if aggregation == "min":
                             y_agg = np.min(shot_y_data)
-                        
+
                         start_time = int(shot.start * 1000)
                         end_time = int(shot.end * 1000)
                         anno = str(round(float(y_agg), 3))
@@ -423,7 +435,7 @@ class VideoExport(View):
                                 anno = f"{name}"
                             annotations.append(anno)
                             # check why this occurs
-                            if start_time == end_time: 
+                            if start_time == end_time:
                                 continue
                             eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
                     else:
@@ -434,7 +446,7 @@ class VideoExport(View):
                             end_time = int(shot.end * 1000)
                             annotations.append(f"value:{i}")
                             # check why this occurs
-                            if start_time == end_time: 
+                            if start_time == end_time:
                                 continue
                             eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
 
