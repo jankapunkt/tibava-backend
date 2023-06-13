@@ -5,6 +5,7 @@ import logging
 import sys
 import io
 import csv
+import base64
 
 from numpy import isin
 
@@ -12,18 +13,23 @@ import wand.image as wimage
 
 
 from django.views import View
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 
 from pympi.Elan import Eaf, to_eaf
 from xml.etree import cElementTree as etree
 from io import StringIO
+import pandas as pd
 
+import zipfile
 
 from backend.models import Video, Annotation, AnnotationCategory, Timeline, TimelineSegment, PluginRunResult
 from analyser.data import DataManager, Shot
 import numpy as np
 
+def json_to_csv(json_obj):
+    df = pd.DataFrame(json_obj)
+    return df.to_csv(index=False, sep="\t")
 
 def time_to_string(sec, loc="en"):
     sec, sec_frac = divmod(sec, 1)
@@ -136,10 +142,10 @@ class VideoExportCSV(View):
             cols = []
 
             # first col
-            cols.append(["start", "", ""] + [str(t[0]) for t in time_duration])
-            cols.append(["start", "", ""] + [time_to_string(t[0], loc="en") for t in time_duration])
-            cols.append(["duration", "", ""] + [str(t[1]) for t in time_duration])
-            cols.append(["duration", "", ""] + [time_to_string(t[1], loc="en") for t in time_duration])
+            cols.append(["start hh:mm:ss.ms", "", ""] + [str(t[0]) for t in time_duration])
+            cols.append(["start in seconds", "", ""] + [time_to_string(t[0], loc="en") for t in time_duration])
+            cols.append(["duration hh:mm:ss.ms", "", ""] + [str(t[1]) for t in time_duration])
+            cols.append(["duration in seconds", "", ""] + [time_to_string(t[1], loc="en") for t in time_duration])
             for _, timeline in timeline_headers.items():
                 for _, annotation in timeline["annotations"].items():
                     col = [timeline["name"]]
@@ -201,9 +207,8 @@ class VideoExportJson(View):
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
-
 class VideoExport(View):
-    def export_csv(self, parameters, video_db):
+    def export_merged_csv(self, parameters, video_db):
         include_category = True
         if "include_category" in parameters:
             include_category = parameters.get("include_category")
@@ -347,6 +352,130 @@ class VideoExport(View):
             writer.writerow(line)
 
         return buffer.getvalue()
+    
+    def export_individual_csv(self, parameters, video_db):
+        include_category = True
+        if "include_category" in parameters:
+            include_category = parameters.get("include_category")
+
+        use_timestamps = True
+        if "use_timestamps" in parameters:
+            use_timestamps = parameters.get("use_timestamps")
+
+        use_seconds = True
+        if "use_seconds" in parameters:
+            use_seconds = parameters.get("use_seconds")
+
+        timeline_annotations = []
+        timeline_names = []
+
+        data_manager = DataManager("/predictions/")
+
+        for timeline_db in Timeline.objects.filter(video=video_db):
+            
+            annotations = {}
+            tl_type = timeline_db.plugin_run_result
+            # print(f"{timeline_db.name} --> {tl_type=}")
+
+            # if the type of the timeline is scalar convert it to elan format
+            if tl_type is not None:
+
+                annotations["start in seconds"] = []
+                if use_timestamps:
+                    annotations["start hh:mm:ss.ms"] = []
+                annotations["annotations"] = []
+
+                data = data_manager.load(timeline_db.plugin_run_result.data_id)
+
+                # if it is not of type SCALAR, skip it
+                with data:
+                    if tl_type.type == PluginRunResult.TYPE_SCALAR:
+                        y = np.asarray(data.y)
+                        # print(f"Data {len(y)}\n {y}")
+                        time = np.asarray(data.time)
+                        # print(f"Data {len(time)}\n {time}")
+                        for i, time_stamp in enumerate(time):
+                            annotations["start in seconds"].append(time_stamp)
+                            annotations["annotations"].append(round(float(y[i]), 5))
+                            if use_timestamps:
+                                annotations["start hh:mm:ss.ms"].append(time_to_string(time_stamp, loc="en"))
+                    elif tl_type.type == PluginRunResult.TYPE_RGB_HIST:
+                        colors = np.asarray(data.colors)
+                        # print(f"Data {len(colors)}\n {colors}")
+                        time = np.asarray(data.time)
+                        # print(f"Data {len(time)}\n {time}")
+                        for i, time_stamp in enumerate(time):
+                            annotations["start in seconds"].append(time_stamp)
+                            annotations["annotations"].append(colors[i])
+                            if use_timestamps:
+                                annotations["start hh:mm:ss.ms"].append(time_to_string(time_stamp, loc="en"))
+                    else:
+                        continue
+            
+            else:
+                times = []
+                durations = []
+                
+                shot_timeline_segments = TimelineSegment.objects.filter(timeline=timeline_db)
+
+                for segment in shot_timeline_segments:
+                    times.append(segment.start)
+                    durations.append(segment.end - segment.start)
+
+                time_duration = sorted(list(set(zip(times, durations))), key=lambda x: x[0])
+                
+                # start
+                if use_timestamps:
+                    annotations["start hh:mm:ss.ms"] = [time_to_string(t[0], loc="en") for t in time_duration]
+
+                if use_seconds:
+                    annotations["start in seconds"] = [str(t[0]) for t in time_duration]
+
+                # duration
+                if use_timestamps:
+                    annotations["duration hh:mm:ss.ms"] = [time_to_string(t[1], loc="en") for t in time_duration]
+
+                if use_seconds:
+                    annotations["duration in seconds"] = [str(t[1]) for t in time_duration]
+                
+                annotations["annotations"] = []
+
+                for segment in shot_timeline_segments:
+                    if len(segment.timelinesegmentannotation_set.all()) > 0:
+                        for segment_annotation_db in segment.timelinesegmentannotation_set.all():
+                            if include_category and segment_annotation_db.annotation.category:
+                                annotations["annotations"].append(
+                                    segment_annotation_db.annotation.category.name
+                                    + "::"
+                                    + segment_annotation_db.annotation.name
+                                )
+                            else:
+                                annotations["annotations"].append(segment_annotation_db.annotation.name)
+                    else:
+                        annotations["annotations"].append("")
+            # print(timeline_db.name)
+            # print(f"{annotations=}")
+            
+            timeline_annotations.append(annotations)
+            timeline_names.append(timeline_db.name)
+
+        # print(len(timeline_annotations))
+
+         # Create a temporary in-memory file to store the zip
+        buffer = io.BytesIO()
+        zip_file = zipfile.ZipFile(buffer, "w")
+
+        for index, json_obj in enumerate(timeline_annotations):
+            csv_data = json_to_csv(json_obj)
+            filename = f"{timeline_names[index]}.tsv"
+
+            # Write the CSV data to the individual file
+            zip_file.writestr(filename, csv_data)
+
+        # Close the zip file
+        zip_file.close()
+
+        return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
     def export_elan(self, parameters, video_db):
         eaf = Eaf(author="")
@@ -434,7 +563,7 @@ class VideoExport(View):
                             else:
                                 anno = f"{name}"
                             annotations.append(anno)
-                            # check why this occurs
+                            # TODO: check why this occurs
                             if start_time == end_time:
                                 continue
                             eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
@@ -450,9 +579,6 @@ class VideoExport(View):
                                 continue
                             eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
 
-        # if request.GET.get("format") == "textgrid":
-        #    textgrid = eaf.to_textgrid()
-        # else:
         stdout = sys.stdout
         sys.stdout = str_out = StringIO()
         to_eaf(file_path="-", eaf_obj=eaf)
@@ -496,9 +622,13 @@ class VideoExport(View):
                         return JsonResponse({"status": "error", "type": "missing_values"})
                     parameters[p["name"]] = p["value"]
 
-            if request.POST.get("format") == "csv":
-                result = self.export_csv(parameters, video_db)
+            if request.POST.get("format") == "merged_csv":
+                result = self.export_merged_csv(parameters, video_db)
                 return JsonResponse({"status": "ok", "file": result, "extension": "csv"})
+
+            elif request.POST.get("format") == "individual_csv":
+                result = self.export_individual_csv(parameters, video_db)
+                return JsonResponse({"status": "ok", "file": result, "extension": "zip"})
 
             elif request.POST.get("format") == "elan":
                 result = self.export_elan(parameters, video_db)
