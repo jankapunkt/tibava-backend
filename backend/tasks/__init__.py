@@ -13,6 +13,7 @@ from .shotdetection import *
 from .thumbnail import *
 from .color_brightness_analysis import *
 from .clip import *
+from .clip_ontology import *
 from .xclip import *
 from .shot_scalar_annotation import *
 from .whisper import *
