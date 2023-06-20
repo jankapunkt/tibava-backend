@@ -257,7 +257,7 @@ class Annotation(models.Model):
     category = models.ForeignKey(AnnotationCategory, on_delete=models.CASCADE, null=True)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
-    name = models.CharField(max_length=512)
+    name = models.CharField(max_length=1024)
     color = models.CharField(max_length=256, default=random_color_string)
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
