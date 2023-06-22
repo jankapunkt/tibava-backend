@@ -2,14 +2,13 @@ from random import random
 import uuid
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import  User, AbstractUser
 from django.conf import settings
 from backend.utils.color import rgb_to_hex, random_rgb
 
 
 def random_color_string():
     return rgb_to_hex(random_rgb())
-
 
 class Video(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

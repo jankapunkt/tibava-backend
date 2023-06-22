@@ -129,7 +129,7 @@ class CLIPOntology(Task):
                         video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
                     )
 
-                    category_db, _ = AnnotationCategory.objects.get_or_create(name="Emotion", video=video, owner=user)
+                    category_db, _ = AnnotationCategory.objects.get_or_create(name="Concept", video=video, owner=user)
 
                     for annotation in annotations_data.annotations:
                         # create TimelineSegment
