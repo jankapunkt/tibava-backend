@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 ]
 
-#AUTH_USER_MODEL = 'backend.TibavaUser'
+AUTH_USER_MODEL = 'backend.TibavaUser'
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",

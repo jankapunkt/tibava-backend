@@ -17,7 +17,7 @@ from backend.models import (
     PluginRunResult,
     TimelineSegmentAnnotation,
     Video,
-    User,
+    TibavaUser,
     Timeline,
     TimelineSegment,
 )
@@ -40,7 +40,7 @@ class Whisper(Task):
             "analyser_port": 50051,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, user: User = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs):
 
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(

@@ -2,17 +2,26 @@ from random import random
 import uuid
 
 from django.db import models
-from django.contrib.auth.models import  User, AbstractUser
+from django.contrib.auth.models import  AbstractUser
 from django.conf import settings
 from backend.utils.color import rgb_to_hex, random_rgb
+
+from .managers import TibavaUserManager
 
 
 def random_color_string():
     return rgb_to_hex(random_rgb())
 
+class TibavaUser(AbstractUser):
+    allowance = models.IntegerField(default=1)
+    objects = TibavaUserManager()
+
+    def __str__(self):
+        return self.username
+
 class Video(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
     license = models.CharField(max_length=256)
     ext = models.CharField(max_length=256)
@@ -238,7 +247,7 @@ class Timeline(models.Model):
 class AnnotationCategory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
-    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
     color = models.CharField(max_length=256, default=random_color_string)
 
@@ -255,7 +264,7 @@ class Annotation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     category = models.ForeignKey(AnnotationCategory, on_delete=models.CASCADE, null=True)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
-    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=1024)
     color = models.CharField(max_length=256, default=random_color_string)
 
@@ -346,7 +355,7 @@ class TimelineSegmentAnnotation(models.Model):
 class Shortcut(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
-    owner = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE)
     type = models.CharField(max_length=256, null=True)
     keys = models.JSONField(null=True)
     keys_string = models.CharField(max_length=256, null=True)

@@ -118,23 +118,21 @@ def register(request):
     email = data["params"]["email"]
 
     if username == "" or password == "" or email == "":
-        print("check1", flush=True)
+        print("An input is missing.", flush=True)
         return JsonResponse({"status": "error"})
 
-    if auth.models.User.objects.filter(username=username).count() > 0:
-        print("check2", flush=True)
+    if auth.get_user_model().objects.filter(username=username).count() > 0:
+        print("User already exists. Abort.", flush=True)
         return JsonResponse({"status": "error"})
 
     # TODO Add EMail register here
-    user = auth.models.User.objects.create_user(username, email, password)
-    user.save()
+    user = auth.get_user_model().objects.create_user(username, email, password)
     user = auth.authenticate(username=username, password=password)
 
     if user is not None:
         auth.login(request, user)
         return JsonResponse({"status": "ok"})
 
-    print("check3", flush=True)
     return JsonResponse({"status": "error"})
 
 

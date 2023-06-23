@@ -11,7 +11,7 @@ from backend.models import (
     PluginRunResult,
     TimelineSegmentAnnotation,
     Video,
-    User,
+    TibavaUser,
     Timeline,
     TimelineSegment,
 )
@@ -48,7 +48,7 @@ class PlacesClassifier(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: User = None, plugin_run: PluginRun = None, **kwargs
+        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
     ):
         # Debug
         # parameters["fps"] = 0.05

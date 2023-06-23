@@ -6,7 +6,7 @@ from backend.models import (
     PluginRun,
     PluginRunResult,
     Video,
-    User,
+    TibavaUser,
     Timeline,
     TimelineSegment,
     TimelineSegmentAnnotation,
@@ -89,7 +89,7 @@ def insightface_detection(self, args):
 
     print(f"[{PLUGIN_NAME}] {video}: {parameters}", flush=True)
 
-    user_db = User.objects.get(id=user.get("id"))
+    user_db = TibavaUser.objects.get(id=user.get("id"))
     video_db = Video.objects.get(id=video.get("id"))
     video_file = media_path_to_video(video.get("id"), video.get("ext"))
     plugin_run_db = PluginRun.objects.get(video=video_db, id=id)

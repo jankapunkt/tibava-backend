@@ -23,8 +23,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         try:
-            user = auth.models.User.objects.get(id=options["user"])
-        except auth.models.User.DoesNotExist as e:
+            user = auth.get_user_model().objects.get(id=options["user"])
+        except auth.get_user_model().DoesNotExist as e:
             self.stdout.write(self.style.ERROR(f"User does not exist"))
             return
         print(os.listdir(options["video"]))

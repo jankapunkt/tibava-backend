@@ -21,10 +21,10 @@ class Command(BaseCommand):
 
         print(f"{username} {password}")
 
-        if auth.models.User.objects.filter(username=username).count() > 0:
+        if auth.get_user_model().objects.filter(username=username).count() > 0:
             self.stdout.write(self.style.ERROR(f"User with name {username} already exists."))
 
-        user = auth.models.User.objects.create_user(username, email, password)
+        user = auth.get_user_model().objects.create_user(username, email, password)
         user.save()
 
         self.stdout.write(self.style.SUCCESS(f"User with id {user.id} created."))

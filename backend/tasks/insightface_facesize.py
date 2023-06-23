@@ -6,7 +6,7 @@ from backend.models import (
     PluginRun,
     PluginRunResult,
     Video,
-    User,
+    TibavaUser,
     Timeline,
     TimelineSegment,
     TimelineSegmentAnnotation,
@@ -51,7 +51,7 @@ class InsightfaceFacesize(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: User = None, plugin_run: PluginRun = None, **kwargs
+        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
     ):
         # Debug
         # parameters["fps"] = 0.05
