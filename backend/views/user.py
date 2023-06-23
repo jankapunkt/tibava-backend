@@ -35,6 +35,7 @@ class UserGet(View):
                         "username": user.get_username(),
                         "email": user.email,
                         "date": user.date_joined,
+                        "allowance": user.allowance,
                     },
                 }
             )
