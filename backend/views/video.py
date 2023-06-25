@@ -45,13 +45,14 @@ class VideoUpload(View):
             video_id_uuid = uuid.uuid4()
             video_id = video_id_uuid.hex
             if "file" in request.FILES:
+                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" , request.user)
                 output_dir = media_dir_to_video(video_id)
 
                 download_result = download_file(
                     output_dir=output_dir,
                     output_name=video_id,
                     file=request.FILES["file"],
-                    max_size=10 * 1024 * 1024 * 1024,
+                    max_size=request.user.max_video_size,
                     extensions=(".mkv", ".mp4", ".ogv"),
                 )
 

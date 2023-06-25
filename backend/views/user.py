@@ -36,6 +36,7 @@ class UserGet(View):
                         "email": user.email,
                         "date": user.date_joined,
                         "allowance": user.allowance,
+                        "max_video_size": user.max_video_size,
                     },
                 }
             )
