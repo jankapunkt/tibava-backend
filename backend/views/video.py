@@ -13,12 +13,10 @@ from urllib.parse import urlparse
 import imageio
 from backend.plugin_manager import PluginManager
 
-import wand.image as wimage
-
 from backend.utils import download_url, download_file, media_url_to_video, media_path_to_video, media_dir_to_video
 
 from django.views import View
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.conf import settings
 
 # from django.core.exceptions import BadRequest
@@ -45,7 +43,6 @@ class VideoUpload(View):
             video_id_uuid = uuid.uuid4()
             video_id = video_id_uuid.hex
             if "file" in request.FILES:
-                print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" , request.user)
                 output_dir = media_dir_to_video(video_id)
 
                 download_result = download_file(
@@ -57,7 +54,7 @@ class VideoUpload(View):
                 )
 
                 if download_result["status"] != "ok":
-                    logging.error("VideoUpload::download_failed")
+                    logging.error("VideoUpload::failed")
                     return JsonResponse(download_result)
 
                 path = Path(request.FILES["file"].name)
