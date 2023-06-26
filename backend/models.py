@@ -13,7 +13,7 @@ def random_color_string():
     return rgb_to_hex(random_rgb())
 
 class TibavaUser(AbstractUser):
-    allowance = models.IntegerField(default=1)
+    allowance = models.IntegerField(default=3)
     max_video_size = models.IntegerField(default=50 * 1024 * 1024) #50 Mb
     objects = TibavaUserManager()
 
