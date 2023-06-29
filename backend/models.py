@@ -14,7 +14,7 @@ def random_color_string():
 
 class TibavaUser(AbstractUser):
     allowance = models.IntegerField(default=3)
-    max_video_size = models.IntegerField(default=50 * 1024 * 1024) #50 Mb
+    max_video_size = models.BigIntegerField(default=50 * 1024 * 1024) #50 Mb
     objects = TibavaUserManager()
 
     def __str__(self):
