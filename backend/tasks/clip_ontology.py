@@ -13,7 +13,7 @@ from backend.models import (
     AnnotationCategory,
     Annotation,
     TimelineSegmentAnnotation,
-    User,
+    TibavaUser,
 )
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
@@ -43,7 +43,7 @@ class CLIPOntology(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: User = None, plugin_run: PluginRun = None, **kwargs
+        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
     ):
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
@@ -129,7 +129,7 @@ class CLIPOntology(Task):
                         video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
                     )
 
-                    category_db, _ = AnnotationCategory.objects.get_or_create(name="Emotion", video=video, owner=user)
+                    category_db, _ = AnnotationCategory.objects.get_or_create(name="Concept", video=video, owner=user)
 
                     for annotation in annotations_data.annotations:
                         # create TimelineSegment

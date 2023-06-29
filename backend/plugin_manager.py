@@ -4,7 +4,7 @@ import sys
 from typing import List
 
 from celery import shared_task
-from backend.models import PluginRun, Video, User
+from backend.models import PluginRun, Video, TibavaUser
 
 
 class PluginManager:
@@ -34,7 +34,7 @@ class PluginManager:
         return plugin in self._plugins
 
     def __call__(
-        self, plugin: str, video: Video, user: User, parameters: List = None, run_async: bool = True, **kwargs
+        self, plugin: str, video: Video, user: TibavaUser, parameters: List = None, run_async: bool = True, **kwargs
     ):
         if parameters is None:
             parameters = []
@@ -95,7 +95,7 @@ def run_plugin(self, args):
     kwargs = args.get("kwargs")
 
     video_db = Video.objects.get(id=video)
-    user_db = User.objects.get(id=user)
+    user_db = TibavaUser.objects.get(id=user)
     plugin_run_db = PluginRun.objects.get(id=plugin_run)
     # this job is already started in another jobqueue https://github.com/celery/celery/issues/4400
     if plugin_run_db.in_scheduler:

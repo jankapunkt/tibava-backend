@@ -2,7 +2,7 @@ from typing import Dict, List
 import imageio.v3 as iio
 
 from analyser.data import DataManager
-from backend.models import PluginRun, PluginRunResult, Video, Timeline, User
+from backend.models import PluginRun, PluginRunResult, Video, Timeline, TibavaUser
 from backend.plugin_manager import PluginManager
 
 from ..utils.analyser_client import TaskAnalyserClient
@@ -37,7 +37,7 @@ class InsightfaceIdentification(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: User = None, plugin_run: PluginRun = None, **kwargs
+        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
     ):
         # Debug
         # parameters["fps"] = 0.1
