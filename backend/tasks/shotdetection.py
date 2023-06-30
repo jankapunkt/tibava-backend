@@ -80,9 +80,7 @@ class ShotDetection(Task):
             plugin_run_result_db = PluginRunResult.objects.create(
                 plugin_run=plugin_run, data_id=d.id, name="shots", type=PluginRunResult.TYPE_SHOTS
             )
-        print(plugin_run.id)
-        print(plugin_run_result_db.id)
-        print(timeline.id)
+
         return {
             "plugin_run": plugin_run.id.hex,
             "plugin_run_results": [plugin_run_result_db.id.hex],

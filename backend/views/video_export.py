@@ -499,11 +499,15 @@ class VideoExport(View):
         shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
         for x in shot_timeline_segments:
             shots.append(Shot(start=x.start, end=x.end))
-
+        
         data_manager = DataManager("/predictions/")
 
         # for all timelines
         for timeline_db in Timeline.objects.filter(video=video_db):
+            
+            if_counter = 0
+            else_if_counter = 0
+            else_else_counter = 0
             tier = timeline_db.name
 
             # ignore timelines with the same name TODO: check if there is a better way
@@ -513,6 +517,7 @@ class VideoExport(View):
             # store all annotations
 
             tl_type = timeline_db.plugin_run_result
+
 
             # if the type of the timeline is scalar convert it to elan format
             if tl_type is not None:
@@ -527,6 +532,7 @@ class VideoExport(View):
                     for i, shot in enumerate(shots):
                         annotations = []
                         shot_y_data = y[np.logical_and(time >= shot.start, time <= shot.end)]
+                        #print(f"{shot.start} - {shot.end}")
 
                         if len(shot_y_data) <= 0:
                             continue
@@ -546,12 +552,14 @@ class VideoExport(View):
 
                         annotations.append(f"value:{anno}")
                         if len(annotations) > 0:
+                            if_counter += 1
                             eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
             # if it is an annotation timeline already, just export it
             else:
-                for segment_db in timeline_db.timelinesegment_set.all():
+                for id, segment_db in enumerate(timeline_db.timelinesegment_set.all()):
                     start_time = int(segment_db.start * 1000)
                     end_time = int(segment_db.end * 1000)
+                    #print(f"{start_time} - {end_time}")
                     annotations = []
                     # if the timeline contains annotations, export them
                     if len(segment_db.timelinesegmentannotation_set.all()) > 0:
@@ -566,17 +574,18 @@ class VideoExport(View):
                             # TODO: check why this occurs
                             if start_time == end_time:
                                 continue
-                            eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
+                            if len(annotations) > 0:
+                                else_if_counter += 1
+                                eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
                     else:
                         # if it does not contain annotations, export the boundaries with placeholder values (here: shot number)
-                        for i, shot in enumerate(shots):
-                            annotations = []
-                            start_time = int(shot.start * 1000)
-                            end_time = int(shot.end * 1000)
-                            annotations.append(f"value:{i}")
-                            # check why this occurs
-                            if start_time == end_time:
-                                continue
+                        annotations = []
+                        start_time = int(shots[id].start * 1000)
+                        end_time = int(shots[id].end * 1000)
+                        annotations.append(f"value:{id}")
+                        
+                        if len(annotations) > 0:
+                            else_else_counter += 1
                             eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
 
         stdout = sys.stdout
