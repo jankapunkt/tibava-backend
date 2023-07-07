@@ -82,7 +82,7 @@ class VideoExportElan(View):
                     for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
                         category = segment_annotation_db.annotation.category
                         name = segment_annotation_db.annotation.name
-                        anno = f"{name} ({category}"
+                        anno = f"{name} {category}"
                         eaf.add_annotation(tier, start=start_time, end=end_time, value=anno)
             # if request.GET.get("format") == "textgrid":
             #    textgrid = eaf.to_textgrid()
@@ -173,7 +173,6 @@ class VideoExportCSV(View):
                 for line in rows:
                     f.writerow(line)
                 # result = "\n".join([",".join(r) for r in rows])
-            print(buffer)
             return JsonResponse({"status": "ok", "file": buffer})
         except Exception as e:
             logging.error(traceback.format_exc())
@@ -442,19 +441,19 @@ class VideoExport(View):
 
                 for segment in shot_timeline_segments:
                     if len(segment.timelinesegmentannotation_set.all()) > 0:
+                        all_annotations = []
                         for segment_annotation_db in segment.timelinesegmentannotation_set.all():
                             if include_category and segment_annotation_db.annotation.category:
-                                annotations["annotations"].append(
+                                all_annotations.append(
                                     segment_annotation_db.annotation.category.name
                                     + "::"
                                     + segment_annotation_db.annotation.name
                                 )
                             else:
-                                annotations["annotations"].append(segment_annotation_db.annotation.name)
+                                all_annotations.append(segment_annotation_db.annotation.name)
+                        annotations["annotations"].append(all_annotations)
                     else:
                         annotations["annotations"].append("")
-            # print(timeline_db.name)
-            # print(f"{annotations=}")
             
             timeline_annotations.append(annotations)
             timeline_names.append(timeline_db.name)
@@ -464,6 +463,8 @@ class VideoExport(View):
          # Create a temporary in-memory file to store the zip
         buffer = io.BytesIO()
         zip_file = zipfile.ZipFile(buffer, "w")
+
+        # print(timeline_annotations)
 
         for index, json_obj in enumerate(timeline_annotations):
             csv_data = json_to_csv(json_obj)
@@ -505,9 +506,6 @@ class VideoExport(View):
         # for all timelines
         for timeline_db in Timeline.objects.filter(video=video_db):
             
-            if_counter = 0
-            else_if_counter = 0
-            else_else_counter = 0
             tier = timeline_db.name
 
             # ignore timelines with the same name TODO: check if there is a better way
@@ -517,7 +515,6 @@ class VideoExport(View):
             # store all annotations
 
             tl_type = timeline_db.plugin_run_result
-
 
             # if the type of the timeline is scalar convert it to elan format
             if tl_type is not None:
@@ -552,17 +549,20 @@ class VideoExport(View):
 
                         annotations.append(f"value:{anno}")
                         if len(annotations) > 0:
-                            if_counter += 1
                             eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
             # if it is an annotation timeline already, just export it
             else:
                 for id, segment_db in enumerate(timeline_db.timelinesegment_set.all()):
                     start_time = int(segment_db.start * 1000)
                     end_time = int(segment_db.end * 1000)
-                    #print(f"{start_time} - {end_time}")
+                    # print(f"{start_time} - {end_time}")
+                    # TODO: check why this occurs
+                    if start_time == end_time:
+                        continue
                     annotations = []
                     # if the timeline contains annotations, export them
                     if len(segment_db.timelinesegmentannotation_set.all()) > 0:
+                        annotations = []
                         for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
                             category = segment_annotation_db.annotation.category
                             name = segment_annotation_db.annotation.name
@@ -571,22 +571,11 @@ class VideoExport(View):
                             else:
                                 anno = f"{name}"
                             annotations.append(anno)
-                            # TODO: check why this occurs
-                            if start_time == end_time:
-                                continue
-                            if len(annotations) > 0:
-                                else_if_counter += 1
-                                eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
+                        if len(annotations) > 0:
+                            eaf.add_annotation(tier, start=start_time, end=end_time, value="; ".join(annotations))
                     else:
                         # if it does not contain annotations, export the boundaries with placeholder values (here: shot number)
-                        annotations = []
-                        start_time = int(shots[id].start * 1000)
-                        end_time = int(shots[id].end * 1000)
-                        annotations.append(f"value:{id}")
-                        
-                        if len(annotations) > 0:
-                            else_else_counter += 1
-                            eaf.add_annotation(tier, start=start_time, end=end_time, value=", ".join(annotations))
+                        eaf.add_annotation(tier, start=start_time, end=end_time, value=f"value:{id}")
 
         stdout = sys.stdout
         sys.stdout = str_out = StringIO()
