@@ -36,20 +36,16 @@ class PluginManager:
     def __call__(
         self, plugin: str, video: Video, user: TibavaUser, parameters: List = None, run_async: bool = True, **kwargs
     ):
-        print(1)
         if parameters is None:
             parameters = []
 
-        print(2)
         if plugin not in self._plugins:
             #TODO
             return False
 
-        print(3)
         if plugin in self._parser:
             parameters = self._parser[plugin]()(parameters)
 
-        print(4)
         result = {"status": True}
         plugin_run = PluginRun.objects.create(video=video, type=plugin, status=PluginRun.STATUS_QUEUED)
         if run_async:
@@ -76,7 +72,6 @@ class PluginManager:
                 plugin_run.status = PluginRun.STATUS_ERROR
                 plugin_run.save()
                 return result
-        print(5)
         return result
 
     def get_results(self, analyse):

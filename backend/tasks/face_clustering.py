@@ -1,4 +1,5 @@
 from typing import Dict, List
+import imageio.v3 as iio
 
 from backend.models import (
     Annotation,
@@ -57,41 +58,57 @@ class FaceClustering(Task):
             manager=manager,
         )
         
-        # clip embeddings
+        print("1", flush=True)
+        # start plugins
         video_id = self.upload_video(client, video)
         result = self.run_analyser(
             client,
-            "clip_image_embedding",
-            parameters={"fps": parameters.get("fps")},
+            "insightface_video_detector_torch",
+            parameters={
+                "fps": parameters.get("fps"),
+                "min_facesize": parameters.get("min_facesize"),
+            },
             inputs={"video": video_id},
-            outputs=["embeddings"],
+            outputs=["images", "kpss", "faces"],
         )
 
-        print("result embeddings")
-        print(result)
+        if result is None:
+            raise Exception
+        
+        print(result, flush=True)
+        #({
+        # 'images': '5df91888509e4dea968cf16e13789121', 
+        # 'kpss': '86571594e76e4012964c2685df42a08b', 
+        # 'faces': '6568051f2c6b40d7b381b681ec3787d9'
+        # }, 
+        # {})
+        print("2", flush=True)
+        # TypeError: tuple indices must be integers or slices, not str
+        image_feature_result = self.run_analyser(
+            client,
+            "insightface_video_feature_extractor",
+            inputs={"video": video_id, "kpss": result[0]["kpss"], "faces": result[0]["faces"]},
+            outputs=["features"],
+        )
+
+        if image_feature_result is None:
+            raise Exception
+
+        print("3", flush=True)
+        # ({'features': '51b0fcb4ff794540b5656912ba685a1d'}, {})
 
         # start plugins
-        result = self.run_analyser(
+        cluster_result = self.run_analyser(
             client,
             "face_clustering",
-            parameters={
-            },
-            inputs={"embeddings": result["embeddings"]},
-            outputs=["bboxes"],
+            parameters={},
+            inputs={"embeddings": image_feature_result[0]["features"], "faces": result[0]["faces"]},
+            downloads=["face_cluster_data"],
         )
 
-        if result is None:
+        if cluster_result is None:
             raise Exception
 
-        result = self.run_analyser(
-            client,
-            "insightface_facesize",
-            inputs={**result[0]},
-            outputs=["probs"],
-            downloads=["probs"],
-        )
-
-        if result is None:
-            raise Exception
+        print(result)
 
         print("TASK DONE")

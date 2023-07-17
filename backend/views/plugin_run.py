@@ -101,7 +101,7 @@ class PluginRunNew(View):
 
             user_db = request.user
 
-            result = plugin_manager(plugin, user=user_db, video=video_db, run_async=False, parameters=valid_parameters)
+            result = plugin_manager(plugin, user=user_db, video=video_db, run_async=True, parameters=valid_parameters)
 
             if result:
                 return JsonResponse({"status": "ok"})

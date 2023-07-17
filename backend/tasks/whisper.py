@@ -71,7 +71,6 @@ class Whisper(Task):
             raise Exception
             
 
-
         with result[1]["annotations"] as data:
             """
             Create a timeline labeled
