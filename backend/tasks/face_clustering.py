@@ -48,8 +48,6 @@ class FaceClustering(Task):
         # Debug
         # parameters["fps"] = 0.05
 
-        print("TASK START")
-
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
@@ -58,10 +56,9 @@ class FaceClustering(Task):
             manager=manager,
         )
         
-        print("1", flush=True)
-        # start plugins
+        # face detector
         video_id = self.upload_video(client, video)
-        result = self.run_analyser(
+        facedetector_result = self.run_analyser(
             client,
             "insightface_video_detector_torch",
             parameters={
@@ -69,46 +66,57 @@ class FaceClustering(Task):
                 "min_facesize": parameters.get("min_facesize"),
             },
             inputs={"video": video_id},
-            outputs=["images", "kpss", "faces"],
+            outputs=["images", "kpss", "faces", "bboxes"],
+            downloads=["images"]
         )
 
-        if result is None:
+        if facedetector_result is None:
             raise Exception
         
-        print(result, flush=True)
-        #({
-        # 'images': '5df91888509e4dea968cf16e13789121', 
-        # 'kpss': '86571594e76e4012964c2685df42a08b', 
-        # 'faces': '6568051f2c6b40d7b381b681ec3787d9'
-        # }, 
-        # {})
-        print("2", flush=True)
-        # TypeError: tuple indices must be integers or slices, not str
+        # create image embeddings
         image_feature_result = self.run_analyser(
             client,
             "insightface_video_feature_extractor",
-            inputs={"video": video_id, "kpss": result[0]["kpss"], "faces": result[0]["faces"]},
+            inputs={"video": video_id, "kpss": facedetector_result[0]["kpss"], "faces": facedetector_result[0]["faces"]},
             outputs=["features"],
         )
 
         if image_feature_result is None:
             raise Exception
 
-        print("3", flush=True)
-        # ({'features': '51b0fcb4ff794540b5656912ba685a1d'}, {})
-
-        # start plugins
+        # cluster faces
         cluster_result = self.run_analyser(
             client,
             "face_clustering",
             parameters={},
-            inputs={"embeddings": image_feature_result[0]["features"], "faces": result[0]["faces"]},
+            inputs={
+                "embeddings": image_feature_result[0]["features"], 
+                "faces": facedetector_result[0]["faces"], 
+                "bboxes": facedetector_result[0]["bboxes"], 
+                "kpss": facedetector_result[0]["kpss"],
+                "images": facedetector_result[0]["images"]
+                },
             downloads=["face_cluster_data"],
         )
-
+        
         if cluster_result is None:
             raise Exception
+        
+        # TODO extract all images
+        with facedetector_result[1]["images"] as d:
+            # extract thumbnails
+            d.extract_all(manager)
+            _ = PluginRunResult.objects.create(
+                plugin_run=plugin_run, 
+                data_id=d.id, 
+                name="facedetector_images", 
+                type=PluginRunResult.TYPE_IMAGES
+            )
 
-        print(result)
-
-        print("TASK DONE")
+        with cluster_result[1]["face_cluster_data"] as data:
+            _ = PluginRunResult.objects.create(
+                plugin_run=plugin_run, 
+                data_id=data.id, 
+                name="faceclustering", 
+                type=PluginRunResult.TYPE_CLUSTER
+            )
