@@ -121,6 +121,7 @@ class PluginRunResult(models.Model):
     TYPE_HIST = "H"
     TYPE_SHOTS = "SH"
     TYPE_RGB_HIST = "R"
+    TYPE_CLUSTER = "CL"
     TYPE = {
         TYPE_VIDEO: "VIDEO",
         TYPE_IMAGES: "IMAGES",
@@ -128,6 +129,7 @@ class PluginRunResult(models.Model):
         TYPE_HIST: "HIST",
         TYPE_SHOTS: "SHOTS",
         TYPE_RGB_HIST: "RGB_HIST",
+        TYPE_CLUSTER: "CLUSTER"
     }
 
     type = models.CharField(
