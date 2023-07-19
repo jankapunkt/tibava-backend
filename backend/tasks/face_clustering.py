@@ -1,5 +1,6 @@
 from typing import Dict, List
 import imageio.v3 as iio
+import json
 
 from backend.models import (
     Annotation,
@@ -38,6 +39,7 @@ class FaceClustering(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
+            "base_url": "http://localhost/thumbnails/",
             "analyser_host": "analyser",
             "analyser_port": 50051,
         }
@@ -120,3 +122,12 @@ class FaceClustering(Task):
                 name="faceclustering", 
                 type=PluginRunResult.TYPE_CLUSTER
             )
+    
+    def get_results(self, analyse):
+        try:
+            results = json.loads(bytes(analyse.results).decode("utf-8"))
+            results = [{**x, "url": self.config.get("base_url") + f"{analyse.id}/{x['path']}"} for x in results]
+
+            return results
+        except:
+            return []
