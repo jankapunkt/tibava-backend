@@ -8,6 +8,7 @@ from backend.plugin_manager import PluginManager
 from ..utils.analyser_client import TaskAnalyserClient
 from backend.utils.parser import Parser
 from backend.utils.task import Task
+from analyser.data import ImageEmbedding, ImageEmbeddings
 
 
 PLUGIN_NAME = "InsightfaceIdentification"
@@ -20,10 +21,12 @@ class InsightfaceIdentificationParser(Parser):
         self.valid_parameter = {
             "timeline": {"parser": str, "default": "Face Identification"},
             "fps": {"parser": float, "default": 2},
-            "query_images": {"parser": str, "required": True},
+            "query_images": {"parser": str},
             "normalize": {"parser": float, "default": 1},
             "normalize_min_val": {"parser": float, "default": 0.3},
             "normalize_max_val": {"parser": float, "default": 1.0},
+            "embedding_ref" : {"parser": str, "default": None },
+            "index" : {"parser": int, "default": -1},
         }
 
 
@@ -42,6 +45,7 @@ class InsightfaceIdentification(Task):
         # Debug
         # parameters["fps"] = 0.1
 
+        # check whether we compare by input embedding or input image
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
@@ -51,17 +55,42 @@ class InsightfaceIdentification(Task):
         )
         # upload all data
         video_id = self.upload_video(client, video)
-        image_data = manager.create_data("ImagesData")
-        with image_data:
-            print(parameters.get("query_images"), flush=True)
-            image_path = parameters.get("query_images")
-            image = iio.imread(image_path)
-            image_data.save_image(image)
+        
+        # query image path
+        if (parameters.get("embedding_ref") == None):
+            # load query image
+            image_data = manager.create_data("ImagesData")
+            with image_data:
+                image_path = parameters.get("query_images")
+                image = iio.imread(image_path)
+                image_data.save_image(image)
 
-        query_image_id = client.upload_data(image_data)
+            query_image_id = client.upload_data(image_data)
 
-        # start plugins
-        video_result = self.run_analyser(
+            # query image face detection
+            facedetection_result = self.run_analyser(
+                client,
+                "insightface_image_detector_torch",
+                inputs={"images": query_image_id},
+                outputs=["kpss", "faces"],
+            )
+
+            if facedetection_result is None:
+                raise Exception
+
+            # feature extraction of faces
+            query_image_feature_result = self.run_analyser(
+                client,
+                "insightface_image_feature_extractor",
+                inputs={"images": query_image_id, "kpss": facedetection_result[0]["kpss"], "faces": facedetection_result[0]["faces"]},
+                outputs=["features"],
+            )
+
+            if query_image_feature_result is None:
+                raise Exception
+            
+        # face detection on video
+        video_facedetection = self.run_analyser(
             client,
             "insightface_video_detector_torch",
             parameters={
@@ -71,52 +100,47 @@ class InsightfaceIdentification(Task):
             outputs=["kpss", "faces"],
         )
 
-        if video_result is None:
+        if video_facedetection is None:
             raise Exception
 
         video_feature_result = self.run_analyser(
             client,
             "insightface_video_feature_extractor",
-            inputs={"video": video_id, "kpss": video_result[0]["kpss"]},
+            inputs={"video": video_id, "kpss": video_facedetection[0]["kpss"]},
             outputs=["features"],
         )
 
         if video_feature_result is None:
             raise Exception
-
-        # start plugins
-        image_result = self.run_analyser(
-            client,
-            "insightface_image_detector_torch",
-            inputs={"images": query_image_id},
-            outputs=["kpss", "faces"],
-        )
-
-        if image_result is None:
-            raise Exception
-
-        image_feature_result = self.run_analyser(
-            client,
-            "insightface_image_feature_extractor",
-            inputs={"images": query_image_id, "kpss": image_result[0]["kpss"], "faces": image_result[0]["faces"]},
-            outputs=["features"],
-        )
-
-        if image_feature_result is None:
-            raise Exception
-
-        result = self.run_analyser(
-            client,
-            "cosine_similarity",
-            parameters={
-                "normalize": 1,
-            },
-            inputs={
-                "target_features": video_feature_result[0]["features"],
-                "query_features": image_feature_result[0]["features"],
-            },
-            outputs=["probs"],
-        )
+        
+        if (parameters.get("embedding_ref") == None):
+            result = self.run_analyser(
+                client,
+                "cosine_similarity",
+                parameters={
+                    "normalize": 1,
+                    "index": parameters.get("index"),
+                },
+                inputs={
+                    "target_features": video_feature_result[0]["features"],
+                    "query_features": query_image_feature_result[0]["features"],
+                },
+                outputs=["probs"],
+            )
+        else:
+            result = self.run_analyser(
+                client,
+                "cosine_similarity",
+                parameters={
+                    "normalize": 1,
+                    "index": parameters.get("index"),
+                },
+                inputs={
+                    "target_features": video_feature_result[0]["features"],
+                    "query_features": parameters.get("embedding_ref"),
+                },
+                outputs=["probs"],
+            )
 
         if result is None:
             raise Exception

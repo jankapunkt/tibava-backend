@@ -98,22 +98,16 @@ class FaceClustering(Task):
                 "kpss": facedetector_result[0]["kpss"],
                 "images": facedetector_result[0]["images"]
                 },
-            downloads=["face_cluster_data"],
+            downloads=["face_cluster_data", "mean_embeddings"],
         )
         
         if cluster_result is None:
             raise Exception
-        
+
         # TODO extract all images
         with facedetector_result[1]["images"] as d:
             # extract thumbnails
             d.extract_all(manager)
-            _ = PluginRunResult.objects.create(
-                plugin_run=plugin_run, 
-                data_id=d.id, 
-                name="facedetector_images", 
-                type=PluginRunResult.TYPE_IMAGES
-            )
 
         with cluster_result[1]["face_cluster_data"] as data:
             _ = PluginRunResult.objects.create(
@@ -122,7 +116,15 @@ class FaceClustering(Task):
                 name="faceclustering", 
                 type=PluginRunResult.TYPE_CLUSTER
             )
-    
+        
+        with cluster_result[1]["mean_embeddings"] as data:
+            _ = PluginRunResult.objects.create(
+                plugin_run=plugin_run,
+                data_id=data.id,
+                name="cluster_representations",
+                type=PluginRunResult.TYPE_SCALAR
+            )
+        
     def get_results(self, analyse):
         try:
             results = json.loads(bytes(analyse.results).decode("utf-8"))
