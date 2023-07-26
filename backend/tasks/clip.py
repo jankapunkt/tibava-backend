@@ -18,6 +18,7 @@ class CLIPParser(Parser):
             "timeline": {"parser": str, "default": "clip"},
             "search_term": {"parser": str, "required": True},
             "fps": {"parser": float, "default": 2.0},
+            "normalize" : {"parser": float, "default": 1},
         }
 
 
@@ -64,6 +65,7 @@ class CLIP(Task):
         result = self.run_analyser(
             client,
             "min_max_norm",
+            parameters={"normalize": parameters.get("normalize")},
             inputs={"scalar": result[0]["probs"]},
             downloads=["scalar"],
         )

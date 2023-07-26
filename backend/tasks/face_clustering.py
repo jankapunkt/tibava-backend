@@ -28,9 +28,8 @@ class FaceClusteringParser(Parser):
     def __init__(self):
 
         self.valid_parameter = {
-        #     "timeline": {"parser": str, "default": "Face Size"},
-        #     "shot_timeline_id": {"default": None},
-        #     "fps": {"parser": float, "default": 2.0},
+            "cluster_threshold": {"parser": float, "default": 0.4},
+            "fps": {"parser": float, "default": 2.0},
         }
 
 
@@ -90,7 +89,9 @@ class FaceClustering(Task):
         cluster_result = self.run_analyser(
             client,
             "face_clustering",
-            parameters={},
+            parameters={
+                "cluster_threshold": parameters.get("cluster_threshold"),
+            },
             inputs={
                 "embeddings": image_feature_result[0]["features"], 
                 "faces": facedetector_result[0]["faces"], 
