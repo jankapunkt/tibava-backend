@@ -40,7 +40,7 @@ class PluginManager:
             parameters = []
 
         if plugin not in self._plugins:
-            # TODO
+            #TODO
             return False
 
         if plugin in self._parser:
