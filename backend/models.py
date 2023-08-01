@@ -19,6 +19,7 @@ class TibavaUser(AbstractUser):
 
     def __str__(self):
         return self.username
+    
 
 class Video(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -407,3 +408,29 @@ class AnnotationShortcut(models.Model):
             result["shortcut_id"] = self.shortcut.id.hex
             result["annotation_id"] = self.annotation.id.hex
         return result
+
+
+class ClusterTimelineItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False) 
+    cluster_id = models.UUIDField(null=True, blank=True)
+    timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE, null=True, blank=True)
+    name = models.CharField(max_length=256)
+
+    TYPE_FACE = "A"
+    TYPE = {
+        TYPE_FACE: "FACE",
+    }
+
+    type = models.CharField(
+        max_length=2,
+        choices=[(k, v) for k, v in TYPE.items()],
+        default=TYPE_FACE,
+    )
+
+    def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "cluster_id": self.cluster_id,
+            "timeline_id": self.timeline.id.hex,
+        }
