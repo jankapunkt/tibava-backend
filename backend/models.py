@@ -411,7 +411,8 @@ class AnnotationShortcut(models.Model):
 
 
 class ClusterTimelineItem(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False) 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     cluster_id = models.UUIDField(null=True, blank=True)
     timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=256)
@@ -428,9 +429,14 @@ class ClusterTimelineItem(models.Model):
     )
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
-        return {
+        result = {
             "id": self.id,
             "name": self.name,
             "cluster_id": self.cluster_id,
-            "timeline_id": self.timeline.id.hex,
+            "video" : self.video.id.hex
         }
+
+        if (self.timeline):
+            result["timeline"] = self.timeline.id.hex
+
+        return result

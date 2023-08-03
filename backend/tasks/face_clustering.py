@@ -3,16 +3,13 @@ import imageio.v3 as iio
 import json
 
 from backend.models import (
-    Annotation,
-    AnnotationCategory,
+    ClusterTimelineItem,
     PluginRun,
     PluginRunResult,
     Video,
     TibavaUser,
-    Timeline,
-    TimelineSegment,
-    TimelineSegmentAnnotation,
 )
+
 from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
@@ -58,7 +55,7 @@ class FaceClustering(Task):
         )
         
         # face detector
-        video_id = self.upload_video(client, video)
+        video_data_id = self.upload_video(client, video)
         facedetector_result = self.run_analyser(
             client,
             "insightface_video_detector_torch",
@@ -66,7 +63,7 @@ class FaceClustering(Task):
                 "fps": parameters.get("fps"),
                 "min_facesize": parameters.get("min_facesize"),
             },
-            inputs={"video": video_id},
+            inputs={"video": video_data_id},
             outputs=["images", "kpss", "faces", "bboxes"],
             downloads=["images"]
         )
@@ -78,7 +75,7 @@ class FaceClustering(Task):
         image_feature_result = self.run_analyser(
             client,
             "insightface_video_feature_extractor",
-            inputs={"video": video_id, "kpss": facedetector_result[0]["kpss"], "faces": facedetector_result[0]["faces"]},
+            inputs={"video": video_data_id, "kpss": facedetector_result[0]["kpss"], "faces": facedetector_result[0]["faces"]},
             outputs=["features"],
         )
 
@@ -105,11 +102,10 @@ class FaceClustering(Task):
         if cluster_result is None:
             raise Exception
 
-        # TODO extract all images
         with facedetector_result[1]["images"] as d:
             # extract thumbnails
             d.extract_all(manager)
-
+        
         with cluster_result[1]["face_cluster_data"] as data:
             _ = PluginRunResult.objects.create(
                 plugin_run=plugin_run, 
@@ -117,6 +113,13 @@ class FaceClustering(Task):
                 name="faceclustering", 
                 type=PluginRunResult.TYPE_CLUSTER
             )
+
+            for index, cluster in enumerate(data.clusters):
+                _ = ClusterTimelineItem.objects.create(
+                    video=video,
+                    cluster_id=cluster.id,
+                    name=f"Person {index+1}",
+                )
         
         with cluster_result[1]["mean_embeddings"] as data:
             _ = PluginRunResult.objects.create(
