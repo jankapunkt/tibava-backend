@@ -433,10 +433,12 @@ class ClusterTimelineItem(models.Model):
             "id": self.id,
             "name": self.name,
             "cluster_id": self.cluster_id,
-            "video" : self.video.id.hex
         }
 
         if (self.timeline):
             result["timeline"] = self.timeline.id.hex
+        
+        if (self.video):
+            result["video"] = self.video.id.hex
 
         return result
