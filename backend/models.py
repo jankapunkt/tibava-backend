@@ -414,7 +414,7 @@ class ClusterTimelineItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     cluster_id = models.UUIDField(null=True, blank=True)
-    timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE, null=True, blank=True)
+    timeline = models.ForeignKey(Timeline, on_delete=models.SET_NULL, null=True, blank=True)
     name = models.CharField(max_length=256)
 
     TYPE_FACE = "A"
