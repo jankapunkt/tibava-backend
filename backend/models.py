@@ -432,7 +432,7 @@ class ClusterTimelineItem(models.Model):
         result = {
             "id": self.id,
             "name": self.name,
-            "cluster_id": self.cluster_id,
+            "cluster_id": self.cluster_id.hex,
         }
 
         if (self.timeline):
