@@ -25,7 +25,7 @@ class FaceClusteringParser(Parser):
     def __init__(self):
 
         self.valid_parameter = {
-            "cluster_threshold": {"parser": float, "default": 0.4},
+            "cluster_threshold": {"parser": float, "default": 0.5},
             "fps": {"parser": float, "default": 2.0},
         }
 
