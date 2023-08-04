@@ -46,6 +46,28 @@ class ClusterTimelineItemCreate(View):
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error", "type" : "general"})
+        
+class ClusterTimelineItemDelete(View):
+    def post(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error", "type": "user_auth"})
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error", "type": "data_load"})
+            count, _ = ClusterTimelineItem.objects.filter(id=data.get("id")).delete()
+            if count:
+                return JsonResponse({"status": "ok"})
+            return JsonResponse({"status": "error", "type": "delete_op"})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
 
 class ClusterTimelineItemSetTimeline(View):
     def post(self, request):
