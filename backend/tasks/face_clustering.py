@@ -4,6 +4,7 @@ import json
 
 from backend.models import (
     ClusterTimelineItem,
+    Face,
     PluginRun,
     PluginRunResult,
     Video,
@@ -102,11 +103,13 @@ class FaceClustering(Task):
         if cluster_result is None:
             raise Exception
 
+        # save thumbnails
         with facedetector_result[1]["images"] as d:
             # extract thumbnails
             d.extract_all(manager)
         
         with cluster_result[1]["face_cluster_data"] as data:
+            # save cluster results
             _ = PluginRunResult.objects.create(
                 plugin_run=plugin_run, 
                 data_id=data.id, 
@@ -114,13 +117,24 @@ class FaceClustering(Task):
                 type=PluginRunResult.TYPE_CLUSTER
             )
 
+            # create a cti for every detected cluster
             for index, cluster in enumerate(data.clusters):
-                _ = ClusterTimelineItem.objects.create(
+                cti = ClusterTimelineItem.objects.create(
                     video=video,
                     cluster_id=cluster.id,
                     name=f"Person {index+1}",
                 )
+            
+                # create a face db item for every detected face
+                for index, face_ref in enumerate(cluster.face_refs):
+                    _ = Face.objects.create(
+                        cti=cti,
+                        video=video,
+                        face_ref=face_ref,
+                        embedding_index=index,
+                    )
         
+        # save the computed embeddings
         with cluster_result[1]["mean_embeddings"] as data:
             _ = PluginRunResult.objects.create(
                 plugin_run=plugin_run,

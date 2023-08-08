@@ -17,6 +17,7 @@ from .analyser_api import *
 from .user import *
 
 from .cluster_timeline_item import *
+from .face import *
 
 # TODO this is not the best way to do it
 from backend.tasks import *

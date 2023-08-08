@@ -409,7 +409,6 @@ class AnnotationShortcut(models.Model):
             result["annotation_id"] = self.annotation.id.hex
         return result
 
-
 class ClusterTimelineItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
@@ -440,5 +439,26 @@ class ClusterTimelineItem(models.Model):
         
         if (self.video):
             result["video"] = self.video.id.hex
+
+        return result
+    
+class Face(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cti = models.ForeignKey(ClusterTimelineItem, on_delete=models.CASCADE)
+    video = models.ForeignKey(Video, null=True, on_delete=models.CASCADE)
+    face_ref = models.UUIDField()
+    embedding_index = models.PositiveIntegerField()
+    deleted = models.BooleanField(default=False)
+
+    def to_dict(self):
+        result = {
+            "id": self.id.hex,
+            "cti": self.cti.id.hex,
+            "cluster_id": self.cti.cluster_id.hex,
+            "video": self.video.id.hex,
+            "face_ref": self.face_ref.hex,
+            "embedding_index": self.embedding_index,
+            "deleted": self.deleted
+        }
 
         return result

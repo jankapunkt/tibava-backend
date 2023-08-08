@@ -29,6 +29,9 @@ urlpatterns = [
     path("clusterTimelineItem/setTimeline", views.ClusterTimelineItemSetTimeline.as_view(), name="cluster_timeline_item_set_timeline"),
     path("clusterTimelineItem/delete", views.ClusterTimelineItemDelete.as_view(), name="cluster_timeline_item_delete"),
     #
+    path("face/fetch", views.FaceFetch.as_view(), name="face_fetch"),
+    path("face/setDeleted", views.FaceSetDeleted.as_view(), name="face_set_deleted"),
+    #
     path("timeline/list", views.TimelineList.as_view(), name="timeline_list"),
     path("timeline/duplicate", views.TimelineDuplicate.as_view(), name="timeline_duplicate"),
     path("timeline/rename", views.TimelineRename.as_view(), name="timeline_rename"),
