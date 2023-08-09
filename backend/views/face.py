@@ -41,15 +41,20 @@ class FaceSetDeleted(View):
             
             if "face_ref_list" not in data:
                 return JsonResponse({"status": "error", "type": "missing_values_face_ref_list"})
+            if "cluster_id" not in data:
+                return JsonResponse({"status": "error", "type": "missing_values_face_cluster_id"})
             
             face_ref_list = list(data.get("face_ref_list"))
             for face_ref in face_ref_list:
-                face = Face.objects.get(face_ref=face_ref)
-                face.deleted = True
-                face.save()
+                faces = Face.objects.filter(face_ref=face_ref) # TODO change filter to get as soon as old clusters are deleted
+                if (len(faces) > 1):
+                    faces = [f for f in faces if f.cti.cluster_id.hex == data.get("cluster_id")]
+                assert len(faces) == 1, f"still more than one face: {faces}"
+                faces[0].deleted = True
+                faces[0].save()
             
             return JsonResponse({"status": "ok", "entries": face_ref_list})
             
         except Exception as e:
             logging.error(traceback.format_exc())
-            return JsonResponse({"status": "error_cti_set_timeline"})
+            return JsonResponse({"status": "error_face_set_deleted"})
