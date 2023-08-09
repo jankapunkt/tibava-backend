@@ -449,6 +449,7 @@ class Face(models.Model):
     face_ref = models.UUIDField()
     embedding_index = models.PositiveIntegerField()
     deleted = models.BooleanField(default=False)
+    image_path = models.CharField(max_length=128, null=True)
 
     def to_dict(self):
         result = {
@@ -458,7 +459,8 @@ class Face(models.Model):
             "video": self.video.id.hex,
             "face_ref": self.face_ref.hex,
             "embedding_index": self.embedding_index,
-            "deleted": self.deleted
+            "deleted": self.deleted,
+            "image_path": self.image_path
         }
 
         return result

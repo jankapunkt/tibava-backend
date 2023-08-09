@@ -1,6 +1,7 @@
 from typing import Dict, List
 import imageio.v3 as iio
 import json
+import os
 
 from backend.models import (
     ClusterTimelineItem,
@@ -97,7 +98,7 @@ class FaceClustering(Task):
                 "kpss": facedetector_result[0]["kpss"],
                 "images": facedetector_result[0]["images"]
                 },
-            downloads=["face_cluster_data", "mean_embeddings"],
+            downloads=["face_cluster_data"],
         )
         
         if cluster_result is None:
@@ -127,21 +128,15 @@ class FaceClustering(Task):
             
                 # create a face db item for every detected face
                 for index, face_ref in enumerate(cluster.face_refs):
+                    image = facedetector_result[1]["images"][index]
+                    image_path = os.path.join(parameters.get("base_url"), image.id[0:2], image.id[2:4], f"{image.id}.{image.ext}")
                     _ = Face.objects.create(
                         cti=cti,
                         video=video,
                         face_ref=face_ref,
                         embedding_index=index,
+                        image_path=image_path,
                     )
-        
-        # save the computed embeddings
-        with cluster_result[1]["mean_embeddings"] as data:
-            _ = PluginRunResult.objects.create(
-                plugin_run=plugin_run,
-                data_id=data.id,
-                name="cluster_representations",
-                type=PluginRunResult.TYPE_SCALAR
-            )
         
     def get_results(self, analyse):
         try:
