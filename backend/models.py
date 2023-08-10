@@ -411,6 +411,7 @@ class AnnotationShortcut(models.Model):
 
 class ClusterTimelineItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plugin_run = models.ForeignKey(PluginRun, default=None, on_delete=models.CASCADE)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     cluster_id = models.UUIDField(null=True, blank=True)
     timeline = models.ForeignKey(Timeline, on_delete=models.SET_NULL, null=True, blank=True)
