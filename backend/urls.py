@@ -96,8 +96,8 @@ urlpatterns = [
     path("annotation/shortcut/create", views.AnnotationShortcutCreate.as_view(), name="annotation_shortcut_create"),
     path("annotation/shortcut/update", views.AnnotationShortcutUpdate.as_view(), name="annotation_shortcut_update"),
     #
-    path("analyser/upload/file", views.AnalyserUploadFile.as_view(), name="analyser_upload_file"),
-    path("analyser/plugin/run", views.AnalyserPluginRun.as_view(), name="analyser_plugin_run"),
-    path("analyser/plugin/status", views.AnalyserPluginStatus.as_view(), name="analyser_plugin_status"),
-    path("analyser/download/data", views.AnalyserDownloadData.as_view(), name="analyser_download_data"),
+    # path("analyser/upload/file", views.AnalyserUploadFile.as_view(), name="analyser_upload_file"),
+    # path("analyser/plugin/run", views.AnalyserPluginRun.as_view(), name="analyser_plugin_run"),
+    # path("analyser/plugin/status", views.AnalyserPluginStatus.as_view(), name="analyser_plugin_status"),
+    # path("analyser/download/data", views.AnalyserDownloadData.as_view(), name="analyser_download_data"),
 ]

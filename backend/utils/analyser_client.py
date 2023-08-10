@@ -3,8 +3,9 @@ import logging
 
 import grpc
 
-from analyser.client import AnalyserClient
-from analyser import analyser_pb2
+from analyser.analyser.client import AnalyserClient
+from analyser.proto import analyser_pb2
+from analyser.proto import analyser_pb2_grpc
 from backend.models import PluginRun
 from backend.utils import RetryOnRpcErrorClientInterceptor, ExponentialBackoff
 
