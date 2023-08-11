@@ -123,7 +123,7 @@ class FaceClustering(Task):
                 cti = ClusterTimelineItem.objects.create(
                     video=video,
                     cluster_id=cluster.id,
-                    name=f"Person {cluster_index+1}",
+                    name=f"Cluster {cluster_index+1}",
                     plugin_run=plugin_run
                 )
             
