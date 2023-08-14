@@ -26,7 +26,8 @@ class InsightfaceIdentificationParser(Parser):
             "normalize_min_val": {"parser": float, "default": 0.3},
             "normalize_max_val": {"parser": float, "default": 1.0},
             "embedding_ref" : {"parser": str, "default": None },
-            "index" : {"parser": int, "default": -1},
+            "index" : {"parser": str, "default": -1},
+            "cluster_id" : {"parser": str, "default": -1}
         }
 
 
@@ -134,6 +135,7 @@ class InsightfaceIdentification(Task):
                 parameters={
                     "normalize": 1,
                     "index": parameters.get("index"),
+                    "cluster_id": parameters.get("cluster_id")
                 },
                 inputs={
                     "target_features": video_feature_result[0]["features"],

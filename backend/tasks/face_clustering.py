@@ -1,6 +1,7 @@
 from typing import Dict, List
 import imageio.v3 as iio
 import json
+import os
 
 from backend.models import (
     ClusterTimelineItem,
@@ -97,7 +98,7 @@ class FaceClustering(Task):
                 "kpss": facedetector_result[0]["kpss"],
                 "images": facedetector_result[0]["images"]
                 },
-            downloads=["face_cluster_data", "mean_embeddings"],
+            downloads=["face_cluster_data"],
         )
         
         if cluster_result is None:
@@ -118,30 +119,26 @@ class FaceClustering(Task):
             )
 
             # create a cti for every detected cluster
-            for index, cluster in enumerate(data.clusters):
+            for cluster_index, cluster in enumerate(data.clusters):
                 cti = ClusterTimelineItem.objects.create(
                     video=video,
                     cluster_id=cluster.id,
-                    name=f"Person {index+1}",
+                    name=f"Cluster {cluster_index+1}",
+                    plugin_run=plugin_run
                 )
             
                 # create a face db item for every detected face
-                for index, face_ref in enumerate(cluster.face_refs):
+                for face_index, face_ref in enumerate(cluster.face_refs):
+                    image = [f for f in facedetector_result[1]["images"].images if f.ref_id == face_ref][0]
+                    image_path = os.path.join(self.config.get("base_url"), image.id[0:2], image.id[2:4], f"{image.id}.{image.ext}")
                     _ = Face.objects.create(
                         cti=cti,
-                        video=video,
+                        video=video, 
                         face_ref=face_ref,
-                        embedding_index=index,
+                        embedding_index=face_index,
+                        image_path=image_path,
                     )
-        
-        # save the computed embeddings
-        with cluster_result[1]["mean_embeddings"] as data:
-            _ = PluginRunResult.objects.create(
-                plugin_run=plugin_run,
-                data_id=data.id,
-                name="cluster_representations",
-                type=PluginRunResult.TYPE_SCALAR
-            )
+
         
     def get_results(self, analyse):
         try:

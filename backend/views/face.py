@@ -46,10 +46,10 @@ class FaceSetDeleted(View):
             
             face_ref_list = list(data.get("face_ref_list"))
             for face_ref in face_ref_list:
-                faces = Face.objects.filter(face_ref=face_ref) # TODO change filter to get as soon as old clusters are deleted
+                faces = Face.objects.filter(face_ref=face_ref) # TODO change filter to "get" as soon as old clusters are deleted
                 if (len(faces) > 1):
                     faces = [f for f in faces if f.cti.cluster_id.hex == data.get("cluster_id")]
-                assert len(faces) == 1, f"still more than one face: {faces}"
+                assert len(faces) == 1, f"still more than one face: {faces} \n {data}"
                 faces[0].deleted = True
                 faces[0].save()
             
