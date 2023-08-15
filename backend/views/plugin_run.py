@@ -75,20 +75,32 @@ class PluginRunNew(View):
             valid_parameters = []
             for parameter in parameters:
                 if not isinstance(parameter, dict):
-                    return JsonResponse({"status": "error", "type": "wrong_request_body"})
+                    return JsonResponse(
+                        {"status": "error", "type": "wrong_request_body"}
+                    )
 
                 if "name" not in parameter:
-                    return JsonResponse({"status": "error", "type": "wrong_request_body"})
+                    return JsonResponse(
+                        {"status": "error", "type": "wrong_request_body"}
+                    )
 
                 if "value" not in parameter:
-                    return JsonResponse({"status": "error", "type": "wrong_request_body"})
+                    return JsonResponse(
+                        {"status": "error", "type": "wrong_request_body"}
+                    )
                 if "path" in parameter:
                     valid_parameters.append(
-                        {"name": parameter.get("name"), "value": parameter.get("value"), "path": parameter.get("path")}
+                        {
+                            "name": parameter.get("name"),
+                            "value": parameter.get("value"),
+                            "path": parameter.get("path"),
+                        }
                     )
 
                 else:
-                    valid_parameters.append({"name": parameter.get("name"), "value": parameter.get("value")})
+                    valid_parameters.append(
+                        {"name": parameter.get("name"), "value": parameter.get("value")}
+                    )
 
             plugin_manager = PluginManager()
             if plugin not in plugin_manager:
@@ -101,11 +113,55 @@ class PluginRunNew(View):
 
             user_db = request.user
 
-            result = plugin_manager(plugin, user=user_db, video=video_db, run_async=True, parameters=valid_parameters)
+            result = plugin_manager(
+                plugin,
+                user=user_db,
+                video=video_db,
+                run_async=True,
+                parameters=valid_parameters,
+            )
 
             if result:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error", "type": "plugin_not_started"})
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            return JsonResponse({"status": "error"})
+
+
+class PluginRunDelete(View):
+    def post(self, request):
+        try:
+            if not request.user.is_authenticated:
+                logging.error("PluginRunNew::not_authenticated")
+                return JsonResponse({"status": "error"})
+
+            if request.method != "POST":
+                logging.error("PluginRunNew::wrong_method")
+                return JsonResponse({"status": "error"})
+
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception as e:
+                return JsonResponse({"status": "error"})
+
+            if "plugin_list" not in data:
+                return JsonResponse(
+                    {"status": "error", "type": "missing_values_plugin_list"}
+                )
+
+            plugins_to_be_deleted = [
+                PluginRun.objects.get(id=p) for p in list(data.get("plugin_list"))
+            ]
+            for p in plugins_to_be_deleted:
+                response = p.delete()
+
+            return JsonResponse({"status": "ok", "deleted_items": response})
         except Exception as e:
             logging.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
@@ -121,7 +177,9 @@ class PluginRunList(View):
         try:
             video_id = request.GET.get("video_id")
             if video_id:
-                analyses = PluginRun.objects.filter(video__id=video_id, video__owner=request.user)
+                analyses = PluginRun.objects.filter(
+                    video__id=video_id, video__owner=request.user
+                )
             else:
                 analyses = PluginRun.objects.filter(video__owner=request.user)
             # print(len(analyses), flush=True)

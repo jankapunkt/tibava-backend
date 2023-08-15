@@ -21,6 +21,7 @@ urlpatterns = [
     path("plugin/list", views.PluginList.as_view(), name="plugin_list"),
     path("plugin/run/new", views.PluginRunNew.as_view(), name="plugin_run_new"),
     path("plugin/run/list", views.PluginRunList.as_view(), name="plugin_run_list"),
+    path("plugin/run/delete", views.PluginRunDelete.as_view(), name="plugin_run_delete"),
     path("plugin/run/result/list", views.PluginRunResultList.as_view(), name="plugin_run_list"),
     #
     path("clusterTimelineItem/create", views.ClusterTimelineItemCreate.as_view(), name="cluster_timeline_item_create"),
