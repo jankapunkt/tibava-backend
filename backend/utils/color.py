@@ -17,7 +17,7 @@ def rgb_to_hex(rgb):
 def hsv_to_rgb(h, s, v):
     if s == 0.0:
         return (v, v, v)
-    i = int(h * 6.0)  # XXX assume int() truncates!
+    i = int(h * 6.0)  # assume int() truncates!
     f = (h * 6.0) - i
     p, q, t = v * (1.0 - s), v * (1.0 - s * f), v * (1.0 - s * (1.0 - f))
     i %= 6
@@ -38,34 +38,46 @@ def hsv_to_rgb(h, s, v):
 def get_closest_color(color):
     color_dict = np.asarray(
         [
-            [1.0, 1.0, 0.0],  # yellow
-            [0.0, 0.0, 1.0],  # blue
-            [1.0, 0.0, 0.0],  # red
-            [0.0, 1.0, 1.0],  # cyan
-            [0.0, 1.0, 0.0],  # green
-            [1.0, 0.0, 1.0],  # magenta
-            [1.0, 1.0, 1.0],  # white
-            [0.0, 0.0, 0.0],  # black
-            [0.5, 0.5, 0.5],  # gray
-            [102 / 255.0, 51 / 255.0, 0],  # brown
-            [25 / 255.0, 51 / 255.0, 0],  # dark green
-            [0.0, 51 / 255.0, 51 / 255.0],  # dark blue
-            [1.0, 204 / 255.0, 153 / 255.0],  # beige
+            [0,0,0],
+            [1.0,1.0,1.0],
+            [1.0,0,0],
+            [0,1.0,0],
+            [0,0,1.0],
+            [1.0,1.0,0],
+            [0,1.0,1.0],
+            [1.0,0,1.0],
+            [192/255.0,192/255.0,192/255.0],
+            [128/255.0,128/255.0,128/255.0],
+            [128/255.0,0,0],
+            [128/255.0,128/255.0,0],
+            [0,128/255.0,0],
+            [128/255.0,0,128/255.0],
+            [0,128/255.0,128/255.0],
+            [0,0,128/255.0]
         ]
     )
     color_index = np.argmin(np.abs(np.sum(np.subtract(color_dict, color), axis=1)))
-    return [
-        "yellow",
-        "blue",
-        "red",
-        "cyan",
-        "green",
-        "magenta",
-        "white",
-        "black",
-        "gray",
-        "brown",
-        "dark green",
-        "dark blue",
-        "beige",
+    result = [
+        "Black",
+        "White",
+        "Red",
+        "Lime",
+        "Blue",
+        "Yellow",
+        "Cyan",
+        "Magenta",
+        "Silver",
+        "Gray",
+        "Maroon",
+        "Olive",
+        "Green",
+        "Purple",
+        "Teal",
+        "Navy"
     ][color_index]
+    # print(
+    #     f"rgb({255*color[0]},{255*color[1]},{255*color[2]})",
+    #     result,
+    # )
+    return result
+

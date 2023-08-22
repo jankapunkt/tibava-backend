@@ -78,49 +78,61 @@ class InsightfaceFacesize(Task):
             shots_id = client.upload_data(shots)
 
         # start plugins
-        result = self.run_analyser(
+        shot_type_results = self.run_analyser(
+            client,
+            "shot_type_classifier",
+            inputs={"video": video_id},
+            outputs=["probs"],
+        )
+
+        if shot_type_results is None:
+            raise Exception
+        
+        shot_size_annotation = self.run_analyser(
+            client,
+            "shot_annotator",
+            inputs={"probs": shot_type_results[0]["probs"], "shots": shots_id},
+            outputs=["annotations"],
+        )
+
+        if shot_size_annotation is None:
+            raise Exception
+        
+        facedetector_result = self.run_analyser(
             client,
             "insightface_video_detector_torch",
             parameters={
                 "fps": parameters.get("fps"),
             },
             inputs={"video": video_id},
-            outputs=["bboxes"],
+            outputs=["images", "kpss", "faces", "bboxes"],
         )
 
-        if result is None:
-            raise Exception
-
-        result = self.run_analyser(
+        facesize_result = self.run_analyser(
             client,
             "insightface_facesize",
-            inputs={**result[0]},
-            outputs=["probs"],
-            downloads=["probs"],
+            inputs={
+                "shot_annotation": shot_size_annotation[0]['annotations'], 
+                "bboxes": facedetector_result[0]["bboxes"],
+                "shots": shots_id,
+            },
+            outputs=["annotations"],
+            downloads=["annotations"],
         )
 
-        if result is None:
+        if facesize_result is None:
             raise Exception
-
-        if shots_id:
-            result_annotations = self.run_analyser(
-                client,
-                "shot_annotator",
-                inputs={"shots": shots_id, "probs": result[0]["probs"]},
-                downloads=["annotations"],
-            )
-            if result_annotations is None:
-                raise Exception
 
         annotation_timeline = Timeline.objects.create(
             video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
         )
 
-        category_db, _ = AnnotationCategory.objects.get_or_create(name="Shot Size", video=video, owner=user)
-        if result_annotations:
-            with result_annotations[1]["annotations"] as annotations:
+        category_db, _ = AnnotationCategory.objects.get_or_create(name="Face Size", video=video, owner=user)
+        if facesize_result:
+            with facesize_result[1]["annotations"] as annotations:
                 for annotation in annotations.annotations:
                     # create TimelineSegment
+                    print(annotation, flush=True)
                     timeline_segment_db = TimelineSegment.objects.create(
                         timeline=annotation_timeline,
                         start=annotation.start,
@@ -136,28 +148,3 @@ class InsightfaceFacesize(Task):
                         TimelineSegmentAnnotation.objects.create(
                             annotation=annotation_db, timeline_segment=timeline_segment_db
                         )
-
-        """
-        Create timeline(s) with probability of each class as scalar data
-        """
-        with result[1]["probs"] as data:
-
-            print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
-
-            data.extract_all(manager)
-            for index, sub_data in zip(data.index, data.data):
-
-                plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run,
-                    data_id=sub_data,
-                    name="insightface_facesizes",
-                    type=PluginRunResult.TYPE_SCALAR,
-                )
-                Timeline.objects.create(
-                    video=video,
-                    name=LABEL_LUT.get(index, index),
-                    type=Timeline.TYPE_PLUGIN_RESULT,
-                    plugin_run_result=plugin_run_result_db,
-                    visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-                    parent=annotation_timeline,
-                )

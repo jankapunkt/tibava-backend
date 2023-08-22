@@ -332,15 +332,14 @@ class VideoExport(View):
 
         if merge_timeline:
             for timeline_db in video_db.timeline_set.all():
-                print(timeline_db.name, flush=True)
                 PRresult = timeline_db.plugin_run_result
 
                 if PRresult is not None:
                     # SCALAR TYPE
                     if PRresult.type == PluginRunResult.TYPE_SCALAR:
                         # if the timeline is not one of the desired ones, skip it
-                        if timeline_db.name not in ["Audio RMS", "Color Brightness"]:
-                            continue
+                        # if timeline_db.name not in ["Audio RMS", "Color Brightness"]:
+                        #     continue
                         col = [timeline_db.name]
 
                         scalar_data = data_manager.load(
@@ -381,10 +380,6 @@ class VideoExport(View):
                                     np.logical_and(time >= shot.start, time <= shot.end)
                                 ]
                                 avg_color = np.mean(shot_colors, axis=0)
-                                print(
-                                    f"rgb({255*avg_color[0]},{255*avg_color[1]},{255*avg_color[2]})",
-                                    get_closest_color(avg_color),
-                                )
                                 col.append(get_closest_color(avg_color))
 
                 # Annotation Timelines
