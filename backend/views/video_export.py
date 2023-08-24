@@ -333,6 +333,7 @@ class VideoExport(View):
         if merge_timeline:
             for timeline_db in video_db.timeline_set.all():
                 PRresult = timeline_db.plugin_run_result
+                
 
                 if PRresult is not None:
                     # SCALAR TYPE
@@ -385,32 +386,37 @@ class VideoExport(View):
                 # Annotation Timelines
                 else:
                     segments = []
+                    places = False # NOTE Julian Hack to detect if that Timeline is a places_classification
                     for segment_db in timeline_db.timelinesegment_set.all():
                         annotations = []
-                        for (
-                            segment_annotation_db
-                        ) in segment_db.timelinesegmentannotation_set.all():
-                            if (
-                                include_category
-                                and segment_annotation_db.annotation.category
-                            ):
+                        for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
+                            if  not places\
+                                and segment_annotation_db.annotation.name[0] == ("/")\
+                                and segment_annotation_db.annotation.name[2] == ("/"):
+                                places = True
+
+                            if (include_category and segment_annotation_db.annotation.category):
                                 annotations.append(
                                     segment_annotation_db.annotation.category.name
                                     + "::"
                                     + segment_annotation_db.annotation.name
                                 )
                             else:
-                                annotations.append(
-                                    segment_annotation_db.annotation.name
-                                )
+                                annotations.append(segment_annotation_db.annotation.name)
+                        
                         if len(annotations) > 0:
-                            segments.append(
-                                {
-                                    "annotation": "+".join(annotations),
-                                    "start": segment_db.start,
-                                    "end": segment_db.end,
-                                }
-                            )
+                            if places:
+                                segments.append({
+                                        "annotation": annotations[2],
+                                        "start": segment_db.start,
+                                        "end": segment_db.end,
+                                    })
+                            else:
+                                segments.append({
+                                        "annotation": "+".join(annotations),
+                                        "start": segment_db.start,
+                                        "end": segment_db.end,
+                                    })
 
                     if len(segments) == 0:
                         continue
@@ -429,6 +435,7 @@ class VideoExport(View):
                 cols.append(col)
         else:
             timeline_headers = {}
+
             for timeline_db in video_db.timeline_set.all():
                 annotations_headers = {}
                 for segment_db in timeline_db.timelinesegment_set.all():
