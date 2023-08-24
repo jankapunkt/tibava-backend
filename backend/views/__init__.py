@@ -18,6 +18,7 @@ from .user import *
 
 from .cluster_timeline_item import *
 from .face import *
+from .place import *
 
 # TODO this is not the best way to do it
 from backend.tasks import *

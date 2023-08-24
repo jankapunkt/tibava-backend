@@ -33,16 +33,16 @@ urlpatterns = [
     path("face/fetch", views.FaceFetch.as_view(), name="face_fetch"),
     path("face/setDeleted", views.FaceSetDeleted.as_view(), name="face_set_deleted"),
     #
+    path("place/fetch", views.PlaceFetch.as_view(), name="place_fetch"),
+    path("place/setDeleted", views.PlaceSetDeleted.as_view(), name="place_set_deleted"),
+    #
     path("timeline/list", views.TimelineList.as_view(), name="timeline_list"),
     path("timeline/duplicate", views.TimelineDuplicate.as_view(), name="timeline_duplicate"),
     path("timeline/rename", views.TimelineRename.as_view(), name="timeline_rename"),
     path("timeline/setparent", views.TimelineSetParent.as_view(), name="timeline_setparent"),
     path("timeline/setcollapse", views.TimelineSetCollapse.as_view(), name="timeline_setcollapse"),
     path("timeline/setorder", views.TimelineSetOrder.as_view(), name="timeline_setorder"),
-    path(
-        "timeline/changevisualization",
-        views.TimelineChangeVisualization.as_view(),
-        name="timeline_change_visualization",
+    path("timeline/changevisualization", views.TimelineChangeVisualization.as_view(), name="timeline_change_visualization",
     ),
     path("timeline/import/eaf", views.TimelineImportEAF.as_view(), name="timeline_import_eaf"),
     path("timeline/delete", views.TimelineDelete.as_view(), name="timeline_delete"),

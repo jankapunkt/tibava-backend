@@ -18,3 +18,4 @@ from .xclip import *
 from .shot_scalar_annotation import *
 from .whisper import *
 from .face_clustering import *
+from .place_clustering import *

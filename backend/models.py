@@ -418,8 +418,10 @@ class ClusterTimelineItem(models.Model):
     name = models.CharField(max_length=256)
 
     TYPE_FACE = "A"
+    TYPE_PLACE = "P"
     TYPE = {
         TYPE_FACE: "FACE",
+        TYPE_PLACE: "PLACE",
     }
 
     type = models.CharField(
@@ -459,6 +461,29 @@ class Face(models.Model):
             "cluster_id": self.cti.cluster_id.hex,
             "video": self.video.id.hex,
             "face_ref": self.face_ref.hex,
+            "embedding_index": self.embedding_index,
+            "deleted": self.deleted,
+            "image_path": self.image_path
+        }
+
+        return result
+    
+class Place(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cti = models.ForeignKey(ClusterTimelineItem, on_delete=models.CASCADE)
+    video = models.ForeignKey(Video, null=True, on_delete=models.CASCADE)
+    place_ref = models.UUIDField()
+    embedding_index = models.PositiveIntegerField()
+    deleted = models.BooleanField(default=False)
+    image_path = models.CharField(max_length=128, null=True)
+
+    def to_dict(self):
+        result = {
+            "id": self.id.hex,
+            "cti": self.cti.id.hex,
+            "cluster_id": self.cti.cluster_id.hex,
+            "video": self.video.id.hex,
+            "place_ref": self.place_ref.hex,
             "embedding_index": self.embedding_index,
             "deleted": self.deleted,
             "image_path": self.image_path
