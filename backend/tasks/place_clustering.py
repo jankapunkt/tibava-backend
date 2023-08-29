@@ -86,12 +86,15 @@ class PlaceClustering(Task):
                 "fps": parameters.get("fps"),
             },
             inputs={"video": video_id},
-            outputs=["embeddings", "probs_places365", "probs_places16", "probs_places3"],
+            outputs=["embeddings", "places", "probs_places365", "probs_places16", "probs_places3"],
             downloads=["probs_places3"],
         )
 
         if places_result is None:
             raise Exception
+        
+        print(places_result, flush=True)
+        print("^^^^^1^^^^^", flush=True)
 
         # cluster places
         cluster_result = self.run_analyser(
@@ -106,6 +109,9 @@ class PlaceClustering(Task):
             },
             downloads=["place_cluster_data"],
         )
+
+        print(cluster_result, flush=True)
+        print("^^^^^2^^^^^", flush=True)
 
         if cluster_result is None:
             raise Exception
@@ -137,7 +143,7 @@ class PlaceClustering(Task):
                 for place_index, place_ref in enumerate(cluster.place_refs):
                     image = [
                         f
-                        for f in placedetector_result[1]["images"].images
+                        for f in places_result[1]["images"].images
                         if f.ref_id == place_ref
                     ][0]
                     image_path = os.path.join(
