@@ -86,15 +86,21 @@ class PlaceClustering(Task):
                 "fps": parameters.get("fps"),
             },
             inputs={"video": video_id},
-            outputs=["embeddings", "places", "probs_places365", "probs_places16", "probs_places3"],
-            downloads=["probs_places3"],
+            outputs=["embeddings", "places", "images", "probs_places365", "probs_places16", "probs_places3"],
+            downloads=["probs_places3", "images"],
         )
 
         if places_result is None:
             raise Exception
         
-        print(places_result, flush=True)
-        print("^^^^^1^^^^^", flush=True)
+        # ({
+        # 'embeddings': '1843675ed04f49e0b720dd2615986f77', 
+        # 'places': 'c94fece068ff4da0a5a01cae22b19a34', 
+        # 'probs_places365': '4e33c763e96e4d798f30b17dab98d052', 
+        # 'probs_places16': '66a0b6774af2473bb22b49d2ceb9b11f', 
+        # 'probs_places3': '4b20a8c961cc4f42be2571fd32c1f678'
+        # }, {
+        # 'probs_places3': ListData(id='4b20a8c961cc4f42be2571fd32c1f678', version='1.0', type='ListData', name=None, ref_id=None, data=[], index=[])})
 
         # cluster places
         cluster_result = self.run_analyser(
@@ -140,7 +146,7 @@ class PlaceClustering(Task):
                 )
 
                 # create a place db item for every detected place
-                for place_index, place_ref in enumerate(cluster.place_refs):
+                for place_index, place_ref in enumerate(cluster.object_refs):
                     image = [
                         f
                         for f in places_result[1]["images"].images

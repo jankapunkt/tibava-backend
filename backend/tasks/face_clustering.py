@@ -97,7 +97,7 @@ class FaceClustering(Task):
                 "bboxes": facedetector_result[0]["bboxes"], 
                 "kpss": facedetector_result[0]["kpss"],
                 "images": facedetector_result[0]["images"]
-                },
+            },
             downloads=["face_cluster_data"],
         )
         
@@ -128,7 +128,7 @@ class FaceClustering(Task):
                 )
             
                 # create a face db item for every detected face
-                for face_index, face_ref in enumerate(cluster.face_refs):
+                for face_index, face_ref in enumerate(cluster.object_refs):
                     image = [f for f in facedetector_result[1]["images"].images if f.ref_id == face_ref][0]
                     image_path = os.path.join(self.config.get("base_url"), image.id[0:2], image.id[2:4], f"{image.id}.{image.ext}")
                     _ = Face.objects.create(
