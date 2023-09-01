@@ -30,7 +30,7 @@ PLUGIN_NAME = "PlaceClustering"
 class PlaceClusteringParser(Parser):
     def __init__(self):
         self.valid_parameter = {
-            "cluster_threshold": {"parser": float, "default": 0.5},
+            "cluster_threshold": {"parser": float, "default": 0.25},
             "fps": {"parser": float, "default": 2.0},
         }
 
