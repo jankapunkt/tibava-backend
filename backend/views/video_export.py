@@ -260,6 +260,10 @@ class VideoExport(View):
         if "merge_timeline" in parameters:
             merge_timeline = parameters.get("merge_timeline")
 
+        split_places = False
+        if "split_places" in parameters:
+            split_places = parameters.get("split_places")
+
         num_header_lines = 1
         if not merge_timeline:
             if include_category:
@@ -333,11 +337,13 @@ class VideoExport(View):
         if merge_timeline:
             for timeline_db in video_db.timeline_set.all():
                 PRresult = timeline_db.plugin_run_result
+                logging.error(timeline_db.name)
                 
 
                 if PRresult is not None:
                     # SCALAR TYPE
                     if PRresult.type == PluginRunResult.TYPE_SCALAR:
+                        logging.error("scalar")
                         # if the timeline is not one of the desired ones, skip it
                         # if timeline_db.name not in ["Audio RMS", "Color Brightness"]:
                         #     continue
@@ -367,6 +373,7 @@ class VideoExport(View):
 
                     # RGB HIST TYPE
                     if PRresult.type == PluginRunResult.TYPE_RGB_HIST:
+                        logging.error("hist")
                         col = [timeline_db.name]
                         rgb_data = data_manager.load(
                             timeline_db.plugin_run_result.data_id
@@ -383,10 +390,13 @@ class VideoExport(View):
                                 avg_color = np.mean(shot_colors, axis=0)
                                 col.append(get_closest_color(avg_color))
 
+                    cols.append(col)
+
                 # Annotation Timelines
                 else:
+                    logging.error("annotation")
                     segments = []
-                    places = False # NOTE Julian Hack to detect if that Timeline is a places_classification
+                    places = False # NOTE small Hack to detect if that Timeline is a places_classification
                     for segment_db in timeline_db.timelinesegment_set.all():
                         annotations = []
                         for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
@@ -405,43 +415,49 @@ class VideoExport(View):
                                 annotations.append(segment_annotation_db.annotation.name)
                         
                         if len(annotations) > 0:
-                            if places:
-                                segments.append({
-                                        "annotation": annotations[2],
-                                        "start": segment_db.start,
-                                        "end": segment_db.end,
-                                    })
-                            else:
-                                segments.append({
-                                        "annotation": "+".join(annotations),
-                                        "start": segment_db.start,
-                                        "end": segment_db.end,
-                                    })
+                            segments.append({
+                                    "annotation": "+".join(annotations),
+                                    "start": segment_db.start,
+                                    "end": segment_db.end,
+                                })
 
                     if len(segments) == 0:
                         continue
 
-                    col = [timeline_db.name]
+                    if places and split_places:
+                        for index, places_class in enumerate(["place365", "place16", "place3"]):
+                            col = [places_class]
+                            for s, d in time_duration:
+                                col_text = ""
 
-                    for s, d in time_duration:
-                        col_text = ""
+                                for segment in segments:
+                                    splitted = segment["annotation"].split("+")
+                                    if segment["start"] >= s and segment["end"] <= (s + d):
+                                        col_text = splitted[index]
+                                
+                                col.append(col_text)
+                                        
+                            cols.append(col)
+                    else:
+                        col = [timeline_db.name]
 
-                        for segment in segments:
-                            if segment["start"] >= s and segment["end"] <= (s + d):
-                                col_text = segment["annotation"]
+                        for s, d in time_duration:
+                            col_text = ""
 
-                        col.append(col_text)
+                            for segment in segments:
+                                if segment["start"] >= s and segment["end"] <= (s + d):
+                                    col_text = segment["annotation"]
 
-                cols.append(col)
+                            col.append(col_text)
+
+                        cols.append(col)
         else:
             timeline_headers = {}
 
             for timeline_db in video_db.timeline_set.all():
                 annotations_headers = {}
                 for segment_db in timeline_db.timelinesegment_set.all():
-                    for (
-                        segment_annotation_db
-                    ) in segment_db.timelinesegmentannotation_set.all():
+                    for (segment_annotation_db) in segment_db.timelinesegmentannotation_set.all():
                         annotation_id = segment_annotation_db.annotation.id
                         if annotation_id not in annotations_headers:
                             annotations_headers[annotation_id] = {
