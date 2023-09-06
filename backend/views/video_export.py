@@ -280,19 +280,38 @@ class VideoExport(View):
                 durations.append(segment_db.end - segment_db.start)
         # 0, video_db.duration
         time_duration = sorted(list(set(zip(times, durations))), key=lambda x: x[0])
-        # print(time_duration, flush=True)
-        # print(len(time_duration), flush=True)
         cols = []
 
         # shot number column
         # also extract shots for aggregation later
-        shots = []
         shot_number_col = ["Shot Number"]
         shot_timeline = video_db.timeline_set.filter(name="Shots")[0]
 
-        for index, shot in enumerate(shot_timeline.timelinesegment_set.all()):
-            shot_number_col.append(index + 1)
-            shots.append(Shot(start=shot.start, end=shot.end))
+        overlap = False
+        for start, duration in time_duration:
+            end = start + duration
+            if not overlap:
+                indices = ""
+            for shot_index, shot in enumerate(shot_timeline.timelinesegment_set.all()):
+                 # test start
+                if shot.start >= start and shot.start <= end:
+                    if indices != "":
+                        indices += str(shot_index) + " "
+                    else:
+                        indices += str(shot_index)
+                elif shot.end >= start and shot.end <= end:
+                    if indices != "":
+                        indices += str(shot_index) + " "
+                    else:
+                        indices += str(shot_index)
+
+                elif shot.start <= start and shot.end >= end:
+                    if indices != "":
+                        indices += str(shot_index) + " "
+                    else:
+                        indices += str(shot_index)
+            
+            shot_number_col.append(indices)
 
         cols.append(shot_number_col)
 
@@ -337,17 +356,15 @@ class VideoExport(View):
         if merge_timeline:
             for timeline_db in video_db.timeline_set.all():
                 PRresult = timeline_db.plugin_run_result
-                logging.error(timeline_db.name)
-                
 
                 if PRresult is not None:
                     # SCALAR TYPE
                     if PRresult.type == PluginRunResult.TYPE_SCALAR:
-                        logging.error("scalar")
-                        # if the timeline is not one of the desired ones, skip it
-                        # if timeline_db.name not in ["Audio RMS", "Color Brightness"]:
-                        #     continue
                         col = [timeline_db.name]
+                        min_col = [f"{timeline_db.name}_min"]
+                        max_col = [f"{timeline_db.name}_max"]
+                        std_col = [f"{timeline_db.name}_std"]
+                        var_col = [f"{timeline_db.name}_var"]
 
                         scalar_data = data_manager.load(
                             timeline_db.plugin_run_result.data_id
@@ -355,25 +372,32 @@ class VideoExport(View):
                         with scalar_data:
                             y = np.asarray(scalar_data.y)
                             time = np.asarray(scalar_data.time)
-                            for i, shot in enumerate(shots):
+                            for start, duration in time_duration:
+                                end = start + duration
                                 shot_y_data = y[
-                                    np.logical_and(time >= shot.start, time <= shot.end)
+                                    np.logical_and(time >= start, time <= end)
                                 ]
-                                # print(f"{shot.start} - {shot.end}")
 
                                 if len(shot_y_data) <= 0:
                                     continue
 
                                 y_agg = np.sqrt(np.mean(shot_y_data))
 
-                                start_time = int(shot.start * 1000)
-                                end_time = int(shot.end * 1000)
-                                anno = str(round(float(y_agg), 3))
+                                anno = round(float(y_agg), 3)
                                 col.append(anno)
+                                min_col.append(round(float(np.min(shot_y_data)), 3))
+                                max_col.append(round(float(np.max(shot_y_data)), 3))
+                                std_col.append(round(float(np.std(shot_y_data)), 3))
+                                var_col.append(round(float(np.var(shot_y_data)), 3))
+                        
+                        cols.append(col)
+                        cols.append(min_col)
+                        cols.append(max_col)
+                        cols.append(std_col)
+                        cols.append(var_col)
 
                     # RGB HIST TYPE
                     if PRresult.type == PluginRunResult.TYPE_RGB_HIST:
-                        logging.error("hist")
                         col = [timeline_db.name]
                         rgb_data = data_manager.load(
                             timeline_db.plugin_run_result.data_id
@@ -383,18 +407,18 @@ class VideoExport(View):
                             colors = rgb_data.colors
                             time = rgb_data.time
 
-                            for i, shot in enumerate(shots):
+                            for start, duration in time_duration:
+                                end = start + duration
                                 shot_colors = colors[
-                                    np.logical_and(time >= shot.start, time <= shot.end)
+                                    np.logical_and(time >= start, time <= end)
                                 ]
                                 avg_color = np.mean(shot_colors, axis=0)
                                 col.append(get_closest_color(avg_color))
 
-                    cols.append(col)
+                        cols.append(col)
 
                 # Annotation Timelines
                 else:
-                    logging.error("annotation")
                     segments = []
                     places = False # NOTE small Hack to detect if that Timeline is a places_classification
                     for segment_db in timeline_db.timelinesegment_set.all():
@@ -420,6 +444,12 @@ class VideoExport(View):
                                     "start": segment_db.start,
                                     "end": segment_db.end,
                                 })
+                        else:
+                            segments.append({
+                                "annotation": "None",
+                                "start": segment_db.start,
+                                "end": segment_db.end,
+                            })
 
                     if len(segments) == 0:
                         continue
@@ -487,15 +517,10 @@ class VideoExport(View):
                             if anno_t["start"] <= t and t < anno_t["end"]:
                                 label = 1
                         col.append(str(label))
-                        # cols.append([timeline["name"], "", ""] + times)
                     cols.append(col)
-        # print(cols, flush=True)
         # Transpose
         rows = list(map(list, zip(*cols)))
 
-        # Back to a single string
-
-        # result = "\n".join([",".join(r) for r in rows])
         buffer = io.StringIO()
         writer = csv.writer(buffer, quoting=csv.QUOTE_ALL)
         for line in rows:
