@@ -45,6 +45,7 @@ class Video(models.Model):
             "duration": self.duration,
             "height": self.height,
             "width": self.width,
+            "num_timelines": len(Timeline.objects.filter(video=self))
         }
 
     def clone(self, owner=None, include_timelines=True, include_annotations=True):
