@@ -14,7 +14,7 @@ from analyser.data import ImageEmbedding, ImageEmbeddings
 PLUGIN_NAME = "PlaceIdentification"
 
 
-@PluginManager.export_parser("place_indentification")
+@PluginManager.export_parser("place_identification")
 class InsightfaceIdentificationParser(Parser):
     def __init__(self):
 
@@ -31,7 +31,7 @@ class InsightfaceIdentificationParser(Parser):
         }
 
 
-@PluginManager.export_plugin("place_indentification")
+@PluginManager.export_plugin("place_identification")
 class InsightfaceIdentification(Task):
     def __init__(self):
         self.config = {
