@@ -9,6 +9,7 @@ import traceback
 import tempfile
 from pathlib import Path
 import tempfile
+import time
 
 from urllib.parse import urlparse
 import imageio
@@ -39,7 +40,7 @@ class PluginRunNew(View):
                 logging.error("PluginRunNew::wrong_method")
                 return JsonResponse({"status": "error"})
 
-            output_dir = tempfile.mkdtemp()
+            output_dir = tempfile.mkdtemp(dir="/tmp")
             parameters = []
 
             for k, v in request.FILES.items():
@@ -61,6 +62,7 @@ class PluginRunNew(View):
                                 "path": download_result.get("path"),
                             }
                         )
+                    print(download_result, flush=True)
             parameters.extend(json.loads(request.POST.get("parameters")))
             plugin = request.POST.get("plugin")
             if plugin is None:
@@ -169,6 +171,8 @@ class PluginRunDelete(View):
 
 class PluginRunList(View):
     def get(self, request):
+
+        start = time.time()
         if not request.user.is_authenticated:
             logging.error("PluginRunNew::not_authenticated")
             return JsonResponse({"status": "error"})
@@ -184,6 +188,11 @@ class PluginRunList(View):
                 analyses = PluginRun.objects.filter(video__owner=request.user)
             # print(len(analyses), flush=True)
             add_results = request.GET.get("add_results")
+
+            analyses = analyses.prefetch_related("video")
+
+            end = time.time()
+            print(f"[PluginRunList] 1 {end - start}", flush=True)
             if add_results:
                 entries = []
                 for x in analyses:
@@ -195,6 +204,8 @@ class PluginRunList(View):
             else:
                 entries = [x.to_dict() for x in analyses]
 
+            end = time.time()
+            print(f"[PluginRunList] 2 {end - start}", flush=True)
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
             logging.error(traceback.format_exc())
