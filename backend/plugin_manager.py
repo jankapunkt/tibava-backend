@@ -7,6 +7,9 @@ from celery import shared_task
 from backend.models import PluginRun, Video, TibavaUser
 
 
+# class PluginRunResults(datacla):
+
+
 class PluginManager:
     _plugins = {}
     _parser = {}
@@ -40,8 +43,8 @@ class PluginManager:
             parameters = []
 
         if plugin not in self._plugins:
-            #TODO
-            return False
+            print("Unknown Plugin")
+            return {"status": False}
 
         if plugin in self._parser:
             parameters = self._parser[plugin]()(parameters)
@@ -63,7 +66,10 @@ class PluginManager:
             )
         else:
             try:
-                plugin_result = self._plugins[plugin]()(parameters, video=video, plugin_run=plugin_run, **kwargs)
+                plugin_result = self._plugins[plugin]()(parameters, user=user, video=video, plugin_run=plugin_run, **kwargs)
+                plugin_run.progress = 1.0
+                plugin_run.status = PluginRun.STATUS_DONE
+                plugin_run.save()
                 if plugin_result:
                     result["result"] = plugin_result
 
@@ -71,6 +77,7 @@ class PluginManager:
                 logging.error(f"{plugin} {e}")
                 plugin_run.status = PluginRun.STATUS_ERROR
                 plugin_run.save()
+                result["status"] = False
                 return result
         return result
 
