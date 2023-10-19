@@ -149,6 +149,7 @@ MEDIA_ROOT = os.path.join("/media/")
 DATA_CACHE_ROOT = os.path.join("/cache/")
 
 
+
 GRPC_HOST = "localhost"
 GRPC_PORT = 50051
 
@@ -161,7 +162,8 @@ try:
 except:
     pass
 
-MEDIA_URL = FORCE_SCRIPT_NAME + "media/"
+MEDIA_URL = "/tibava/media/"
+THUMBNAIL_URL = "http://localhost/thumbnails/"
 
 # the last resolution will use for indexing
 IMAGE_RESOLUTIONS = [{"min_dim": 200, "suffix": "_m"}, {"min_dim": 1080, "suffix": ""}]
@@ -177,6 +179,7 @@ config_lut = {
     "language_code": "LANGUAGE_CODE",
     "static_url": "STATIC_URL",
     "media_root": "MEDIA_ROOT",
+    "data_cache_root": "DATA_CACHE_ROOT",
     "upload_root": "UPLOAD_ROOT",
     "media_url": "MEDIA_URL",
     "upload_url": "UPLOAD_URL",

@@ -22,6 +22,8 @@ from backend.models import (
     TimelineSegment,
 )
 from django.db import transaction
+from django.conf import settings
+
 
 @PluginManager.export_parser("whisper")
 class WhisperParser(Parser):
@@ -37,9 +39,8 @@ class Whisper(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "analyser",
-            "analyser_host": "devbox2.research.tib.eu",
-            "analyser_port": 54051,
+            "analyser_host": settings.GRPC_HOST,
+            "analyser_port": settings.GRPC_PORT,
         }
 
     def __call__(self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs):

@@ -20,6 +20,8 @@ from analyser.data import FaceClusterData, DataManager
 from backend.utils.parser import Parser
 from backend.utils.task import Task
 from django.db import transaction
+from django.conf import settings
+
 
 @PluginManager.export_parser("face_clustering")
 class FaceClusteringParser(Parser):
@@ -36,9 +38,9 @@ class FaceClustering(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "base_url": "/tibava/thumbnails/",
-            "analyser_host": "devbox2.research.tib.eu",
-            "analyser_port": 54051,
+            "base_url": settings.THUMBNAIL_URL,
+            "analyser_host": settings.GRPC_HOST,
+            "analyser_port": settings.GRPC_PORT,
         }
 
     def __call__(

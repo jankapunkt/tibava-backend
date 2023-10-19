@@ -11,6 +11,8 @@ from backend.utils.task import Task
 from analyser.data import DataManager
 from backend.models import AnnotationCategory, TimelineSegment, Annotation, TimelineSegmentAnnotation, TibavaUser
 from django.db import transaction
+from django.conf import settings
+
 
 
 @PluginManager.export_parser("blip_vqa")
@@ -29,8 +31,8 @@ class BLIPVQA(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "analyser_host": settings.GRPC_HOST,
+            "analyser_port": settings.GRPC_PORT,
         }
 
     def __call__(

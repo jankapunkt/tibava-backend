@@ -23,6 +23,8 @@ from analyser.data import Shot
 from backend.utils.parser import Parser
 from backend.utils.task import Task
 from django.db import transaction
+from django.conf import settings
+
 
 @PluginManager.export_parser("place_clustering")
 class PlaceClusteringParser(Parser):
@@ -39,9 +41,9 @@ class PlaceClustering(Task):
 
         self.config = {
             "output_path": "/predictions/",
-            "base_url": "/tibava/thumbnails/",
-            "analyser_host": "devbox2.research.tib.eu",
-            "analyser_port": 54051,
+            "base_url": settings.THUMBNAIL_URL,
+            "analyser_host": settings.GRPC_HOST,
+            "analyser_port": settings.GRPC_PORT,
         }
      
     def __call__(

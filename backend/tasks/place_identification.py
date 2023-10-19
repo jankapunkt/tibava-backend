@@ -10,6 +10,8 @@ from backend.utils.parser import Parser
 from backend.utils.task import Task
 from analyser.data import ImageEmbedding, ImageEmbeddings
 from django.db import transaction
+from django.conf import settings
+
 
 
 @PluginManager.export_parser("place_identification")
@@ -34,8 +36,8 @@ class InsightfaceIdentification(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "devbox2.research.tib.eu",
-            "analyser_port": 54051,
+            "analyser_host": settings.GRPC_HOST,
+            "analyser_port": settings.GRPC_PORT,
         }
 
     def __call__(

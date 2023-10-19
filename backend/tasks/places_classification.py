@@ -22,6 +22,8 @@ from celery import shared_task
 from backend.utils.parser import Parser
 from backend.utils.task import Task
 from django.db import transaction
+from django.conf import settings
+
 
 
 CATEGORY_LUT = {"probs_places365": "Places365", "probs_places16": "Places16", "probs_places3": "Places3"}
@@ -42,8 +44,8 @@ class PlacesClassifier(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "devbox2.research.tib.eu",
-            "analyser_port": 54051,
+            "analyser_host": settings.GRPC_HOST,
+            "analyser_port": settings.GRPC_PORT,
         }
 
     def __call__(
