@@ -20,6 +20,8 @@ from backend.utils import media_path_to_video
 from backend.utils.parser import Parser
 from backend.utils.task import Task
 from analyser.data import Shot, DataManager
+from django.db import transaction
+
 
 
 @PluginManager.export_parser("clip_ontology")
@@ -38,8 +40,8 @@ class CLIPOntology(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
 
     def __call__(
@@ -112,77 +114,68 @@ class CLIPOntology(Task):
         if aggregate_result is None:
             raise Exception
 
-        with aggregate_result[1]["aggregated_scalars"] as data:
-            # Annotate shots
-            if shots_id:
-                annotater_result = self.run_analyser(
-                    client,
-                    "shot_annotator",
-                    inputs={"shots": shots_id, "probs": data.id},
-                    downloads=["annotations"],
-                )
-
-                if annotater_result is None:
-                    raise Exception
-                with annotater_result[1]["annotations"] as annotations_data:
-                    annotation_timeline = Timeline.objects.create(
-                        video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+        with transaction.atomic():
+            with aggregate_result[1]["aggregated_scalars"] as data:
+                # Annotate shots
+                if shots_id:
+                    annotater_result = self.run_analyser(
+                        client,
+                        "shot_annotator",
+                        inputs={"shots": shots_id, "probs": data.id},
+                        downloads=["annotations"],
                     )
 
-                    category_db, _ = AnnotationCategory.objects.get_or_create(name="Concept", video=video, owner=user)
-
-                    for annotation in annotations_data.annotations:
-                        # create TimelineSegment
-                        timeline_segment_db = TimelineSegment.objects.create(
-                            timeline=annotation_timeline,
-                            start=annotation.start,
-                            end=annotation.end,
+                    if annotater_result is None:
+                        raise Exception
+                    with annotater_result[1]["annotations"] as annotations_data:
+                        annotation_timeline_db = Timeline.objects.create(
+                            video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
                         )
 
-                        for label in annotation.labels:
-                            # add annotion to TimelineSegment
-                            annotation_db, _ = Annotation.objects.get_or_create(
-                                name=label, video=video, category=category_db, owner=user
+                        category_db, _ = AnnotationCategory.objects.get_or_create(name="Concept", video=video, owner=user)
+
+                        for annotation in annotations_data.annotations:
+                            # create TimelineSegment
+                            timeline_segment_db = TimelineSegment.objects.create(
+                                timeline=annotation_timeline_db,
+                                start=annotation.start,
+                                end=annotation.end,
                             )
 
-                            TimelineSegmentAnnotation.objects.create(
-                                annotation=annotation_db, timeline_segment=timeline_segment_db
-                            )
+                            for label in annotation.labels:
+                                # add annotion to TimelineSegment
+                                annotation_db, _ = Annotation.objects.get_or_create(
+                                    name=label, video=video, category=category_db, owner=user
+                                )
 
-            data.extract_all(manager)
-            for index, sub_data in zip(data.index, data.data):
-                plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run,
-                    data_id=sub_data,
-                    name="face_emotion",
-                    type=PluginRunResult.TYPE_SCALAR,
-                )
-                Timeline.objects.create(
-                    video=video,
-                    name=index,
-                    type=Timeline.TYPE_PLUGIN_RESULT,
-                    plugin_run_result=plugin_run_result_db,
-                    visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-                    parent=annotation_timeline,
-                )
-        # result = self.run_analyser(
-        #     client,
-        #     "min_max_norm",
-        #     inputs={"scalar": result[0]["probs"]},
-        #     downloads=["scalar"],
-        # )
-        # if result is None:
-        #     raise Exception
+                                TimelineSegmentAnnotation.objects.create(
+                                    annotation=annotation_db, timeline_segment=timeline_segment_db
+                                )
 
-        # with result[1]["scalar"] as data:
-        #     plugin_run_result_db = PluginRunResult.objects.create(
-        #         plugin_run=plugin_run, data_id=data.id, name="clip", type=PluginRunResult.TYPE_SCALAR
-        #     )
+                data.extract_all(manager)
+                timeline_dict = {}
+                data_list = {}
+                for index, sub_data in zip(data.index, data.data):
+                    plugin_run_result_db = PluginRunResult.objects.create(
+                        plugin_run=plugin_run,
+                        data_id=sub_data,
+                        name="face_emotion",
+                        type=PluginRunResult.TYPE_SCALAR,
+                    )
+                    timeline_db = Timeline.objects.create(
+                        video=video,
+                        name=index,
+                        type=Timeline.TYPE_PLUGIN_RESULT,
+                        plugin_run_result=plugin_run_result_db,
+                        visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+                        parent=annotation_timeline_db,
+                    )
+                    timeline_dict.update({index:timeline_db.id.hex})
+                    data_list.update({index: sub_data.id})
 
-        #     _ = Timeline.objects.create(
-        #         video=video,
-        #         name=parameters.get("timeline"),
-        #         type=Timeline.TYPE_PLUGIN_RESULT,
-        #         plugin_run_result=plugin_run_result_db,
-        #         visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-        #     )
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [plugin_run_result_db.id.hex],
+                    "timelines": {"annotations": annotation_timeline_db, **timeline_dict},
+                    "data": {"annotations": result[1]["aggregated_scalars"].id, **data_list}
+                }

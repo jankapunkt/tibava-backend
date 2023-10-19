@@ -21,6 +21,7 @@ from backend.models import (
     Timeline,
     TimelineSegment,
 )
+from django.db import transaction
 
 @PluginManager.export_parser("whisper")
 class WhisperParser(Parser):
@@ -37,7 +38,8 @@ class Whisper(Task):
         self.config = {
             "output_path": "/predictions/",
             "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
 
     def __call__(self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs):
@@ -71,33 +73,41 @@ class Whisper(Task):
             raise Exception
             
 
-        with result[1]["annotations"] as data:
-            """
-            Create a timeline labeled
-            """
-            # print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
-            annotation_timeline = Timeline.objects.create(
-                video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
-            )
-
-            category_db, _ = AnnotationCategory.objects.get_or_create(name="Transcript", video=video, owner=user)
-
-
-            for annotation in data.annotations:
-                timeline_segment_db = TimelineSegment.objects.create(
-                    timeline=annotation_timeline,
-                    start=annotation.start,
-                    end=annotation.end,
+        with transaction.atomic():
+            with result[1]["annotations"] as data:
+                """
+                Create a timeline labeled
+                """
+                # print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
+                annotation_timeline_db = Timeline.objects.create(
+                    video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
                 )
-                for label in annotation.labels:
-                    annotation_db, _ = Annotation.objects.get_or_create(
-                        name=str(label),
-                        video=video,
-                        category=category_db,
-                        owner=user,
-                        # color=color,
-                    )
 
-                    TimelineSegmentAnnotation.objects.create(
-                        annotation=annotation_db, timeline_segment=timeline_segment_db
+                category_db, _ = AnnotationCategory.objects.get_or_create(name="Transcript", video=video, owner=user)
+
+
+                for annotation in data.annotations:
+                    timeline_segment_db = TimelineSegment.objects.create(
+                        timeline=annotation_timeline_db,
+                        start=annotation.start,
+                        end=annotation.end,
                     )
+                    for label in annotation.labels:
+                        annotation_db, _ = Annotation.objects.get_or_create(
+                            name=str(label),
+                            video=video,
+                            category=category_db,
+                            owner=user,
+                            # color=color,
+                        )
+
+                        TimelineSegmentAnnotation.objects.create(
+                            annotation=annotation_db, timeline_segment=timeline_segment_db
+                        )
+
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [],
+                    "timelines": {"annotations": annotation_timeline_db},
+                    "data": {"annotations": result[1]["annotations"].id}
+                }

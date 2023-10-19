@@ -10,6 +10,7 @@ from backend.utils.parser import Parser
 from backend.utils.task import Task
 from analyser.data import DataManager
 from backend.models import AnnotationCategory, TimelineSegment, Annotation, TimelineSegmentAnnotation, TibavaUser
+from django.db import transaction
 
 
 @PluginManager.export_parser("blip_vqa")
@@ -65,32 +66,40 @@ class BLIPVQA(Task):
         if result is None:
             raise Exception
 
-        with result[1]["annotations"] as data:
-            """
-            Create a timeline labeled
-            """
-            # print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
-            annotation_timeline = Timeline.objects.create(
-                video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
-            )
-
-            category_db, _ = AnnotationCategory.objects.get_or_create(name="Blib", video=video, owner=user)
-
-            for annotation in data.annotations:
-                timeline_segment_db = TimelineSegment.objects.create(
-                    timeline=annotation_timeline,
-                    start=annotation.start,
-                    end=annotation.end,
+        with transaction.atomic():
+            with result[1]["annotations"] as data:
+                """
+                Create a timeline labeled
+                """
+                # print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
+                annotation_timeline_db = Timeline.objects.create(
+                    video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
                 )
-                for label in annotation.labels:
-                    annotation_db, _ = Annotation.objects.get_or_create(
-                        name=str(label),
-                        video=video,
-                        category=category_db,
-                        owner=user,
-                        # color=color,
-                    )
 
-                    TimelineSegmentAnnotation.objects.create(
-                        annotation=annotation_db, timeline_segment=timeline_segment_db
+                category_db, _ = AnnotationCategory.objects.get_or_create(name="Blib", video=video, owner=user)
+
+                for annotation in data.annotations:
+                    timeline_segment_db = TimelineSegment.objects.create(
+                        timeline=annotation_timeline_db,
+                        start=annotation.start,
+                        end=annotation.end,
                     )
+                    for label in annotation.labels:
+                        annotation_db, _ = Annotation.objects.get_or_create(
+                            name=str(label),
+                            video=video,
+                            category=category_db,
+                            owner=user,
+                            # color=color,
+                        )
+
+                        TimelineSegmentAnnotation.objects.create(
+                            annotation=annotation_db, timeline_segment=timeline_segment_db
+                        )
+
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [],
+                    "timelines": {"annotations":annotation_timeline_db.id.hex},
+                    "data": {"annotations": result[1]["annotations"].id}
+                }

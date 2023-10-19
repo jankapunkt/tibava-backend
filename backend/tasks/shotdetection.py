@@ -23,6 +23,7 @@ from analyser.data import DataManager
 from backend.utils.parser import Parser
 from backend.utils.task import Task
 
+from django.db import transaction
 
 @PluginManager.export_parser("shotdetection")
 class ShotDetectionParser(Parser):
@@ -38,8 +39,8 @@ class ShotDetection(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
 
     def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
@@ -63,26 +64,28 @@ class ShotDetection(Task):
         if result is None:
             raise Exception
 
-        with result[1]["shots"] as d:
-            # TODO translate the name
-            timeline = Timeline.objects.create(
-                video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
-            )
-            for shot in d.shots:
-                segment_id = uuid.uuid4().hex
-                timeline_segment = TimelineSegment.objects.create(
-                    timeline=timeline,
-                    id=segment_id,
-                    start=shot.start,
-                    end=shot.end,
+        with transaction.atomic():
+            with result[1]["shots"] as d:
+                # TODO translate the name
+                timeline = Timeline.objects.create(
+                    video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                )
+                for shot in d.shots:
+                    segment_id = uuid.uuid4().hex
+                    timeline_segment = TimelineSegment.objects.create(
+                        timeline=timeline,
+                        id=segment_id,
+                        start=shot.start,
+                        end=shot.end,
+                    )
+
+                plugin_run_result_db = PluginRunResult.objects.create(
+                    plugin_run=plugin_run, data_id=d.id, name="shots", type=PluginRunResult.TYPE_SHOTS
                 )
 
-            plugin_run_result_db = PluginRunResult.objects.create(
-                plugin_run=plugin_run, data_id=d.id, name="shots", type=PluginRunResult.TYPE_SHOTS
-            )
-
-        return {
-            "plugin_run": plugin_run.id.hex,
-            "plugin_run_results": [plugin_run_result_db.id.hex],
-            "timelines": [timeline.id.hex],
-        }
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [plugin_run_result_db.id.hex],
+                    "timelines": {"shots":timeline.id.hex},
+                    "data": {"shots": result[1]["shots"].id}
+                }

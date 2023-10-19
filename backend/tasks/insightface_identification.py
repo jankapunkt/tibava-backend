@@ -9,9 +9,7 @@ from ..utils.analyser_client import TaskAnalyserClient
 from backend.utils.parser import Parser
 from backend.utils.task import Task
 from analyser.data import ImageEmbedding, ImageEmbeddings
-
-
-PLUGIN_NAME = "InsightfaceIdentification"
+from django.db import transaction
 
 
 @PluginManager.export_parser("insightface_identification")
@@ -36,8 +34,8 @@ class InsightfaceIdentification(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
 
     def __call__(
@@ -157,17 +155,25 @@ class InsightfaceIdentification(Task):
         if aggregated_result is None:
             raise Exception
 
-        with aggregated_result[1]["aggregated_scalar"] as data:
-            plugin_run_result_db = PluginRunResult.objects.create(
-                plugin_run=plugin_run,
-                data_id=data.id,
-                name="face_identification",
-                type=PluginRunResult.TYPE_SCALAR,
-            )
-            Timeline.objects.create(
-                video=video,
-                name=parameters.get("timeline"),
-                type=Timeline.TYPE_PLUGIN_RESULT,
-                plugin_run_result=plugin_run_result_db,
-                visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-            )
+        with transaction.atomic():
+            with aggregated_result[1]["aggregated_scalar"] as data:
+                plugin_run_result_db = PluginRunResult.objects.create(
+                    plugin_run=plugin_run,
+                    data_id=data.id,
+                    name="face_identification",
+                    type=PluginRunResult.TYPE_SCALAR,
+                )
+                timeline_db = Timeline.objects.create(
+                    video=video,
+                    name=parameters.get("timeline"),
+                    type=Timeline.TYPE_PLUGIN_RESULT,
+                    plugin_run_result=plugin_run_result_db,
+                    visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+                )
+
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [plugin_run_result_db.id.hex],
+                    "timelines": {"annotations": timeline_db},
+                    "data": {"annotations": result[1]["aggregated_scalars"].id}
+                }

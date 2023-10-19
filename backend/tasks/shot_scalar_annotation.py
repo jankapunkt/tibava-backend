@@ -26,7 +26,7 @@ from analyser.data import DataManager
 from backend.utils.parser import Parser
 from backend.utils.task import Task
 
-PLUGIN_NAME = "ShotScalarAnnotation"
+from django.db import transaction
 
 
 @PluginManager.export_parser("shot_scalar_annotation")
@@ -45,8 +45,8 @@ class ShotScalarAnnotation(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
 
     def __call__(
@@ -96,52 +96,60 @@ class ShotScalarAnnotation(Task):
         if result is None:
             raise Exception
 
-        with result[1]["annotations"] as data:
-            """
-            Create a timeline labeled
-            """
-            print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
-            annotation_timeline = Timeline.objects.create(
-                video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
-            )
-
-            category_db, _ = AnnotationCategory.objects.get_or_create(name="value", video=video, owner=user)
-
-            values = []
-            for annotation in data.annotations:
-                for label in annotation.labels:
-                    try:
-                        values.append(float(label))
-                    except:
-                        continue
-            min_val = min(values)
-            max_val = max(values)
-
-            h = random.random() * 359 / 360
-            s = 0.6
-
-            for annotation in data.annotations:
-                timeline_segment_db = TimelineSegment.objects.create(
-                    timeline=annotation_timeline,
-                    start=annotation.start,
-                    end=annotation.end,
+        with transaction.atomic():
+            with result[1]["annotations"] as data:
+                """
+                Create a timeline labeled
+                """
+                print(f"[ShotScalarAnnotation] Create annotation timeline", flush=True)
+                annotation_timeline_db = Timeline.objects.create(
+                    video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
                 )
-                for label in annotation.labels:
-                    value = label
-                    try:
-                        v = (float(label) - min_val) / (max_val - min_val)
-                        value = round(float(label), 3)
-                    except:
-                        v = 0.6
-                    color = rgb_to_hex(hsv_to_rgb(h, s, v))
-                    annotation_db, _ = Annotation.objects.get_or_create(
-                        name=str(value),
-                        video=video,
-                        category=category_db,
-                        owner=user,
-                        color=color,
-                    )
 
-                    TimelineSegmentAnnotation.objects.create(
-                        annotation=annotation_db, timeline_segment=timeline_segment_db
+                category_db, _ = AnnotationCategory.objects.get_or_create(name="value", video=video, owner=user)
+
+                values = []
+                for annotation in data.annotations:
+                    for label in annotation.labels:
+                        try:
+                            values.append(float(label))
+                        except:
+                            continue
+                min_val = min(values)
+                max_val = max(values)
+
+                h = random.random() * 359 / 360
+                s = 0.6
+
+                for annotation in data.annotations:
+                    timeline_segment_db = TimelineSegment.objects.create(
+                        timeline=annotation_timeline_db,
+                        start=annotation.start,
+                        end=annotation.end,
                     )
+                    for label in annotation.labels:
+                        value = label
+                        try:
+                            v = (float(label) - min_val) / (max_val - min_val)
+                            value = round(float(label), 3)
+                        except:
+                            v = 0.6
+                        color = rgb_to_hex(hsv_to_rgb(h, s, v))
+                        annotation_db, _ = Annotation.objects.get_or_create(
+                            name=str(value),
+                            video=video,
+                            category=category_db,
+                            owner=user,
+                            color=color,
+                        )
+
+                        TimelineSegmentAnnotation.objects.create(
+                            annotation=annotation_db, timeline_segment=timeline_segment_db
+                        )
+
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [],
+                    "timelines": {"annotations": annotation_timeline_db},
+                    "data": {"annotations": result[1]["annotations"].id}
+                }

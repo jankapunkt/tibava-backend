@@ -9,6 +9,7 @@ from backend.utils.task import Task
 
 
 from ..utils.analyser_client import TaskAnalyserClient
+from django.db import transaction
 
 
 @PluginManager.export_parser("color_analysis")
@@ -30,8 +31,8 @@ class ColorAnalyser(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
 
     def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
@@ -61,29 +62,37 @@ class ColorAnalyser(Task):
         if result is None:
             raise Exception
 
-        with result[1]["colors"] as data:
-            data.extract_all(manager)
-            parent_timeline = None
-            if len(data.data) > 1:
-                parent_timeline = Timeline.objects.create(
-                    video=video,
-                    name=parameters.get("timeline"),
-                    type=Timeline.TYPE_PLUGIN_RESULT,
-                )
+        with transaction.atomic():
+            with result[1]["colors"] as data:
+                data.extract_all(manager)
+                parent_timeline = None
+                if len(data.data) > 1:
+                    parent_timeline = Timeline.objects.create(
+                        video=video,
+                        name=parameters.get("timeline"),
+                        type=Timeline.TYPE_PLUGIN_RESULT,
+                    )
 
-            for i, d in enumerate(data.data):
-                plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run,
-                    data_id=d,
-                    name="color_analysis",
-                    type=PluginRunResult.TYPE_RGB_HIST,
-                )
+                for i, d in enumerate(data.data):
+                    plugin_run_result_db = PluginRunResult.objects.create(
+                        plugin_run=plugin_run,
+                        data_id=d,
+                        name="color_analysis",
+                        type=PluginRunResult.TYPE_RGB_HIST,
+                    )
 
-                _ = Timeline.objects.create(
-                    video=video,
-                    name=parameters.get("timeline") + f" #{i}" if len(data.data) > 1 else parameters.get("timeline"),
-                    type=Timeline.TYPE_PLUGIN_RESULT,
-                    plugin_run_result=plugin_run_result_db,
-                    visualization=Timeline.VISUALIZATION_COLOR,
-                    parent=parent_timeline,
-                )
+                    timeline_db = Timeline.objects.create(
+                        video=video,
+                        name=parameters.get("timeline") + f" #{i}" if len(data.data) > 1 else parameters.get("timeline"),
+                        type=Timeline.TYPE_PLUGIN_RESULT,
+                        plugin_run_result=plugin_run_result_db,
+                        visualization=Timeline.VISUALIZATION_COLOR,
+                        parent=parent_timeline,
+                    )
+
+                    return {
+                        "plugin_run": plugin_run.id.hex,
+                        "plugin_run_results": [plugin_run_result_db.id.hex],
+                        "timelines": {"colors":timeline_db.id.hex},
+                        "data": {"colors": result[1]["colors"].id}
+                    }

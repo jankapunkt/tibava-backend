@@ -18,7 +18,7 @@ from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import Shot, ShotsData, DataManager
 from backend.utils.parser import Parser
 from backend.utils.task import Task
-
+from django.db import transaction
 
 LABEL_LUT = {
     "p_ECU": "Extreme Close-Up",
@@ -27,7 +27,6 @@ LABEL_LUT = {
     "p_FS": "Full Shot",
     "p_LS": "Long Shot",
 }
-PLUGIN_NAME = "InsightfaceFacesize"
 
 
 @PluginManager.export_parser("insightface_facesize")
@@ -46,8 +45,8 @@ class InsightfaceFacesize(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
 
     def __call__(
@@ -68,9 +67,7 @@ class InsightfaceFacesize(Task):
 
         shots_id = None
         if parameters.get("shot_timeline_id"):
-            shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
-            shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
-
+            shot_timeline_segments = TimelineSegment.objects.filter(timeline__id=parameters.get("shot_timeline_id"))
             shots = manager.create_data("ShotsData")
             with shots:
                 for x in shot_timeline_segments:
@@ -123,18 +120,18 @@ class InsightfaceFacesize(Task):
         if facesize_result is None:
             raise Exception
 
-        annotation_timeline = Timeline.objects.create(
-            video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
-        )
-
-        category_db, _ = AnnotationCategory.objects.get_or_create(name="Face Size", video=video, owner=user)
-        if facesize_result:
+        with transaction.atomic():
             with facesize_result[1]["annotations"] as annotations:
+
+                annotation_timeline_db = Timeline.objects.create(
+                    video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                )
+
+                category_db, _ = AnnotationCategory.objects.get_or_create(name="Face Size", video=video, owner=user)
                 for annotation in annotations.annotations:
                     # create TimelineSegment
-                    print(annotation, flush=True)
                     timeline_segment_db = TimelineSegment.objects.create(
-                        timeline=annotation_timeline,
+                        timeline=annotation_timeline_db,
                         start=annotation.start,
                         end=annotation.end,
                     )
@@ -148,3 +145,10 @@ class InsightfaceFacesize(Task):
                         TimelineSegmentAnnotation.objects.create(
                             annotation=annotation_db, timeline_segment=timeline_segment_db
                         )
+
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [],
+                    "timelines": {"annotations": annotation_timeline_db},
+                    "data": {"annotations": facesize_result[1]["annotations"].id}
+                }

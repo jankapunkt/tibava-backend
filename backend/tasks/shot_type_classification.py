@@ -22,7 +22,7 @@ from analyser.data import Shot, ShotsData
 from analyser.data import DataManager
 from backend.utils.parser import Parser
 from backend.utils.task import Task
-
+from django.db import transaction
 
 LABEL_LUT = {
     "p_ECU": "Extreme Close-Up",
@@ -31,7 +31,6 @@ LABEL_LUT = {
     "p_FS": "Full Shot",
     "p_LS": "Long Shot",
 }
-PLUGIN_NAME = "ShotTypeClassifier"
 
 
 @PluginManager.export_parser("shot_type_classification")
@@ -50,8 +49,8 @@ class ShotTypeClassifier(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
 
     def __call__(
@@ -91,6 +90,9 @@ class ShotTypeClassifier(Task):
         if result is None:
             raise Exception
 
+        result_timelines ={}
+        result_data ={}
+
         if shots_id:
 
             annotations_result = self.run_analyser(
@@ -105,10 +107,14 @@ class ShotTypeClassifier(Task):
             """
             Create a timeline labeled by most probable class (per shot)
             """
-            print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
+            print(f"[ShotTypeClassifier] Create annotation timeline", flush=True)
             annotation_timeline = Timeline.objects.create(
                 video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
             )
+
+
+            result_timelines["annotation"]=annotation_timeline.id.hex
+
 
             category_db, _ = AnnotationCategory.objects.get_or_create(name="Shot Size", video=video, owner=user)
 
@@ -130,28 +136,40 @@ class ShotTypeClassifier(Task):
                         TimelineSegmentAnnotation.objects.create(
                             annotation=annotation_db, timeline_segment=timeline_segment_db
                         )
-
+                result_data["annotations"] = annotations.id
         """
         Create timeline(s) with probability of each class as scalar data
         """
-        print(f"[{PLUGIN_NAME}] Create scalar color (SC) timeline with probabilities for each class", flush=True)
+        print(f"[ShotTypeClassifier] Create scalar color (SC) timeline with probabilities for each class", flush=True)
 
-        with result[1]["probs"] as data:
+        with transaction.atomic():
+            with result[1]["probs"] as data:
 
-            data.extract_all(manager)
-            for index, sub_data in zip(data.index, data.data):
+                data.extract_all(manager)
+                for index, sub_data in zip(data.index, data.data):
 
-                plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run,
-                    data_id=sub_data,
-                    name="shot_type_classification",
-                    type=PluginRunResult.TYPE_SCALAR,
-                )
-                Timeline.objects.create(
-                    video=video,
-                    name=LABEL_LUT.get(index, index),
-                    type=Timeline.TYPE_PLUGIN_RESULT,
-                    plugin_run_result=plugin_run_result_db,
-                    visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-                    parent=annotation_timeline,
-                )
+                    plugin_run_result_db = PluginRunResult.objects.create(
+                        plugin_run=plugin_run,
+                        data_id=sub_data,
+                        name="shot_type_classification",
+                        type=PluginRunResult.TYPE_SCALAR,
+                    )
+                    timeline_db = Timeline.objects.create(
+                        video=video,
+                        name=LABEL_LUT.get(index, index),
+                        type=Timeline.TYPE_PLUGIN_RESULT,
+                        plugin_run_result=plugin_run_result_db,
+                        visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
+                        parent=annotation_timeline,
+                    )
+
+                    result_timelines[LABEL_LUT.get(index, index)]=timeline_db.id.hex
+                
+                result_data["probs"] = data.id
+
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [plugin_run_result_db.id.hex],
+                    "timelines": result_timelines,
+                    "data": result_data
+                }

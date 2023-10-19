@@ -11,6 +11,7 @@ from analyser.data import DataManager
 from backend.utils.parser import Parser
 from backend.utils.task import Task
 
+from django.db import transaction
 
 @PluginManager.export_parser("audio_amp")
 class AudioAmpParser(Parser):
@@ -27,8 +28,8 @@ class AudioAmp(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
 
     def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
@@ -62,15 +63,23 @@ class AudioAmp(Task):
         if result is None:
             raise Exception
 
-        with result[1]["amp"] as data:
-            plugin_run_result_db = PluginRunResult.objects.create(
-                plugin_run=plugin_run, data_id=data.id, name="audio_amp", type=PluginRunResult.TYPE_SCALAR
-            )
+        with transaction.atomic():
+            with result[1]["amp"] as data:
+                plugin_run_result_db = PluginRunResult.objects.create(
+                    plugin_run=plugin_run, data_id=data.id, name="audio_amp", type=PluginRunResult.TYPE_SCALAR
+                )
 
-            _ = Timeline.objects.create(
-                video=video,
-                name=parameters.get("timeline"),
-                type=Timeline.TYPE_PLUGIN_RESULT,
-                plugin_run_result=plugin_run_result_db,
-                visualization=Timeline.VISUALIZATION_SCALAR_LINE,
-            )
+                timeline_db = Timeline.objects.create(
+                    video=video,
+                    name=parameters.get("timeline"),
+                    type=Timeline.TYPE_PLUGIN_RESULT,
+                    plugin_run_result=plugin_run_result_db,
+                    visualization=Timeline.VISUALIZATION_SCALAR_LINE,
+                )
+
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [plugin_run_result_db.id.hex],
+                    "timelines": {"amp":timeline_db.id.hex},
+                    "data": {"amp": result[1]["amp"].id}
+                }

@@ -22,9 +22,7 @@ from analyser.data import PlaceClusterData, DataManager
 from analyser.data import Shot
 from backend.utils.parser import Parser
 from backend.utils.task import Task
-
-PLUGIN_NAME = "PlaceClustering"
-
+from django.db import transaction
 
 @PluginManager.export_parser("place_clustering")
 class PlaceClusteringParser(Parser):
@@ -38,13 +36,14 @@ class PlaceClusteringParser(Parser):
 @PluginManager.export_plugin("place_clustering")
 class PlaceClustering(Task):
     def __init__(self):
+
         self.config = {
             "output_path": "/predictions/",
-            "base_url": "http://localhost/thumbnails/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "base_url": "/tibava/thumbnails/",
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
-
+     
     def __call__(
         self,
         parameters: Dict,
@@ -115,44 +114,52 @@ class PlaceClustering(Task):
             # extract thumbnails
             d.extract_all(manager)
 
-        with cluster_result[1]["place_cluster_data"] as data:
-            # save cluster results
-            _ = PluginRunResult.objects.create(
-                plugin_run=plugin_run,
-                data_id=data.id,
-                name="placeclustering",
-                type=PluginRunResult.TYPE_CLUSTER,
-            )
-
-            # create a cti for every detected cluster
-            for cluster_index, cluster in enumerate(data.clusters):
-                cti = ClusterTimelineItem.objects.create(
-                    video=video,
-                    cluster_id=cluster.id,
-                    name=f"Cluster {cluster_index+1}",
+        with transaction.atomic():
+            with cluster_result[1]["place_cluster_data"] as data:
+                # save cluster results
+                plugin_run_result_db = PluginRunResult.objects.create(
                     plugin_run=plugin_run,
+                    data_id=data.id,
+                    name="placeclustering",
+                    type=PluginRunResult.TYPE_CLUSTER,
                 )
 
-                # create a place db item for every detected place
-                for place_index, place_ref in enumerate(cluster.object_refs):
-                    image = [
-                        f
-                        for f in places_result[1]["images"].images
-                        if f.ref_id == place_ref
-                    ][0]
-                    image_path = os.path.join(
-                        self.config.get("base_url"),
-                        image.id[0:2],
-                        image.id[2:4],
-                        f"{image.id}.{image.ext}",
-                    )
-                    _ = Place.objects.create(
-                        cti=cti,
+                # create a cti for every detected cluster
+                for cluster_index, cluster in enumerate(data.clusters):
+                    cti = ClusterTimelineItem.objects.create(
                         video=video,
-                        place_ref=place_ref,
-                        embedding_index=place_index,
-                        image_path=image_path,
+                        cluster_id=cluster.id,
+                        name=f"Cluster {cluster_index+1}",
+                        plugin_run=plugin_run,
                     )
+
+                    # create a place db item for every detected place
+                    for place_index, place_ref in enumerate(cluster.object_refs):
+                        image = [
+                            f
+                            for f in places_result[1]["images"].images
+                            if f.ref_id == place_ref
+                        ][0]
+                        image_path = os.path.join(
+                            self.config.get("base_url"),
+                            image.id[0:2],
+                            image.id[2:4],
+                            f"{image.id}.{image.ext}",
+                        )
+                        _ = Place.objects.create(
+                            cti=cti,
+                            video=video,
+                            place_ref=place_ref,
+                            embedding_index=place_index,
+                            image_path=image_path,
+                        )
+                
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [plugin_run_result_db.id.hex],
+                    "timelines": {},
+                    "data": {"place_cluster_data": cluster_result[1]["place_cluster_data"].id}
+                }
 
     def get_results(self, analyse):
         try:

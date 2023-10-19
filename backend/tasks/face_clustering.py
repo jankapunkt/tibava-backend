@@ -19,8 +19,7 @@ from ..utils.analyser_client import TaskAnalyserClient
 from analyser.data import FaceClusterData, DataManager
 from backend.utils.parser import Parser
 from backend.utils.task import Task
-
-PLUGIN_NAME = "FaceClustering"
+from django.db import transaction
 
 @PluginManager.export_parser("face_clustering")
 class FaceClusteringParser(Parser):
@@ -37,9 +36,9 @@ class FaceClustering(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
-            "base_url": "http://localhost/thumbnails/",
-            "analyser_host": "analyser",
-            "analyser_port": 50051,
+            "base_url": "/tibava/thumbnails/",
+            "analyser_host": "devbox2.research.tib.eu",
+            "analyser_port": 54051,
         }
 
     def __call__(
@@ -109,36 +108,43 @@ class FaceClustering(Task):
             # extract thumbnails
             d.extract_all(manager)
         
-        with cluster_result[1]["face_cluster_data"] as data:
-            # save cluster results
-            _ = PluginRunResult.objects.create(
-                plugin_run=plugin_run, 
-                data_id=data.id, 
-                name="faceclustering", 
-                type=PluginRunResult.TYPE_CLUSTER
-            )
-
-            # create a cti for every detected cluster
-            for cluster_index, cluster in enumerate(data.clusters):
-                cti = ClusterTimelineItem.objects.create(
-                    video=video,
-                    cluster_id=cluster.id,
-                    name=f"Cluster {cluster_index+1}",
-                    plugin_run=plugin_run
+        with transaction.atomic():
+            with cluster_result[1]["face_cluster_data"] as data:
+                # save cluster results
+                plugin_run_result_db = PluginRunResult.objects.create(
+                    plugin_run=plugin_run, 
+                    data_id=data.id, 
+                    name="faceclustering", 
+                    type=PluginRunResult.TYPE_CLUSTER
                 )
-            
-                # create a face db item for every detected face
-                for face_index, face_ref in enumerate(cluster.object_refs):
-                    image = [f for f in facedetector_result[1]["images"].images if f.ref_id == face_ref][0]
-                    image_path = os.path.join(self.config.get("base_url"), image.id[0:2], image.id[2:4], f"{image.id}.{image.ext}")
-                    _ = Face.objects.create(
-                        cti=cti,
-                        video=video, 
-                        face_ref=face_ref,
-                        embedding_index=face_index,
-                        image_path=image_path,
-                    )
 
+                # create a cti for every detected cluster
+                for cluster_index, cluster in enumerate(data.clusters):
+                    cti = ClusterTimelineItem.objects.create(
+                        video=video,
+                        cluster_id=cluster.id,
+                        name=f"Cluster {cluster_index+1}",
+                        plugin_run=plugin_run
+                    )
+                
+                    # create a face db item for every detected face
+                    for face_index, face_ref in enumerate(cluster.object_refs):
+                        image = [f for f in facedetector_result[1]["images"].images if f.ref_id == face_ref][0]
+                        image_path = os.path.join(self.config.get("base_url"), image.id[0:2], image.id[2:4], f"{image.id}.{image.ext}")
+                        _ = Face.objects.create(
+                            cti=cti,
+                            video=video, 
+                            face_ref=face_ref,
+                            embedding_index=face_index,
+                            image_path=image_path,
+                        )
+
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [plugin_run_result_db.id.hex],
+                    "timelines": {},
+                    "data": {"face_cluster_data": cluster_result[1]["face_cluster_data"].id}
+                }
         
     def get_results(self, analyse):
         try:
