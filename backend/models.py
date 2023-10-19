@@ -17,6 +17,14 @@ class TibavaUser(AbstractUser):
     max_video_size = models.BigIntegerField(default=50 * 1024 * 1024) #50 Mb
     objects = TibavaUserManager()
 
+    def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
+        return {
+            "id": self.id,
+            "username": self.username,
+            "allowance": self.allowance,
+            "max_video_size": self.max_video_size
+        }
+
     def __str__(self):
         return self.username
     
@@ -293,6 +301,9 @@ class TimelineSegment(models.Model):
     color = models.CharField(max_length=256, null=True)
     start = models.FloatField(default=0)
     end = models.FloatField(default=0)
+
+    class Meta:
+        ordering = ["start"]
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
