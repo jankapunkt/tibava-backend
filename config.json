@@ -11,6 +11,6 @@
     "upload_root": "/upload/",
     "media_url": "/media/",
     "upload_url": "/upload/",
-    "grpc_host": "localhost",
+    "grpc_host": "analyser",
     "grpc_port": "50051"
 }

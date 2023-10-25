@@ -273,45 +273,44 @@ class VideoExport(View):
 
         times = []
         durations = []
+        end_times = []
+        diffs = []
         for timeline_db in video_db.timeline_set.all():
             annotations_headers = {}
-            for segment_db in timeline_db.timelinesegment_set.all():
-                times.append(segment_db.start)
-                durations.append(segment_db.end - segment_db.start)
+            timeline_segments = timeline_db.timelinesegment_set.all()
+            for index, segment_db in enumerate(timeline_segments):
+                # if (segment_db.end - segment_db.start) > 1:
+                times.append(round(segment_db.start, 3))
+                end_times.append(round(segment_db.end, 3))
+                if index < len(timeline_segments)-1:
+                    diff = timeline_segments[index+1].start - segment_db.end
+                else:
+                    diff = 0
+                diffs.append(round(diff, 3))
+                durations.append(round(segment_db.end - segment_db.start + diff, 3))
+
+        # d = {"starts": times, "durations": durations, "end_times": end_times, "diffs": diffs}
+        # import pandas as pd
+
+        # df = pd.DataFrame.from_dict(d)
+        # df.to_csv("data.csv", index=False)
+                    
         # 0, video_db.duration
         time_duration = sorted(list(set(zip(times, durations))), key=lambda x: x[0])
         cols = []
+
+        # logging.error(time_duration)
 
         # shot number column
         # also extract shots for aggregation later
         shot_number_col = ["Shot Number"]
         shot_timeline = video_db.timeline_set.filter(name="Shots")[0]
 
-        overlap = False
         for start, duration in time_duration:
             end = start + duration
-            if not overlap:
-                indices = ""
+            # logging.error(f"{start} - {end}")
             for shot_index, shot in enumerate(shot_timeline.timelinesegment_set.all()):
-                 # test start
-                if shot.start >= start and shot.start <= end:
-                    if indices != "":
-                        indices += str(shot_index) + " "
-                    else:
-                        indices += str(shot_index)
-                elif shot.end >= start and shot.end <= end:
-                    if indices != "":
-                        indices += str(shot_index) + " "
-                    else:
-                        indices += str(shot_index)
-
-                elif shot.start <= start and shot.end >= end:
-                    if indices != "":
-                        indices += str(shot_index) + " "
-                    else:
-                        indices += str(shot_index)
-            
-            shot_number_col.append(indices)
+                shot_number_col.append(shot_index) 
 
         cols.append(shot_number_col)
 
@@ -385,10 +384,12 @@ class VideoExport(View):
 
                                 anno = round(float(y_agg), 3)
                                 col.append(anno)
-                                min_col.append(round(float(np.min(shot_y_data)), 3))
-                                max_col.append(round(float(np.max(shot_y_data)), 3))
-                                std_col.append(round(float(np.std(shot_y_data)), 3))
-                                var_col.append(round(float(np.var(shot_y_data)), 3))
+                                # logging.error(shot_y_data)
+                                min_col.append(round(float(np.min(shot_y_data)), 7))
+                                max_col.append(round(float(np.max(shot_y_data)), 7))
+                                std_col.append(round(float(np.std(shot_y_data)), 7))
+                                var_col.append(round(float(np.var(shot_y_data)), 7))
+                                # logging.error(f"{min_col[-1], max_col[-1], std_col[-1], var_col[-1],}")
                         
                         cols.append(col)
                         cols.append(min_col)
@@ -463,8 +464,11 @@ class VideoExport(View):
                                 for segment in segments:
                                     splitted = segment["annotation"].split("+")
                                     if segment["start"] >= s and segment["end"] <= (s + d):
-                                        col_text = splitted[index]
-                                
+                                        if len(splitted) > 1:
+                                            col_text = splitted[index]
+                                        else:
+                                            col_text = "None"
+
                                 col.append(col_text)
                                         
                             cols.append(col)
@@ -477,8 +481,10 @@ class VideoExport(View):
                             for segment in segments:
                                 if segment["start"] >= s and segment["end"] <= (s + d):
                                     col_text = segment["annotation"]
-
+                            if col_text == "":
+                                col_text = "None"
                             col.append(col_text)
+
 
                         cols.append(col)
         else:

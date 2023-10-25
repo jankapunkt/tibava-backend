@@ -177,5 +177,5 @@ class InsightfaceIdentification(Task):
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
                     "timelines": {"annotations": timeline_db},
-                    "data": {"annotations": result[1]["aggregated_scalars"].id}
+                    "data": {"annotations": aggregated_result[1]["aggregated_scalar"].id}
                 }
