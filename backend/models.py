@@ -34,6 +34,7 @@ class Video(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE)
     name = models.CharField(max_length=256)
     license = models.CharField(max_length=256)
+    file =  models.UUIDField(default=uuid.uuid4)
     ext = models.CharField(max_length=256)
     date = models.DateTimeField(auto_now_add=True)
     # some extracted meta information
