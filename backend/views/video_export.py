@@ -280,14 +280,14 @@ class VideoExport(View):
             timeline_segments = timeline_db.timelinesegment_set.all()
             for index, segment_db in enumerate(timeline_segments):
                 # if (segment_db.end - segment_db.start) > 1:
-                times.append(round(segment_db.start, 3))
-                end_times.append(round(segment_db.end, 3))
+                times.append(segment_db.start)
+                end_times.append(segment_db.end)
                 if index < len(timeline_segments)-1:
                     diff = timeline_segments[index+1].start - segment_db.end
                 else:
                     diff = 0
-                diffs.append(round(diff, 3))
-                durations.append(round(segment_db.end - segment_db.start + diff, 3))
+                diffs.append(diff)
+                durations.append(segment_db.end - segment_db.start + diff)
 
         # d = {"starts": times, "durations": durations, "end_times": end_times, "diffs": diffs}
         # import pandas as pd
@@ -325,7 +325,7 @@ class VideoExport(View):
             cols.append(
                 ["start in seconds"]
                 + ["" for x in range(num_header_lines - 1)]
-                + [str(t[0]) for t in time_duration]
+                + [str(round(t[0],3)) for t in time_duration]
             )
 
         # duration column
@@ -339,7 +339,7 @@ class VideoExport(View):
             cols.append(
                 ["duration in seconds"]
                 + ["" for x in range(num_header_lines - 1)]
-                + [str(t[1]) for t in time_duration]
+                + [str(round(t[1],3)) for t in time_duration]
             )
 
         annotations = {}
@@ -479,10 +479,13 @@ class VideoExport(View):
                             col_text = ""
 
                             for segment in segments:
+                                # print(f'####### {timeline_db.name} {segment["start"]} {segment["end"]} {segment["annotation"]} {s} {d}')
                                 if segment["start"] >= s and segment["end"] <= (s + d):
                                     col_text = segment["annotation"]
                             if col_text == "":
                                 col_text = "None"
+                            
+                            # print(f'################ {col_text} {segment["end"]} {segment["annotation"]} {s} {d}')
                             col.append(col_text)
 
 
