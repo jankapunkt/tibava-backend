@@ -5,7 +5,7 @@ import os
 
 from backend.models import (
     ClusterTimelineItem,
-    Face,
+    ClusterItem,
     PluginRun,
     PluginRunResult,
     Video,
@@ -137,12 +137,13 @@ class FaceClustering(Task):
                     for face_index, face_ref in enumerate(cluster.object_refs):
                         image = [f for f in facedetector_result[1]["images"].images if f.ref_id == face_ref][0]
                         image_path = os.path.join(self.config.get("base_url"), image.id[0:2], image.id[2:4], f"{image.id}.{image.ext}")
-                        _ = Face.objects.create(
+                        _ = ClusterItem.objects.create(
                             cti=cti,
                             video=video, 
-                            face_ref=face_ref,
+                            plugin_item_ref=face_ref,
                             embedding_index=face_index,
                             image_path=image_path,
+                            plugin_run_result = plugin_run_result_db
                         )
 
                 return {
