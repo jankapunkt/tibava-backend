@@ -30,6 +30,8 @@ class FaceClusteringParser(Parser):
         self.valid_parameter = {
             "cluster_threshold": {"parser": float, "default": 0.5},
             "fps": {"parser": float, "default": 2.0},
+            "max_cluster": {"parser": int, "default": 50},
+            "max_faces": {"parser": int, "default": 50},
         }
 
 
@@ -91,6 +93,8 @@ class FaceClustering(Task):
             "face_clustering",
             parameters={
                 "cluster_threshold": parameters.get("cluster_threshold"),
+                "max_cluster": parameters.get("max_cluster"),
+                "max_faces": parameters.get("max_faces"),
             },
             inputs={
                 "embeddings": image_feature_result[0]["features"], 
