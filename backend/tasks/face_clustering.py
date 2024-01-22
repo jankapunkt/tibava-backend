@@ -26,7 +26,6 @@ from django.conf import settings
 @PluginManager.export_parser("face_clustering")
 class FaceClusteringParser(Parser):
     def __init__(self):
-
         self.valid_parameter = {
             "cluster_threshold": {"parser": float, "default": 0.5},
             "fps": {"parser": float, "default": 2.0},
@@ -46,7 +45,12 @@ class FaceClustering(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
+        self,
+        parameters: Dict,
+        video: Video = None,
+        user: TibavaUser = None,
+        plugin_run: PluginRun = None,
+        **kwargs,
     ):
         # Debug
         # parameters["fps"] = 0.05
@@ -58,7 +62,7 @@ class FaceClustering(Task):
             plugin_run_db=plugin_run,
             manager=manager,
         )
-        
+
         # face detector
         video_data_id = self.upload_video(client, video)
         facedetector_result = self.run_analyser(
@@ -70,18 +74,23 @@ class FaceClustering(Task):
             },
             inputs={"video": video_data_id},
             outputs=["images", "kpss", "faces", "bboxes"],
-            downloads=["images"]
+            downloads=["images", "faces"],
         )
 
         if facedetector_result is None:
             raise Exception
-        
+
         # create image embeddings
         image_feature_result = self.run_analyser(
             client,
             "insightface_video_feature_extractor",
-            inputs={"video": video_data_id, "kpss": facedetector_result[0]["kpss"], "faces": facedetector_result[0]["faces"]},
+            inputs={
+                "video": video_data_id,
+                "kpss": facedetector_result[0]["kpss"],
+                "faces": facedetector_result[0]["faces"],
+            },
             outputs=["features"],
+            downloads=["features"],
         )
 
         if image_feature_result is None:
@@ -90,22 +99,16 @@ class FaceClustering(Task):
         # cluster faces
         cluster_result = self.run_analyser(
             client,
-            "face_clustering",
+            "clustering",
             parameters={
                 "cluster_threshold": parameters.get("cluster_threshold"),
-                "max_cluster": parameters.get("max_cluster"),
-                "max_faces": parameters.get("max_faces"),
             },
             inputs={
-                "embeddings": image_feature_result[0]["features"], 
-                "faces": facedetector_result[0]["faces"], 
-                "bboxes": facedetector_result[0]["bboxes"], 
-                "kpss": facedetector_result[0]["kpss"],
-                "images": facedetector_result[0]["images"]
+                "embeddings": image_feature_result[0]["features"],
             },
-            downloads=["face_cluster_data"],
+            downloads=["cluster_data"],
         )
-        
+
         if cluster_result is None:
             raise Exception
 
@@ -113,34 +116,69 @@ class FaceClustering(Task):
         with facedetector_result[1]["images"] as d:
             # extract thumbnails
             d.extract_all(manager)
-        
+
+        embedding_face_lut = {}
+        with image_feature_result[1]["features"] as d:
+            for embedding in d.embeddings:
+                embedding_face_lut[embedding.id] = embedding.ref_id
+
         with transaction.atomic():
-            with cluster_result[1]["face_cluster_data"] as data:
+            with cluster_result[1]["cluster_data"] as data:
                 # save cluster results
                 plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run, 
-                    data_id=data.id, 
-                    name="faceclustering", 
-                    type=PluginRunResult.TYPE_CLUSTER
+                    plugin_run=plugin_run,
+                    data_id=data.id,
+                    name="clustering",
+                    type=PluginRunResult.TYPE_CLUSTER,
+                )
+
+                plugin_run_result_db = PluginRunResult.objects.create(
+                    plugin_run=plugin_run,
+                    data_id=facedetector_result[1]["faces"].id,
+                    name="faces",
+                    type=PluginRunResult.TYPE_FACE,
+                )
+
+                plugin_run_result_db = PluginRunResult.objects.create(
+                    plugin_run=plugin_run,
+                    data_id=facedetector_result[1]["images"].id,
+                    name="images",
+                    type=PluginRunResult.TYPE_IMAGES,
+                )
+
+                plugin_run_result_db = PluginRunResult.objects.create(
+                    plugin_run=plugin_run,
+                    data_id=image_feature_result[1]["features"].id,
+                    name="features",
+                    type=PluginRunResult.TYPE_IMAGE_EMBEDDINGS,
                 )
 
                 # create a cti for every detected cluster
                 for cluster_index, cluster in enumerate(data.clusters):
-                    cti = ClusterTimelineItem.objects.create(
+                    cluster_timeline_item_db = ClusterTimelineItem.objects.create(
                         video=video,
                         cluster_id=cluster.id,
                         name=f"Cluster {cluster_index+1}",
-                        plugin_run=plugin_run
+                        plugin_run=plugin_run,
                     )
-                
+
                     # create a face db item for every detected face
-                    for face_index, face_ref in enumerate(cluster.object_refs):
-                        image = [f for f in facedetector_result[1]["images"].images if f.ref_id == face_ref][0]
-                        image_path = os.path.join(self.config.get("base_url"), image.id[0:2], image.id[2:4], f"{image.id}.{image.ext}")
+                    for face_index, embedding_id in enumerate(cluster.object_refs):
+                        image = [
+                            f
+                            for f in facedetector_result[1]["images"].images
+                            if f.ref_id == embedding_face_lut[embedding_id]
+                        ][0]
+                        image_path = os.path.join(
+                            self.config.get("base_url"),
+                            image.id[0:2],
+                            image.id[2:4],
+                            f"{image.id}.{image.ext}",
+                        )
                         _ = Face.objects.create(
-                            cti=cti,
-                            video=video, 
-                            face_ref=face_ref,
+                            cti=cluster_timeline_item_db,
+                            video=video,
+                            face_ref=embedding_face_lut[embedding_id],
                             embedding_index=face_index,
                             image_path=image_path,
                         )
@@ -149,13 +187,16 @@ class FaceClustering(Task):
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
                     "timelines": {},
-                    "data": {"face_cluster_data": cluster_result[1]["face_cluster_data"].id}
+                    "data": {"cluster_data": cluster_result[1]["cluster_data"].id},
                 }
-        
+
     def get_results(self, analyse):
         try:
             results = json.loads(bytes(analyse.results).decode("utf-8"))
-            results = [{**x, "url": self.config.get("base_url") + f"{analyse.id}/{x['path']}"} for x in results]
+            results = [
+                {**x, "url": self.config.get("base_url") + f"{analyse.id}/{x['path']}"}
+                for x in results
+            ]
 
             return results
         except:

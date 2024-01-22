@@ -21,3 +21,4 @@ from .whisper import *
 from .face_clustering import *
 from .place_clustering import *
 from .blip_vqa import *
+from .cluster_to_scalar import *

@@ -2,7 +2,7 @@ from random import random
 import uuid
 
 from django.db import models
-from django.contrib.auth.models import  AbstractUser
+from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 from backend.utils.color import rgb_to_hex, random_rgb
 
@@ -12,9 +12,10 @@ from .managers import TibavaUserManager
 def random_color_string():
     return rgb_to_hex(random_rgb())
 
+
 class TibavaUser(AbstractUser):
     allowance = models.IntegerField(default=3)
-    max_video_size = models.BigIntegerField(default=50 * 1024 * 1024) #50 Mb
+    max_video_size = models.BigIntegerField(default=50 * 1024 * 1024)  # 50 Mb
     objects = TibavaUserManager()
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
@@ -22,19 +23,21 @@ class TibavaUser(AbstractUser):
             "id": self.id,
             "username": self.username,
             "allowance": self.allowance,
-            "max_video_size": self.max_video_size
+            "max_video_size": self.max_video_size,
         }
 
     def __str__(self):
         return self.username
-    
+
 
 class Video(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE
+    )
     name = models.CharField(max_length=256)
     license = models.CharField(max_length=256)
-    file =  models.UUIDField(default=uuid.uuid4)
+    file = models.UUIDField(default=uuid.uuid4)
     ext = models.CharField(max_length=256)
     date = models.DateTimeField(auto_now_add=True)
     # some extracted meta information
@@ -54,7 +57,7 @@ class Video(models.Model):
             "duration": self.duration,
             "height": self.height,
             "width": self.width,
-            "num_timelines": len(Timeline.objects.filter(video=self))
+            "num_timelines": len(Timeline.objects.filter(video=self)),
         }
 
     def clone(self, owner=None, include_timelines=True, include_annotations=True):
@@ -66,7 +69,9 @@ class Video(models.Model):
         new_video_db = Video.objects.create(**video_dict)
         if include_timelines:
             for timeline in Timeline.objects.filter(video=self):
-                timeline.clone(video=new_video_db, include_annotations=include_annotations)
+                timeline.clone(
+                    video=new_video_db, include_annotations=include_annotations
+                )
 
         return new_video_db  # FIXME
 
@@ -105,7 +110,11 @@ class PluginRun(models.Model):
         STATUS_WAITING: "WAITING",
     }
 
-    status = models.CharField(max_length=2, choices=[(k, v) for k, v in STATUS.items()], default=STATUS_UNKNOWN)
+    status = models.CharField(
+        max_length=2,
+        choices=[(k, v) for k, v in STATUS.items()],
+        default=STATUS_UNKNOWN,
+    )
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         result = {
@@ -133,6 +142,8 @@ class PluginRunResult(models.Model):
     TYPE_SHOTS = "SH"
     TYPE_RGB_HIST = "R"
     TYPE_CLUSTER = "CL"
+    TYPE_FACE = "FA"
+    TYPE_IMAGE_EMBEDDINGS = "E"
     TYPE = {
         TYPE_VIDEO: "VIDEO",
         TYPE_IMAGES: "IMAGES",
@@ -140,7 +151,9 @@ class PluginRunResult(models.Model):
         TYPE_HIST: "HIST",
         TYPE_SHOTS: "SHOTS",
         TYPE_RGB_HIST: "RGB_HIST",
-        TYPE_CLUSTER: "CLUSTER"
+        TYPE_CLUSTER: "CLUSTER",
+        TYPE_FACE: "FACE",
+        TYPE_IMAGE_EMBEDDINGS: "IMAGE_EMBEDDINGS",
     }
 
     type = models.CharField(
@@ -163,7 +176,9 @@ class PluginRunResult(models.Model):
 class Timeline(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, on_delete=models.CASCADE)
-    plugin_run_result = models.ForeignKey(PluginRunResult, on_delete=models.CASCADE, null=True, blank=True)
+    plugin_run_result = models.ForeignKey(
+        PluginRunResult, on_delete=models.CASCADE, null=True, blank=True
+    )
     name = models.CharField(max_length=256)
 
     TYPE_ANNOTATION = "A"
@@ -228,13 +243,19 @@ class Timeline(models.Model):
             result["parent_id"] = None
 
         if include_refs_hashes:
-            result["timeline_segment_ids"] = [x.id.hex for x in self.timelinesegment_set.all()]
+            result["timeline_segment_ids"] = [
+                x.id.hex for x in self.timelinesegment_set.all()
+            ]
             if self.plugin_run_result:
                 result["plugin_run_result_id"] = self.plugin_run_result.id.hex
 
         elif include_refs:
             result["timeline_segments"] = [
-                x.to_dict(include_refs_hashes=include_refs_hashes, include_refs=include_refs, **kwargs)
+                x.to_dict(
+                    include_refs_hashes=include_refs_hashes,
+                    include_refs=include_refs,
+                    **kwargs
+                )
                 for x in self.timelinesegment_set.all()
             ]
         return result
@@ -242,14 +263,18 @@ class Timeline(models.Model):
     def clone(self, video=None, include_annotations=True):
         if not video:
             video = self.video
-        new_timeline_db = Timeline.objects.create(video=video, name=self.name, type=self.type)
+        new_timeline_db = Timeline.objects.create(
+            video=video, name=self.name, type=self.type
+        )
 
         timeline_segment_added = []
         timeline_segment_annotations_added = []
         for segment in self.timelinesegment_set.all():
             result = segment.clone(new_timeline_db, include_annotations)
             timeline_segment_added.extend(result["timeline_segment_added"])
-            timeline_segment_annotations_added.extend(result["timeline_segment_annotation_added"])
+            timeline_segment_annotations_added.extend(
+                result["timeline_segment_annotation_added"]
+            )
 
         return {
             "timeline_added": new_timeline_db,
@@ -261,7 +286,9 @@ class Timeline(models.Model):
 class AnnotationCategory(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE
+    )
     name = models.CharField(max_length=256)
     color = models.CharField(max_length=256, default=random_color_string)
 
@@ -276,9 +303,13 @@ class AnnotationCategory(models.Model):
 
 class Annotation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    category = models.ForeignKey(AnnotationCategory, on_delete=models.CASCADE, null=True)
+    category = models.ForeignKey(
+        AnnotationCategory, on_delete=models.CASCADE, null=True
+    )
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE
+    )
     name = models.CharField(max_length=1024)
     color = models.CharField(max_length=256, default=random_color_string)
 
@@ -291,14 +322,18 @@ class Annotation(models.Model):
         if include_refs_hashes and self.category:
             result["category_id"] = self.category.id.hex
         elif include_refs and self.category:
-            result["category"] = self.category.to_dict(include_refs_hashes=True, include_refs=False, **kwargs)
+            result["category"] = self.category.to_dict(
+                include_refs_hashes=True, include_refs=False, **kwargs
+            )
         return result
 
 
 class TimelineSegment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     timeline = models.ForeignKey(Timeline, on_delete=models.CASCADE)
-    annotations = models.ManyToManyField(Annotation, through="TimelineSegmentAnnotation")
+    annotations = models.ManyToManyField(
+        Annotation, through="TimelineSegmentAnnotation"
+    )
     color = models.CharField(max_length=256, null=True)
     start = models.FloatField(default=0)
     end = models.FloatField(default=0)
@@ -318,7 +353,8 @@ class TimelineSegment(models.Model):
             result["annotation_ids"] = [x.id.hex for x in self.annotations.all()]
         if include_refs:
             result["annotations"] = [
-                x.to_dict(include_refs_hashes=True, include_refs=False, **kwargs) for x in self.annotations.all()
+                x.to_dict(include_refs_hashes=True, include_refs=False, **kwargs)
+                for x in self.annotations.all()
             ]
         return result
 
@@ -335,7 +371,9 @@ class TimelineSegment(models.Model):
         timeline_segment_annotation_added = []
         for annotation in self.timelinesegmentannotation_set.all():
             timeline_segment_annotation_added.extend(
-                annotation.clone(new_timeline_segment_db)["timeline_segment_annotation_added"]
+                annotation.clone(new_timeline_segment_db)[
+                    "timeline_segment_annotation_added"
+                ]
             )
 
         return {
@@ -366,13 +404,17 @@ class TimelineSegmentAnnotation(models.Model):
             timeline_segment=timeline_segment,
             annotation=self.annotation,
         )
-        return {"timeline_segment_annotation_added": [new_timeline_segment_annotation_db]}
+        return {
+            "timeline_segment_annotation_added": [new_timeline_segment_annotation_db]
+        }
 
 
 class Shortcut(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE
+    )
     type = models.CharField(max_length=256, null=True)
     keys = models.JSONField(null=True)
     keys_string = models.CharField(max_length=256, null=True)
@@ -422,12 +464,15 @@ class AnnotationShortcut(models.Model):
             result["annotation_id"] = self.annotation.id.hex
         return result
 
+
 class ClusterTimelineItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plugin_run = models.ForeignKey(PluginRun, default=None, on_delete=models.CASCADE)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     cluster_id = models.UUIDField(null=True, blank=True)
-    timeline = models.ForeignKey(Timeline, on_delete=models.SET_NULL, null=True, blank=True)
+    timeline = models.ForeignKey(
+        Timeline, on_delete=models.SET_NULL, null=True, blank=True
+    )
     name = models.CharField(max_length=256)
 
     TYPE_FACE = "A"
@@ -450,14 +495,15 @@ class ClusterTimelineItem(models.Model):
             "cluster_id": self.cluster_id.hex,
         }
 
-        if (self.timeline):
+        if self.timeline:
             result["timeline"] = self.timeline.id.hex
-        
-        if (self.video):
+
+        if self.video:
             result["video"] = self.video.id.hex
 
         return result
-    
+
+
 class Face(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cti = models.ForeignKey(ClusterTimelineItem, on_delete=models.CASCADE)
@@ -476,11 +522,12 @@ class Face(models.Model):
             "face_ref": self.face_ref.hex,
             "embedding_index": self.embedding_index,
             "deleted": self.deleted,
-            "image_path": self.image_path
+            "image_path": self.image_path,
         }
 
         return result
-    
+
+
 class Place(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cti = models.ForeignKey(ClusterTimelineItem, on_delete=models.CASCADE)
@@ -499,7 +546,7 @@ class Place(models.Model):
             "place_ref": self.place_ref.hex,
             "embedding_index": self.embedding_index,
             "deleted": self.deleted,
-            "image_path": self.image_path
+            "image_path": self.image_path,
         }
 
         return result

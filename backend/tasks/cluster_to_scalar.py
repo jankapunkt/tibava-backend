@@ -1,34 +1,41 @@
 from typing import Dict, List
 import imageio.v3 as iio
+import json
+import os
+import numpy as np
 
-from analyser.data import DataManager
-from backend.models import PluginRun, PluginRunResult, Video, Timeline, TibavaUser
+from backend.models import (
+    ClusterTimelineItem,
+    Face,
+    PluginRun,
+    PluginRunResult,
+    Video,
+    TibavaUser,
+)
+
 from backend.plugin_manager import PluginManager
+from backend.utils import media_path_to_video
 
 from ..utils.analyser_client import TaskAnalyserClient
+from analyser.data import FaceClusterData, DataManager
 from backend.utils.parser import Parser
 from backend.utils.task import Task
-from analyser.data import ImageEmbedding, ImageEmbeddings
 from django.db import transaction
-
 from django.conf import settings
 
 
-@PluginManager.export_parser("insightface_identification")
-class InsightfaceIdentificationParser(Parser):
+@PluginManager.export_parser("cluster_to_scalar")
+class ClusterToScalarParser(Parser):
     def __init__(self):
         self.valid_parameter = {
-            "timeline": {"parser": str, "default": "Face Identification"},
-            "fps": {"parser": float, "default": 2},
-            "query_images": {"parser": str},
-            "normalize": {"parser": float, "default": 1},
-            "normalize_min_val": {"parser": float, "default": 0.3},
-            "normalize_max_val": {"parser": float, "default": 1.0},
+            "timeline": {"parser": str, "default": "Cluster Similarity"},
+            "cluster_id": {"parser": str},
+            "data_id": {"parser": str},
         }
 
 
-@PluginManager.export_plugin("insightface_identification")
-class InsightfaceIdentification(Task):
+@PluginManager.export_plugin("cluster_to_scalar")
+class ClusterToScalar(Task):
     def __init__(self):
         self.config = {
             "output_path": "/predictions/",
@@ -46,54 +53,30 @@ class InsightfaceIdentification(Task):
     ):
         # Debug
         # parameters["fps"] = 0.1
+        print("###############", flush=True)
+        print(parameters, flush=True)
 
         # check whether we compare by input embedding or input image
         manager = DataManager(self.config["output_path"])
+
+        selected_cluster = None
+        with manager.load(parameters.get("data_id")) as clusters_data:
+            for cluster in clusters_data.clusters:
+                if cluster.id == parameters.get("cluster_id"):
+                    selected_cluster = cluster
+
+        if cluster is None:
+            return
+
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
             port=self.config["analyser_port"],
             plugin_run_db=plugin_run,
             manager=manager,
         )
+
         # upload all data
         video_id = self.upload_video(client, video)
-
-        # query image path
-        if parameters.get("embedding_ref") == None:
-            # load query image
-            image_data = manager.create_data("ImagesData")
-            with image_data:
-                image_path = parameters.get("query_images")
-                image = iio.imread(image_path)
-                image_data.save_image(image)
-
-            query_image_id = client.upload_data(image_data)
-
-            # query image face detection
-            facedetection_result = self.run_analyser(
-                client,
-                "insightface_image_detector_torch",
-                inputs={"images": query_image_id},
-                outputs=["kpss", "faces"],
-            )
-
-            if facedetection_result is None:
-                raise Exception
-
-            # feature extraction of faces
-            query_image_feature_result = self.run_analyser(
-                client,
-                "insightface_image_feature_extractor",
-                inputs={
-                    "images": query_image_id,
-                    "kpss": facedetection_result[0]["kpss"],
-                    "faces": facedetection_result[0]["faces"],
-                },
-                outputs=["features"],
-            )
-
-            if query_image_feature_result is None:
-                raise Exception
 
         # face detection on video
         video_facedetection = self.run_analyser(

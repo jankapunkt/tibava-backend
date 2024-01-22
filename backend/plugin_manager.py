@@ -37,7 +37,13 @@ class PluginManager:
         return plugin in self._plugins
 
     def __call__(
-        self, plugin: str, video: Video, user: TibavaUser, parameters: List = None, run_async: bool = True, **kwargs
+        self,
+        plugin: str,
+        video: Video,
+        user: TibavaUser,
+        parameters: List = None,
+        run_async: bool = True,
+        **kwargs,
     ):
         if parameters is None:
             parameters = []
@@ -46,11 +52,18 @@ class PluginManager:
             print("Unknown Plugin")
             return {"status": False}
 
+        print(self._parser, flush=True)
+        print(parameters, flush=True)
+
         if plugin in self._parser:
             parameters = self._parser[plugin]()(parameters)
+        else:
+            parameters = {}
 
         result = {"status": True}
-        plugin_run = PluginRun.objects.create(video=video, type=plugin, status=PluginRun.STATUS_QUEUED)
+        plugin_run = PluginRun.objects.create(
+            video=video, type=plugin, status=PluginRun.STATUS_QUEUED
+        )
         if run_async:
             run_plugin.apply_async(
                 (
@@ -66,7 +79,9 @@ class PluginManager:
             )
         else:
             try:
-                plugin_result = self._plugins[plugin]()(parameters, user=user, video=video, plugin_run=plugin_run, **kwargs)
+                plugin_result = self._plugins[plugin]()(
+                    parameters, user=user, video=video, plugin_run=plugin_run, **kwargs
+                )
                 plugin_run.progress = 1.0
                 plugin_run.status = PluginRun.STATUS_DONE
                 plugin_run.save()
@@ -113,7 +128,9 @@ def run_plugin(self, args):
 
     plugin_manager = PluginManager()
     try:
-        plugin_manager._plugins[plugin]()(parameters, user=user_db, video=video_db, plugin_run=plugin_run_db, **kwargs)
+        plugin_manager._plugins[plugin]()(
+            parameters, user=user_db, video=video_db, plugin_run=plugin_run_db, **kwargs
+        )
         plugin_run_db.progress = 1.0
         plugin_run_db.status = PluginRun.STATUS_DONE
         plugin_run_db.save()
