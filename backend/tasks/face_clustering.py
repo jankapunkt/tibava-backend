@@ -178,10 +178,11 @@ class FaceClustering(Task):
                         _ = ClusterItem.objects.create(
                             cluster_timeline_item=cluster_timeline_item_db,
                             video=video,
-                            face_ref=embedding_face_lut[embedding_id],
+                            plugin_item_ref=embedding_face_lut[embedding_id],
                             embedding_index=face_index,
                             image_path=image_path,
                             plugin_run_result=plugin_run_result_db,
+                            type=ClusterItem.TYPE_FACE,
                         )
 
                 return {

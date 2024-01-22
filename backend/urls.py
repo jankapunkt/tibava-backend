@@ -21,38 +21,110 @@ urlpatterns = [
     path("plugin/list", views.PluginList.as_view(), name="plugin_list"),
     path("plugin/run/new", views.PluginRunNew.as_view(), name="plugin_run_new"),
     path("plugin/run/list", views.PluginRunList.as_view(), name="plugin_run_list"),
-    path("plugin/run/delete", views.PluginRunDelete.as_view(), name="plugin_run_delete"),
-    path("plugin/run/result/list", views.PluginRunResultList.as_view(), name="plugin_run_list"),
+    path(
+        "plugin/run/delete", views.PluginRunDelete.as_view(), name="plugin_run_delete"
+    ),
+    path(
+        "plugin/run/result/list",
+        views.PluginRunResultList.as_view(),
+        name="plugin_run_list",
+    ),
     #
-    path("clusterTimelineItem/create", views.ClusterTimelineItemCreate.as_view(), name="cluster_timeline_item_create"),
-    path("clusterTimelineItem/fetch", views.ClusterTimelineItemFetch.as_view(), name="cluster_timeline_item_fetch"),
-    path("clusterTimelineItem/rename", views.ClusterTimelineItemRename.as_view(), name="cluster_timeline_item_rename"),
-    path("clusterTimelineItem/setTimeline", views.ClusterTimelineItemSetTimeline.as_view(), name="cluster_timeline_item_set_timeline"),
-    path("clusterTimelineItem/delete", views.ClusterTimelineItemDelete.as_view(), name="cluster_timeline_item_delete"),
+    path(
+        "cluster/timeline/item/create",
+        views.ClusterTimelineItemCreate.as_view(),
+        name="cluster_timeline_item_create",
+    ),
+    path(
+        "cluster/timeline/item/fetch",
+        views.ClusterTimelineItemFetch.as_view(),
+        name="cluster_timeline_item_fetch",
+    ),
+    path(
+        "cluster/timeline/item/rename",
+        views.ClusterTimelineItemRename.as_view(),
+        name="cluster_timeline_item_rename",
+    ),
+    path(
+        "cluster/timeline/item/setTimeline",
+        views.ClusterTimelineItemSetTimeline.as_view(),
+        name="cluster_timeline_item_set_timeline",
+    ),
+    path(
+        "cluster/timeline/item/delete",
+        views.ClusterTimelineItemDelete.as_view(),
+        name="cluster_timeline_item_delete",
+    ),
     #
-    path("face/fetch", views.FaceFetch.as_view(), name="face_fetch"),
-    path("face/setDeleted", views.FaceSetDeleted.as_view(), name="face_set_deleted"),
-    #
-    path("place/fetch", views.PlaceFetch.as_view(), name="place_fetch"),
-    path("place/setDeleted", views.PlaceSetDeleted.as_view(), name="place_set_deleted"),
+    path(
+        "cluster/item/fetch",
+        views.ClusterItemFetch.as_view(),
+        name="cluster_item_fetch",
+    ),
+    path(
+        "cluster/item/setDeleted",
+        views.ClusterItemSetDeleted.as_view(),
+        name="cluster_item_set_deleted",
+    ),
     #
     path("timeline/list", views.TimelineList.as_view(), name="timeline_list"),
-    path("timeline/duplicate", views.TimelineDuplicate.as_view(), name="timeline_duplicate"),
-    path("timeline/rename", views.TimelineRename.as_view(), name="timeline_rename"),
-    path("timeline/setparent", views.TimelineSetParent.as_view(), name="timeline_setparent"),
-    path("timeline/setcollapse", views.TimelineSetCollapse.as_view(), name="timeline_setcollapse"),
-    path("timeline/setorder", views.TimelineSetOrder.as_view(), name="timeline_setorder"),
-    path("timeline/changevisualization", views.TimelineChangeVisualization.as_view(), name="timeline_change_visualization",
+    path(
+        "timeline/duplicate",
+        views.TimelineDuplicate.as_view(),
+        name="timeline_duplicate",
     ),
-    path("timeline/import/eaf", views.TimelineImportEAF.as_view(), name="timeline_import_eaf"),
+    path("timeline/rename", views.TimelineRename.as_view(), name="timeline_rename"),
+    path(
+        "timeline/setparent",
+        views.TimelineSetParent.as_view(),
+        name="timeline_setparent",
+    ),
+    path(
+        "timeline/setcollapse",
+        views.TimelineSetCollapse.as_view(),
+        name="timeline_setcollapse",
+    ),
+    path(
+        "timeline/setorder", views.TimelineSetOrder.as_view(), name="timeline_setorder"
+    ),
+    path(
+        "timeline/changevisualization",
+        views.TimelineChangeVisualization.as_view(),
+        name="timeline_change_visualization",
+    ),
+    path(
+        "timeline/import/eaf",
+        views.TimelineImportEAF.as_view(),
+        name="timeline_import_eaf",
+    ),
     path("timeline/delete", views.TimelineDelete.as_view(), name="timeline_delete"),
     path("timeline/create", views.TimelineCreate.as_view(), name="timeline_create"),
     #
-    path("timeline/segment/get", views.TimelineSegmentGet.as_view(), name="timeline_segment_get"),
-    path("timeline/segment/list", views.TimelineSegmentList.as_view(), name="timeline_segment_list"),
-    path("timeline/segment/merge", views.TimelineSegmentMerge.as_view(), name="timeline_segment_list"),
-    path("timeline/segment/split", views.TimelineSegmentSplit.as_view(), name="timeline_segment_list"),
-    path("timeline/segment/annotate", views.TimelineSegmentAnnotate.as_view(), name="timeline_segment_annotate"),
+    path(
+        "timeline/segment/get",
+        views.TimelineSegmentGet.as_view(),
+        name="timeline_segment_get",
+    ),
+    path(
+        "timeline/segment/list",
+        views.TimelineSegmentList.as_view(),
+        name="timeline_segment_list",
+    ),
+    path(
+        "timeline/segment/merge",
+        views.TimelineSegmentMerge.as_view(),
+        name="timeline_segment_list",
+    ),
+    path(
+        "timeline/segment/split",
+        views.TimelineSegmentSplit.as_view(),
+        name="timeline_segment_list",
+    ),
+    path(
+        "timeline/segment/annotate",
+        views.TimelineSegmentAnnotate.as_view(),
+        name="timeline_segment_annotate",
+    ),
     path(
         "timeline/segment/annotate/range",
         views.TimelineSegmentAnnotateRange.as_view(),
@@ -80,22 +152,56 @@ urlpatterns = [
         name="timeline_segment_annotation_delete",
     ),
     #
-    path("annotation/category/list", views.AnnoatationCategoryList.as_view(), name="annotation_category_list"),
-    path("annotation/category/create", views.AnnoatationCategoryCreate.as_view(), name="annotation_category_create"),
-    path("annotation/category/update", views.AnnoatationCategoryCreate.as_view(), name="annotation_category_create"),
-    path("annotation/category/delete", views.AnnoatationCategoryCreate.as_view(), name="annotation_category_create"),
+    path(
+        "annotation/category/list",
+        views.AnnoatationCategoryList.as_view(),
+        name="annotation_category_list",
+    ),
+    path(
+        "annotation/category/create",
+        views.AnnoatationCategoryCreate.as_view(),
+        name="annotation_category_create",
+    ),
+    path(
+        "annotation/category/update",
+        views.AnnoatationCategoryCreate.as_view(),
+        name="annotation_category_create",
+    ),
+    path(
+        "annotation/category/delete",
+        views.AnnoatationCategoryCreate.as_view(),
+        name="annotation_category_create",
+    ),
     #
     path("annotation/list", views.AnnoatationList.as_view(), name="annotation_list"),
-    path("annotation/create", views.AnnoatationCreate.as_view(), name="annotation_create"),
-    path("annotation/update", views.AnnoatationChange.as_view(), name="annotation_change"),
-    path("annotation/delete", views.AnnoatationChange.as_view(), name="annotation_change"),
+    path(
+        "annotation/create", views.AnnoatationCreate.as_view(), name="annotation_create"
+    ),
+    path(
+        "annotation/update", views.AnnoatationChange.as_view(), name="annotation_change"
+    ),
+    path(
+        "annotation/delete", views.AnnoatationChange.as_view(), name="annotation_change"
+    ),
     #
     path("shortcut/list", views.ShortcutList.as_view(), name="shortcut_list"),
     path("shortcut/create", views.ShortcutCreate.as_view(), name="shortcut_create"),
     #
-    path("annotation/shortcut/list", views.AnnotationShortcutList.as_view(), name="annotation_shortcut_list"),
-    path("annotation/shortcut/create", views.AnnotationShortcutCreate.as_view(), name="annotation_shortcut_create"),
-    path("annotation/shortcut/update", views.AnnotationShortcutUpdate.as_view(), name="annotation_shortcut_update"),
+    path(
+        "annotation/shortcut/list",
+        views.AnnotationShortcutList.as_view(),
+        name="annotation_shortcut_list",
+    ),
+    path(
+        "annotation/shortcut/create",
+        views.AnnotationShortcutCreate.as_view(),
+        name="annotation_shortcut_create",
+    ),
+    path(
+        "annotation/shortcut/update",
+        views.AnnotationShortcutUpdate.as_view(),
+        name="annotation_shortcut_update",
+    ),
     #
     # path("analyser/upload/file", views.AnalyserUploadFile.as_view(), name="analyser_upload_file"),
     # path("analyser/plugin/run", views.AnalyserPluginRun.as_view(), name="analyser_plugin_run"),

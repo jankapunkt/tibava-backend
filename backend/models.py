@@ -540,6 +540,7 @@ class ClusterItem(models.Model):
             "deleted": self.deleted,
             "image_path": self.image_path,
             "plugin_run_result_id": self.plugin_run_result.id.hex,
+            "type": self.TYPE[self.type],
         }
 
         return result
