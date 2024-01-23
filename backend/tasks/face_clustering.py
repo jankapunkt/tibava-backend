@@ -31,6 +31,7 @@ class FaceClusteringParser(Parser):
             "fps": {"parser": float, "default": 2.0},
             "max_cluster": {"parser": int, "default": 50},
             "max_samples_per_cluster": {"parser": int, "default": 30},
+            "min_face_height": {"parser": float, "default": 0.1},
         }
 
 
@@ -70,14 +71,26 @@ class FaceClustering(Task):
             "insightface_video_detector_torch",
             parameters={
                 "fps": parameters.get("fps"),
-                "min_facesize": parameters.get("min_facesize"),
             },
             inputs={"video": video_data_id},
+            outputs=["images", "kpss", "faces", "bboxes"],
+        )
+
+        if facedetector_result is None:
+            raise Exception
+
+        face_size_filter_result = self.run_analyser(
+            client,
+            "face_size_filter",
+            parameters={
+                "min_face_height": parameters.get("min_face_height"),
+            },
+            inputs=facedetector_result[0],
             outputs=["images", "kpss", "faces", "bboxes"],
             downloads=["images", "faces"],
         )
 
-        if facedetector_result is None:
+        if face_size_filter_result is None:
             raise Exception
 
         # create image embeddings
@@ -86,8 +99,8 @@ class FaceClustering(Task):
             "insightface_video_feature_extractor",
             inputs={
                 "video": video_data_id,
-                "kpss": facedetector_result[0]["kpss"],
-                "faces": facedetector_result[0]["faces"],
+                "kpss": face_size_filter_result[0]["kpss"],
+                "faces": face_size_filter_result[0]["faces"],
             },
             outputs=["features"],
             downloads=["features"],
@@ -131,7 +144,7 @@ class FaceClustering(Task):
             raise Exception
 
         # save thumbnails
-        with facedetector_result[1]["images"] as d:
+        with face_size_filter_result[1]["images"] as d:
             # extract thumbnails
             d.extract_all(manager)
 
@@ -152,14 +165,14 @@ class FaceClustering(Task):
 
                 _ = PluginRunResult.objects.create(
                     plugin_run=plugin_run,
-                    data_id=facedetector_result[1]["faces"].id,
+                    data_id=face_size_filter_result[1]["faces"].id,
                     name="faces",
                     type=PluginRunResult.TYPE_FACE,
                 )
 
                 _ = PluginRunResult.objects.create(
                     plugin_run=plugin_run,
-                    data_id=facedetector_result[1]["images"].id,
+                    data_id=face_size_filter_result[1]["images"].id,
                     name="images",
                     type=PluginRunResult.TYPE_IMAGES,
                 )
@@ -184,7 +197,7 @@ class FaceClustering(Task):
                     for face_index, embedding_id in enumerate(cluster.embedding_ids):
                         image = [
                             f
-                            for f in facedetector_result[1]["images"].images
+                            for f in face_size_filter_result[1]["images"].images
                             if f.ref_id == embedding_face_lut[embedding_id]
                         ][0]
                         image_path = os.path.join(
