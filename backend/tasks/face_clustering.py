@@ -106,10 +106,27 @@ class FaceClustering(Task):
             inputs={
                 "embeddings": image_feature_result[0]["features"],
             },
+            outputs=["cluster_data"],
             downloads=["cluster_data"],
         )
 
         if cluster_result is None:
+            raise Exception
+
+        # cluster filter top k clusters
+        cluster_filter_result = self.run_analyser(
+            client,
+            "cluster_size_filter",
+            parameters={
+                "max_cluster": parameters.get("max_cluster"),
+            },
+            inputs={
+                "clusters": cluster_result[0]["cluster_data"],
+            },
+            downloads=["clusters"],
+        )
+
+        if cluster_filter_result is None:
             raise Exception
 
         # save thumbnails
@@ -123,7 +140,7 @@ class FaceClustering(Task):
                 embedding_face_lut[embedding.id] = embedding.ref_id
 
         with transaction.atomic():
-            with cluster_result[1]["cluster_data"] as data:
+            with cluster_filter_result[1]["clusters"] as data:
                 # save cluster results
                 plugin_run_result_db = PluginRunResult.objects.create(
                     plugin_run=plugin_run,
@@ -189,7 +206,7 @@ class FaceClustering(Task):
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
                     "timelines": {},
-                    "data": {"cluster_data": cluster_result[1]["cluster_data"].id},
+                    "data": {"cluster_data": cluster_filter_result[1]["clusters"].id},
                 }
 
     def get_results(self, analyse):
