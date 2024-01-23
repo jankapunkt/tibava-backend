@@ -181,7 +181,7 @@ class FaceClustering(Task):
                     )
 
                     # create a face db item for every detected face
-                    for face_index, embedding_id in enumerate(cluster.object_refs):
+                    for face_index, embedding_id in enumerate(cluster.embedding_ids):
                         image = [
                             f
                             for f in facedetector_result[1]["images"].images

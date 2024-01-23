@@ -22,7 +22,17 @@ class ClusterItemFetch(View):
             video = Video.objects.get(id=request.GET.get("video_id"))
 
             logging.warning(f"ClusterItemFetch start {time.time() - start_time}")
-            for cluster_item in ClusterItem.objects.filter(video=video):
+
+            query_args = {}
+
+            for cluster_item in (
+                ClusterItem.objects.filter(video=video)
+                .prefetch_related("video")
+                .prefetch_related("plugin_run_result")
+                .prefetch_related("cluster_timeline_item")
+            ):
+                logging.warning(f"ClusterItemFetch step {time.time() - start_time}")
+
                 entries.append(cluster_item.to_dict())
 
             logging.warning(f"ClusterItemFetch end {time.time() - start_time}")

@@ -114,7 +114,7 @@ class ClusterToScalar(Task):
                 print(x.ref_id, flush=True)
                 if (
                     x.ref_id in cluster_items_ids
-                    and x.id in selected_cluster.object_refs
+                    and x.id in selected_cluster.embedding_ids
                 ):
                     cluster_feature.append(x.embedding)
 
