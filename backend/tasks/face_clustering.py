@@ -16,7 +16,7 @@ from backend.plugin_manager import PluginManager
 from backend.utils import media_path_to_video
 
 from ..utils.analyser_client import TaskAnalyserClient
-from analyser.data import FaceClusterData, DataManager
+from analyser.data import DataManager
 from backend.utils.parser import Parser
 from backend.utils.task import Task
 from django.db import transaction
@@ -30,7 +30,7 @@ class FaceClusteringParser(Parser):
             "cluster_threshold": {"parser": float, "default": 0.5},
             "fps": {"parser": float, "default": 2.0},
             "max_cluster": {"parser": int, "default": 50},
-            "max_faces": {"parser": int, "default": 50},
+            "max_samples_per_cluster": {"parser": int, "default": 30},
         }
 
 
@@ -102,6 +102,7 @@ class FaceClustering(Task):
             "clustering",
             parameters={
                 "cluster_threshold": parameters.get("cluster_threshold"),
+                "max_samples_per_cluster": parameters.get("max_samples_per_cluster"),
             },
             inputs={
                 "embeddings": image_feature_result[0]["features"],

@@ -1,6 +1,8 @@
 import logging
 import traceback
 import json
+import time
+
 
 from django.views import View
 from django.http import JsonResponse
@@ -15,10 +17,15 @@ class ClusterItemFetch(View):
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error_user_auth"})
 
+            start_time = time.time()
             entries = []
             video = Video.objects.get(id=request.GET.get("video_id"))
+
+            logging.warning(f"ClusterItemFetch start {time.time() - start_time}")
             for cluster_item in ClusterItem.objects.filter(video=video):
                 entries.append(cluster_item.to_dict())
+
+            logging.warning(f"ClusterItemFetch end {time.time() - start_time}")
 
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
