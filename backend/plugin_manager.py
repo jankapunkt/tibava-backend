@@ -1,11 +1,15 @@
 import logging
 import traceback
 import sys
+import os
+import json
 from typing import List
 
 from celery import shared_task
-from backend.models import PluginRun, Video, TibavaUser
+from backend.models import PluginRun, Video, TibavaUser, PluginRunResult
+from analyser.data import DataManager
 
+from django.conf import settings
 
 # class PluginRunResults(datacla):
 
@@ -85,6 +89,13 @@ class PluginManager:
                 plugin_run.progress = 1.0
                 plugin_run.status = PluginRun.STATUS_DONE
                 plugin_run.save()
+
+                # Create cache files for all plugin run results.
+                manager = DataManager("/predictions/")
+
+                generate_plugin_run_result_cache(
+                    manager, plugin_result.get("plugin_run_results", [])
+                )
                 if plugin_result:
                     result["result"] = plugin_result
 
@@ -105,6 +116,44 @@ class PluginManager:
         if not hasattr(analyser, "get_results"):
             return {}
         return analyser.get_results(analyse)
+
+
+def generate_plugin_run_result_cache(
+    data_manager, plugin_run_result: List[str]
+) -> None:
+    for plugin_run_result_id in plugin_run_result:
+        x = PluginRunResult.objects.get(id=plugin_run_result_id)
+        # print("B", flush=True)
+        cache_path = os.path.join(settings.DATA_CACHE_ROOT, f"{x.id}.json")
+        # print("C", flush=True)
+        # print(cache_path, flush=True)
+        cached = False
+        try:
+            if os.path.exists(cache_path):
+                with open(cache_path, "r") as f:
+                    cached = True
+        except Exception as e:
+            logging.error(f"Cache couldn't read {e}")
+        if cached:
+            continue
+        # print(f"x {x}")
+        # TODO fix me
+        data = data_manager.load(x.data_id)
+        if data is None:
+            continue
+        # print(data)
+        with data:
+            result_dict = {**x.to_dict(), "data": data.to_dict()}
+            try:
+                with open(cache_path, "w") as f:
+                    json.dump(result_dict, f)
+                    print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+", flush=True)
+                    print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+", flush=True)
+                    print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+", flush=True)
+                    print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+", flush=True)
+                    print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+ {x.id}", flush=True)
+            except Exception as e:
+                logging.error(f"Cache couldn't write {e}")
 
 
 @shared_task(bind=True)
@@ -128,12 +177,21 @@ def run_plugin(self, args):
 
     plugin_manager = PluginManager()
     try:
-        plugin_manager._plugins[plugin]()(
+        plugin_result = plugin_manager._plugins[plugin]()(
             parameters, user=user_db, video=video_db, plugin_run=plugin_run_db, **kwargs
         )
+
+        # Create cache files for all plugin run results.
+        manager = DataManager("/predictions/")
+
+        generate_plugin_run_result_cache(
+            manager, plugin_result.get("plugin_run_results", [])
+        )
+
         plugin_run_db.progress = 1.0
         plugin_run_db.status = PluginRun.STATUS_DONE
         plugin_run_db.save()
+
         return
 
     except Exception as e:

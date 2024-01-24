@@ -163,21 +163,21 @@ class FaceClustering(Task):
                     type=PluginRunResult.TYPE_CLUSTER,
                 )
 
-                _ = PluginRunResult.objects.create(
+                plugin_run_result_faces_db = PluginRunResult.objects.create(
                     plugin_run=plugin_run,
                     data_id=face_size_filter_result[1]["faces"].id,
                     name="faces",
                     type=PluginRunResult.TYPE_FACE,
                 )
 
-                _ = PluginRunResult.objects.create(
+                plugin_run_result_images_db = PluginRunResult.objects.create(
                     plugin_run=plugin_run,
                     data_id=face_size_filter_result[1]["images"].id,
                     name="images",
                     type=PluginRunResult.TYPE_IMAGES,
                 )
 
-                _ = PluginRunResult.objects.create(
+                plugin_run_result_features_db = PluginRunResult.objects.create(
                     plugin_run=plugin_run,
                     data_id=image_feature_result[1]["features"].id,
                     name="features",
@@ -218,9 +218,14 @@ class FaceClustering(Task):
 
                 return {
                     "plugin_run": plugin_run.id.hex,
-                    "plugin_run_results": [plugin_run_result_db.id.hex],
+                    "plugin_run_results": [
+                        plugin_run_result_db.id.hex,
+                        plugin_run_result_faces_db.id.hex,
+                        plugin_run_result_images_db.id.hex,
+                        plugin_run_result_features_db.id.hex,
+                    ],
                     "timelines": {},
-                    "data": {"cluster_data": cluster_filter_result[1]["clusters"].id},
+                    "data": {"clusters": cluster_filter_result[1]["clusters"].id},
                 }
 
     def get_results(self, analyse):
