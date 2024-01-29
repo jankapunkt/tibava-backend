@@ -97,7 +97,7 @@ class VideoUpload(View):
                         "entries": [
                             {
                                 "id": video_id,
-                                **meta,
+                                **video_db.to_dict(),
                                 "url": media_url_to_video(video_id, meta["ext"]),
                             }
                         ],
