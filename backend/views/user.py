@@ -82,6 +82,8 @@ def login(request):
                     "username": user.get_username(),
                     "email": user.email,
                     "date": user.date_joined,
+                    "allowance": user.allowance,
+                    "max_video_size": user.max_video_size,
                 },
             }
         )
