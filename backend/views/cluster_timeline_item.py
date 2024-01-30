@@ -6,8 +6,11 @@ import uuid
 from django.views import View
 from django.http import JsonResponse
 
-
 from backend.models import ClusterTimelineItem, Timeline, Video
+
+
+logger = logging.getLogger(__name__)
+
 
 class ClusterTimelineItemCreate(View):
     def post(self, request):
@@ -44,7 +47,7 @@ class ClusterTimelineItemCreate(View):
 
             return JsonResponse({"status": "ok", "entry": cluster_timeline_item.to_dict()})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error", "type" : "general"})
         
 class ClusterTimelineItemDelete(View):
@@ -66,7 +69,7 @@ class ClusterTimelineItemDelete(View):
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error", "type": "delete_op"})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 class ClusterTimelineItemSetTimeline(View):
@@ -99,7 +102,7 @@ class ClusterTimelineItemSetTimeline(View):
             
             return JsonResponse({"status": "ok", "entry": cti.to_dict()})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error_cti_set_timeline"})
 
 
@@ -136,7 +139,7 @@ class ClusterTimelineItemRename(View):
             cti.save()
             return JsonResponse({"status": "ok", "entry": cti.to_dict()})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 class ClusterTimelineItemFetch(View):
@@ -151,5 +154,5 @@ class ClusterTimelineItemFetch(View):
                 entries.append(cti.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

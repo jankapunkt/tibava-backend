@@ -5,8 +5,10 @@ import traceback
 from django.views import View
 from django.http import JsonResponse
 
-
 from backend.models import Video, Timeline, TimelineSegment
+
+
+logger = logging.getLogger(__name__)
 
 
 class TimelineList(View):
@@ -36,7 +38,7 @@ class TimelineList(View):
                 entries.append(result)
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -80,7 +82,7 @@ class TimelineDuplicate(View):
                 }
             )
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -131,7 +133,7 @@ class TimelineCreate(View):
                 }
             )
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -166,7 +168,7 @@ class TimelineRename(View):
             timeline_db.save()
             return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -212,7 +214,7 @@ class TimelineChangeVisualization(View):
             timeline_db.save()
             return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -252,7 +254,7 @@ class TimelineSetParent(View):
             timeline_db.save()
             return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -286,7 +288,7 @@ class TimelineSetCollapse(View):
             timeline_db.save()
             return JsonResponse({"status": "ok"})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -319,7 +321,7 @@ class TimelineSetOrder(View):
                 timeline_db.save()
             return JsonResponse({"status": "ok"})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -342,5 +344,5 @@ class TimelineDelete(View):
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

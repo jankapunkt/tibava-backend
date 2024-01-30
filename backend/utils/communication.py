@@ -8,6 +8,9 @@ from typing import Optional, Tuple
 import grpc
 
 
+logger = logging.getLogger(__name__)
+
+
 class SleepingPolicy(abc.ABC):
     @abc.abstractmethod
     def sleep(self, try_i: int):
@@ -27,7 +30,7 @@ class ExponentialBackoff(SleepingPolicy):
     def sleep(self, try_i: int):
         sleep_range = min(self.init_backoff * self.multiplier ** try_i, self.max_backoff)
         sleep_ms = randint(0, sleep_range)
-        logging.debug(f"Sleeping for {sleep_ms}")
+        logger.debug(f"Sleeping for {sleep_ms}")
         time.sleep(sleep_ms / 1000)
 
 

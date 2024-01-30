@@ -9,6 +9,10 @@ from django.http import JsonResponse
 
 from backend.models import Annotation, AnnotationCategory, Video
 
+
+logger = logging.getLogger(__name__)
+
+
 # from django.core.exceptions import BadRequest
 class AnnoatationCreate(View):
     def post(self, request):
@@ -59,7 +63,7 @@ class AnnoatationCreate(View):
 
             return JsonResponse({"status": "ok", "entry": annotation_db.to_dict()})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -103,7 +107,7 @@ class AnnoatationChange(View):
 
             return JsonResponse({"status": "ok"})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -128,5 +132,5 @@ class AnnoatationList(View):
                 entries.append(annotation.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

@@ -9,9 +9,11 @@ from django.conf import settings
 
 # from django.core.exceptions import BadRequest
 
-
 from backend.models import Video, PluginRun
 from backend.plugin_manager import PluginManager
+
+
+logger = logging.getLogger(__name__)
 
 
 class PluginList(View):
@@ -39,5 +41,5 @@ class PluginList(View):
 
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

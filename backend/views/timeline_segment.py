@@ -23,15 +23,17 @@ import time
 
 # from django.core.exceptions import BadRequest
 
-
 from backend.models import AnnotationCategory, Annotation, TimelineSegment, TimelineSegmentAnnotation, Timeline
+
+
+logger = logging.getLogger(__name__)
 
 
 class TimelineSegmentAnnotate(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
-                logging.error("TimelineSegmentAnnotate::not_authenticated")
+                logger.error("TimelineSegmentAnnotate::not_authenticated")
                 return JsonResponse({"status": "error"})
 
             try:
@@ -131,7 +133,7 @@ class TimelineSegmentAnnotate(View):
                 }
             )
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -139,7 +141,7 @@ class TimelineSegmentAnnotateRange(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
-                logging.error("VideoUpload::not_authenticated")
+                logger.error("VideoUpload::not_authenticated")
                 return JsonResponse({"status": "error"})
 
             try:
@@ -287,7 +289,7 @@ class TimelineSegmentAnnotateRange(View):
                 }
             )
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -314,7 +316,7 @@ class TimelineSegmentGet(View):
                 entries.append(segment.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -342,7 +344,7 @@ class TimelineSegmentList(View):
                 entries.append(segment.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -350,7 +352,7 @@ class TimelineSegmentMerge(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
-                logging.error("VideoUpload::not_authenticated")
+                logger.error("VideoUpload::not_authenticated")
                 return JsonResponse({"status": "error"})
 
             try:
@@ -430,7 +432,7 @@ class TimelineSegmentMerge(View):
                 }
             )
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -506,7 +508,7 @@ class TimelineSegmentSplit(View):
                 }
             )
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -527,5 +529,5 @@ class TimelineSegmentSplit(View):
 #                 return JsonResponse({"status": "ok"})
 #             return JsonResponse({"status": "error"})
 #         except Exception as e:
-#             logging.error(traceback.format_exc())
+#             logger.error(traceback.format_exc())
 #             return JsonResponse({"status": "error"})

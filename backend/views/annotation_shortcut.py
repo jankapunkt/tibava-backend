@@ -9,6 +9,9 @@ from numpy import isin
 
 from backend.models import AnnotationShortcut, Shortcut, Video, Annotation
 
+logger = logging.getLogger(__name__)
+
+
 # from django.core.exceptions import BadRequest
 class AnnotationShortcutCreate(View):
     def post(self, request):
@@ -49,7 +52,7 @@ class AnnotationShortcutCreate(View):
                 shortcut_db = AnnotationShortcut.objects.create(**create_args)
             return JsonResponse({"status": "ok", "entry": shortcut_db.to_dict()})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -144,7 +147,7 @@ class AnnotationShortcutUpdate(View):
             )
 
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -166,5 +169,5 @@ class AnnotationShortcutList(View):
                 entries.append(shortcut.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

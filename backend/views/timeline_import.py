@@ -14,6 +14,9 @@ from backend.utils import download_file
 from backend.models import Timeline, TimelineSegment, TimelineSegmentAnnotation, Video, Annotation
 
 
+logger = logging.getLogger(__name__)
+
+
 def time_to_string(sec, loc="en"):
     sec, sec_frac = divmod(sec, 1)
     min, sec = divmod(sec, 60)
@@ -33,11 +36,11 @@ class TimelineImportEAF(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
-                logging.error("TimelineImportEAF::not_authenticated")
+                logger.error("TimelineImportEAF::not_authenticated")
                 return JsonResponse({"status": "error"})
 
             if request.method != "POST":
-                logging.error("TimelineImportEAF::wrong_method")
+                logger.error("TimelineImportEAF::wrong_method")
                 return JsonResponse({"status": "error"})
 
             upload_id = uuid.uuid4().hex
@@ -59,7 +62,7 @@ class TimelineImportEAF(View):
                 )
 
                 if download_result["status"] != "ok":
-                    logging.error("TimelineImportEAF::download_failed")
+                    logger.error("TimelineImportEAF::download_failed")
                     return JsonResponse(download_result)
 
                 print(download_result, flush=True)
@@ -95,7 +98,7 @@ class TimelineImportEAF(View):
 
         except Exception as e:
             print(e, flush=True)
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
     def import_timelines_from_eaf(self, xmlfile):
@@ -110,7 +113,7 @@ class TimelineImportEAF(View):
         for timeslot in root.findall("TIME_ORDER/TIME_SLOT"):
             timeslots[timeslot.attrib["TIME_SLOT_ID"]] = timeslot.attrib
 
-        logging.debug(timeslots)
+        logger.debug(timeslots)
 
         # findall timelines
         timelines = []
@@ -129,6 +132,6 @@ class TimelineImportEAF(View):
                     annotations += 1
             timelines.append({"name": timeline.attrib["TIER_ID"], "segments": timeline_segments})
 
-        logging.debug(timelines)
-        logging.info(f"{len(timelines)} timelines with {annotations} annotations found!")
+        logger.debug(timelines)
+        logger.info(f"{len(timelines)} timelines with {annotations} annotations found!")
         return timelines

@@ -24,20 +24,22 @@ from django.conf import settings
 
 # from django.core.exceptions import BadRequest
 
-
 from backend.models import Video, PluginRun
 from backend.plugin_manager import PluginManager
+
+
+logger = logging.getLogger(__name__)
 
 
 class PluginRunNew(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
-                logging.error("PluginRunNew::not_authenticated")
+                logger.error("PluginRunNew::not_authenticated")
                 return JsonResponse({"status": "error"})
 
             if request.method != "POST":
-                logging.error("PluginRunNew::wrong_method")
+                logger.error("PluginRunNew::wrong_method")
                 return JsonResponse({"status": "error"})
 
             output_dir = tempfile.mkdtemp(dir="/tmp")
@@ -127,7 +129,7 @@ class PluginRunNew(View):
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error", "type": "plugin_not_started"})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -135,11 +137,11 @@ class PluginRunDelete(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
-                logging.error("PluginRunNew::not_authenticated")
+                logger.error("PluginRunNew::not_authenticated")
                 return JsonResponse({"status": "error"})
 
             if request.method != "POST":
-                logging.error("PluginRunNew::wrong_method")
+                logger.error("PluginRunNew::wrong_method")
                 return JsonResponse({"status": "error"})
 
             try:
@@ -165,7 +167,7 @@ class PluginRunDelete(View):
 
             return JsonResponse({"status": "ok", "deleted_items": response})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -174,7 +176,7 @@ class PluginRunList(View):
 
         start = time.time()
         if not request.user.is_authenticated:
-            logging.error("PluginRunNew::not_authenticated")
+            logger.error("PluginRunNew::not_authenticated")
             return JsonResponse({"status": "error"})
 
         plugin_manager = PluginManager()
@@ -208,5 +210,5 @@ class PluginRunList(View):
             print(f"[PluginRunList] 2 {end - start}", flush=True)
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

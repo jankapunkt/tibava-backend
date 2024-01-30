@@ -14,6 +14,9 @@ from django.conf import settings
 # class PluginRunResults(datacla):
 
 
+logger = logging.getLogger(__name__)
+
+
 class PluginManager:
     _plugins = {}
     _parser = {}
@@ -100,7 +103,7 @@ class PluginManager:
                     result["result"] = plugin_result
 
             except Exception as e:
-                logging.error(f"{plugin} {e}")
+                logger.error(f"{plugin} {e}")
                 plugin_run.status = PluginRun.STATUS_ERROR
                 plugin_run.save()
                 result["status"] = False
@@ -133,7 +136,7 @@ def generate_plugin_run_result_cache(
                 with open(cache_path, "r") as f:
                     cached = True
         except Exception as e:
-            logging.error(f"Cache couldn't read {e}")
+            logger.error(f"Cache couldn't read {e}")
         if cached:
             continue
         # print(f"x {x}")
@@ -153,7 +156,7 @@ def generate_plugin_run_result_cache(
                     print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+", flush=True)
                     print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+ {x.id}", flush=True)
             except Exception as e:
-                logging.error(f"Cache couldn't write {e}")
+                logger.error(f"Cache couldn't write {e}")
 
 
 @shared_task(bind=True)
@@ -170,7 +173,7 @@ def run_plugin(self, args):
     plugin_run_db = PluginRun.objects.get(id=plugin_run)
     # this job is already started in another jobqueue https://github.com/celery/celery/issues/4400
     if plugin_run_db.in_scheduler:
-        logging.warning("Job was rescheduled and will be canceled")
+        logger.warning("Job was rescheduled and will be canceled")
         return
     plugin_run_db.in_scheduler = True
     plugin_run_db.save()
@@ -195,7 +198,7 @@ def run_plugin(self, args):
         return
 
     except Exception as e:
-        logging.error(f"{plugin}: {e}")
+        logger.error(f"{plugin}: {e}")
         exc_type, exc_value, exc_traceback = sys.exc_info()
 
         traceback.print_exception(

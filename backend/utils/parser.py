@@ -2,6 +2,9 @@ import logging
 from typing import Dict, List
 
 
+logger = logging.getLogger(__name__)
+
+
 class Parser:
     def __init__(self):
         self.valid_parameter = {}
@@ -17,7 +20,7 @@ class Parser:
 
         for p in parameters:
             if p["name"] not in self.valid_parameter:
-                logging.error(f"[Parser] {p['name']} unknown")
+                logger.error(f"[Parser] {p['name']} unknown")
                 return None
 
             try:
@@ -30,13 +33,13 @@ class Parser:
                 task_parameter[p["name"]] = value
 
             except Exception as e:
-                logging.error(f"[Parser] {p['name']} could not parse ({e})")
+                logger.error(f"[Parser] {p['name']} could not parse ({e})")
                 return None
         print(f"Task Parameter {task_parameter}", flush=True)
         for k, v in self.valid_parameter.items():
             if v.get("required", None):
                 if k not in task_parameter:
-                    logging.error(f"[Parser] {k} is required")
+                    logger.error(f"[Parser] {k} is required")
                     return None
 
         return task_parameter

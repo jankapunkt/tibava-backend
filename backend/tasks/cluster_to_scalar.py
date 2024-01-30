@@ -26,6 +26,9 @@ from django.db import transaction
 from django.conf import settings
 
 
+logger = logging.getLogger(__name__)
+
+
 @PluginManager.export_parser("cluster_to_scalar")
 class ClusterToScalarParser(Parser):
     def __init__(self):
@@ -72,7 +75,7 @@ class ClusterToScalar(Task):
                 clustering_plugin_run_result_db = x.plugin_run_result
 
             if clustering_plugin_run_result_db.id != x.plugin_run_result.id:
-                logging.error(
+                logger.error(
                     f"Found different plugin_run_result {x.plugin_run_result.id} in cluster_to_scalar"
                 )
                 return None

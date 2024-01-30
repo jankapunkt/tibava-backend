@@ -10,6 +10,9 @@ from backend.models import PluginRun
 from backend.utils import RetryOnRpcErrorClientInterceptor, ExponentialBackoff
 
 
+logger = logging.getLogger(__name__)
+
+
 def analyser_status_to_task_status(analyser_status):
     if analyser_status == analyser_pb2.GetPluginStatusResponse.WAITING:
         return PluginRun.STATUS_WAITING
@@ -56,7 +59,7 @@ class TaskAnalyserClient(AnalyserClient):
         try:
             return super().list_plugins(*args, **kwargs)
         except grpc.RpcError as rpc_error:
-            logging.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
+            logger.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
             if plugin_run_db:
                 plugin_run_db.status = PluginRun.STATUS_ERROR
                 plugin_run_db.save()
@@ -67,7 +70,7 @@ class TaskAnalyserClient(AnalyserClient):
         try:
             return super().upload_data(*args, **kwargs)
         except grpc.RpcError as rpc_error:
-            logging.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
+            logger.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
             if plugin_run_db:
                 plugin_run_db.status = PluginRun.STATUS_ERROR
                 plugin_run_db.save()
@@ -78,7 +81,7 @@ class TaskAnalyserClient(AnalyserClient):
         try:
             return super().upload_file(*args, **kwargs)
         except grpc.RpcError as rpc_error:
-            logging.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
+            logger.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
             if plugin_run_db:
                 plugin_run_db.status = PluginRun.STATUS_ERROR
                 plugin_run_db.save()
@@ -89,7 +92,7 @@ class TaskAnalyserClient(AnalyserClient):
         try:
             return super().run_plugin(*args, **kwargs)
         except grpc.RpcError as rpc_error:
-            logging.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
+            logger.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
             if plugin_run_db:
                 plugin_run_db.status = PluginRun.STATUS_ERROR
                 plugin_run_db.save()
@@ -100,7 +103,7 @@ class TaskAnalyserClient(AnalyserClient):
         try:
             return super().get_plugin_status(*args, **kwargs)
         except grpc.RpcError as rpc_error:
-            logging.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
+            logger.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
             if plugin_run_db:
                 plugin_run_db.status = PluginRun.STATUS_ERROR
                 plugin_run_db.save()
@@ -111,7 +114,7 @@ class TaskAnalyserClient(AnalyserClient):
         try:
             return super().download_data(*args, **kwargs)
         except grpc.RpcError as rpc_error:
-            logging.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
+            logger.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
             if plugin_run_db:
                 plugin_run_db.status = PluginRun.STATUS_ERROR
                 plugin_run_db.save()
@@ -122,7 +125,7 @@ class TaskAnalyserClient(AnalyserClient):
         try:
             return super().download_data_to_blob(*args, **kwargs)
         except grpc.RpcError as rpc_error:
-            logging.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
+            logger.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
             if plugin_run_db:
                 plugin_run_db.status = PluginRun.STATUS_ERROR
                 plugin_run_db.save()
@@ -142,7 +145,7 @@ class TaskAnalyserClient(AnalyserClient):
         while True:
             if timeout:
                 if time.time() - start_time > timeout:
-                    logging.error(f"Timeout")
+                    logger.error(f"Timeout")
                     if plugin_run_db:
                         plugin_run_db.status = PluginRun.STATUS_ERROR
                         plugin_run_db.save()
@@ -150,14 +153,14 @@ class TaskAnalyserClient(AnalyserClient):
             try:
                 result = self.get_plugin_status(job_id)
             except grpc.RpcError as rpc_error:
-                logging.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
+                logger.error(f"GRPC error: code={rpc_error.code()} message={rpc_error.details()}")
                 if plugin_run_db:
                     plugin_run_db.status = PluginRun.STATUS_ERROR
                     plugin_run_db.save()
 
                 return None
             if result is None:
-                logging.error(f"GRPC error: not valid return Code")
+                logger.error(f"GRPC error: not valid return Code")
                 if plugin_run_db:
                     plugin_run_db.status = PluginRun.STATUS_ERROR
                     plugin_run_db.save()
@@ -173,14 +176,14 @@ class TaskAnalyserClient(AnalyserClient):
                 plugin_run_db.save()
 
             if result.status == analyser_pb2.GetPluginStatusResponse.UNKNOWN:
-                logging.error("Job is unknown by the analyser")
+                logger.error("Job is unknown by the analyser")
                 return
             elif result.status == analyser_pb2.GetPluginStatusResponse.WAITING:
                 pass
             elif result.status == analyser_pb2.GetPluginStatusResponse.RUNNING:
                 pass
             elif result.status == analyser_pb2.GetPluginStatusResponse.ERROR:
-                logging.error("Job is crashing")
+                logger.error("Job is crashing")
                 return
             elif result.status == analyser_pb2.GetPluginStatusResponse.DONE:
                 break

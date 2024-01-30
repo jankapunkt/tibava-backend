@@ -32,7 +32,7 @@
 #     def post(self, request):
 #         try:
 #             if request.method != "POST":
-#                 logging.error("AnalyserUploadFile::wrong_method")
+#                 logger.error("AnalyserUploadFile::wrong_method")
 #                 return JsonResponse({"status": "error"})
 #             tempdir = tempfile.mkdtemp()
 
@@ -50,7 +50,7 @@
 #                 )
 
 #                 if download_result["status"] != "ok":
-#                     logging.error("AnalyserUploadFile::download_failed")
+#                     logger.error("AnalyserUploadFile::download_failed")
 #                     return JsonResponse(download_result)
 
 #                 client = AnalyserClient(self.config["analyser_host"], self.config["analyser_port"])
@@ -65,7 +65,7 @@
 
 #         except Exception as e:
 #             print(e, flush=True)
-#             logging.error(traceback.format_exc())
+#             logger.error(traceback.format_exc())
 #             return JsonResponse({"status": "error"})
 
 #     @classmethod
@@ -85,7 +85,7 @@
 #         print(request.POST)
 #         try:
 #             if request.method != "POST":
-#                 logging.error("AnalyserUploadFile::wrong_method")
+#                 logger.error("AnalyserUploadFile::wrong_method")
 #                 return JsonResponse({"status": "error"})
 
 #             try:
@@ -109,7 +109,7 @@
 
 #         except Exception as e:
 #             print(e, flush=True)
-#             logging.error(traceback.format_exc())
+#             logger.error(traceback.format_exc())
 #             return JsonResponse({"status": "error"})
 
 #     @classmethod
@@ -129,7 +129,7 @@
 #         print(request.POST)
 #         try:
 #             if request.method != "POST":
-#                 logging.error("AnalyserUploadFile::wrong_method")
+#                 logger.error("AnalyserUploadFile::wrong_method")
 #                 return JsonResponse({"status": "error"})
 
 #             try:
@@ -161,7 +161,7 @@
 
 #         except Exception as e:
 #             print(e, flush=True)
-#             logging.error(traceback.format_exc())
+#             logger.error(traceback.format_exc())
 #             return JsonResponse({"status": "error"})
 
 #     @classmethod
@@ -181,7 +181,7 @@
 #         print(request.POST)
 #         try:
 #             if request.method != "POST":
-#                 logging.error("AnalyserUploadFile::wrong_method")
+#                 logger.error("AnalyserUploadFile::wrong_method")
 #                 return JsonResponse({"status": "error"})
 
 #             try:
@@ -211,7 +211,7 @@
 
 #         except Exception as e:
 #             print(e, flush=True)
-#             logging.error(traceback.format_exc())
+#             logger.error(traceback.format_exc())
 #             return JsonResponse({"status": "error"})
 
 #     @classmethod

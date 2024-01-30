@@ -11,6 +11,9 @@ from django.http import JsonResponse
 from backend.models import ClusterItem, Video
 
 
+logger = logging.getLogger(__name__)
+
+
 class ClusterItemFetch(View):
     def get(self, request):
         try:
@@ -21,7 +24,7 @@ class ClusterItemFetch(View):
             entries = []
             video = Video.objects.get(id=request.GET.get("video_id"))
 
-            logging.warning(f"ClusterItemFetch start {time.time() - start_time}")
+            logger.warning(f"ClusterItemFetch start {time.time() - start_time}")
 
             query_args = {}
 
@@ -31,15 +34,15 @@ class ClusterItemFetch(View):
                 .prefetch_related("plugin_run_result")
                 .prefetch_related("cluster_timeline_item")
             ):
-                logging.warning(f"ClusterItemFetch step {time.time() - start_time}")
+                logger.warning(f"ClusterItemFetch step {time.time() - start_time}")
 
                 entries.append(cluster_item.to_dict())
 
-            logging.warning(f"ClusterItemFetch end {time.time() - start_time}")
+            logger.warning(f"ClusterItemFetch end {time.time() - start_time}")
 
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -88,7 +91,7 @@ class ClusterItemSetDeleted(View):
             return JsonResponse({"status": "ok", "entries": plugin_item_ref_list})
 
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error_cluster_item_set_deleted"})
 
         import logging

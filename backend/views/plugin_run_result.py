@@ -7,20 +7,21 @@ import traceback
 from django.views import View
 from django.http import JsonResponse
 from django.conf import settings
-
 # from django.core.exceptions import BadRequest
-
 
 from backend.models import PluginRunResult, Video, PluginRun
 from backend.plugin_manager import PluginManager
 from analyser.data import DataManager
 
 
+logger = logging.getLogger(__name__)
+
+
 class PluginRunResultList(View):
     def get(self, request):
         start_time = time.time()
         if not request.user.is_authenticated:
-            logging.error("PluginRunResultList::not_authenticated")
+            logger.error("PluginRunResultList::not_authenticated")
             return JsonResponse({"status": "error"})
 
         # analyser = Analyser()
@@ -70,7 +71,7 @@ class PluginRunResultList(View):
                                 entries.append(json.load(f))
                                 cached = True
                     except Exception as e:
-                        logging.error(f"Cache couldn't read {e}")
+                        logger.error(f"Cache couldn't read {e}")
                     if cached:
                         continue
                     # print(f"x {x}")
@@ -86,15 +87,15 @@ class PluginRunResultList(View):
                             with open(cache_path, "w") as f:
                                 json.dump(result_dict, f)
                         except Exception as e:
-                            logging.error(f"Cache couldn't write {e}")
+                            logger.error(f"Cache couldn't write {e}")
 
                         entries.append(result_dict)
 
             else:
                 entries = [x.to_dict() for x in analyses]
             print(f"\t\t {[x['id'] for x in entries]}")
-            logging.warning(f"PluginRunResultList {time.time() - start_time}")
+            logger.warning(f"PluginRunResultList {time.time() - start_time}")
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

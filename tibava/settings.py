@@ -36,6 +36,38 @@ ALLOWED_HOSTS = [
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': {
+        'verbose': {
+            'format': '[%(asctime)s][%(levelname)s][%(name)s.%(funcName)s:%(lineno)d] %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        }
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'backend': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False
+        },
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False
+        },
+    }
+}
 
 INSTALLED_APPS = [
     "corsheaders",

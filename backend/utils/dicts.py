@@ -2,6 +2,9 @@ import logging
 import json
 
 
+logger = logging.getLogger(__name__)
+
+
 def unflat_dict(data_dict, parse_json=False):
     result_map = {}
     if parse_json:
@@ -32,7 +35,7 @@ def flat_dict(data_dict, parse_json=False):
             for s_k, s_v in embedded.items():
                 s_k = f"{k}.{s_k}"
                 if s_k in result_map:
-                    logging.error(f"flat_dict: {s_k} alread exist in output dict")
+                    logger.error(f"flat_dict: {s_k} alread exist in output dict")
 
                 result_map[s_k] = s_v
             continue
@@ -54,7 +57,7 @@ def flat_dict(data_dict, parse_json=False):
             for s_k, s_v in embedded.items():
                 s_k = f"{k}.{s_k}"
                 if s_k in result_map:
-                    logging.error(f"flat_dict: {s_k} alread exist in output dict")
+                    logger.error(f"flat_dict: {s_k} alread exist in output dict")
 
                 result_map[s_k] = s_v
             continue

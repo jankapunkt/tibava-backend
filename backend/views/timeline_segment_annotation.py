@@ -21,10 +21,14 @@ from backend.utils import download_url, download_file, media_url_to_video
 from django.views import View
 from django.http import HttpResponse, JsonResponse
 from django.conf import settings
+# from django.core.exceptions import BadRequest
 
 from backend.models import TimelineSegment, TimelineSegmentAnnotation, Annotation, AnnotationCategory
 
-# from django.core.exceptions import BadRequest
+
+logger = logging.getLogger(__name__)
+
+
 class TimelineSegmentAnnoatationCreate(View):
     def post(self, request):
         try:
@@ -127,7 +131,7 @@ class TimelineSegmentAnnoatationCreate(View):
 
             return JsonResponse({"status": "error", "type": "missing_values"})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -292,7 +296,7 @@ class TimelineSegmentAnnoatationToggle(View):
             )
 
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -323,7 +327,7 @@ class TimelineSegmentAnnoatationList(View):
             print(f"list {end} {end-start}")
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -357,5 +361,5 @@ class TimelineSegmentAnnoatationDelete(View):
             return JsonResponse({"status": "error"})
 
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

@@ -10,6 +10,10 @@ import traceback
 from django.views.decorators.csrf import csrf_protect
 from django.views import View
 
+
+logger = logging.getLogger(__name__)
+
+
 # def get_csrf_token(request):
 #     token = get_token(request)
 #     return JsonResponse({"token": token})
@@ -41,7 +45,7 @@ class UserGet(View):
                 }
             )
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 

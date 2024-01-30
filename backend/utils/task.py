@@ -8,6 +8,9 @@ from backend.models import PluginRun, PluginRunResult, Video, Timeline
 from backend.utils import media_path_to_video
 
 
+logger = logging.getLogger(__name__)
+
+
 class Task:
     def __init__(self):
         pass
@@ -49,11 +52,11 @@ class Task:
         )
         if job_id is None:
             return None
-        logging.info(f"Analyser started: {job_id}")
+        logger.info(f"Analyser started: {job_id}")
 
         result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run)
         if result is None:
-            logging.error(f"Analyser is crashing: {job_id}")
+            logger.error(f"Analyser is crashing: {job_id}")
             return None
 
         result_ids = {}

@@ -21,8 +21,10 @@ from django.conf import settings
 
 # from django.core.exceptions import BadRequest
 
-
 from backend.models import Video
+
+
+logger = logging.getLogger(__name__)
 
 
 class VideoUpload(View):
@@ -34,11 +36,11 @@ class VideoUpload(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
-                logging.error("VideoUpload::not_authenticated")
+                logger.error("VideoUpload::not_authenticated")
                 return JsonResponse({"status": "error"})
 
             if request.method != "POST":
-                logging.error("VideoUpload::wrong_method")
+                logger.error("VideoUpload::wrong_method")
                 return JsonResponse({"status": "error"})
             video_id_uuid = uuid.uuid4()
             video_id = video_id_uuid.hex
@@ -54,7 +56,7 @@ class VideoUpload(View):
                 )
 
                 if download_result["status"] != "ok":
-                    logging.error("VideoUpload::failed")
+                    logger.error("VideoUpload::failed")
                     return JsonResponse(download_result)
 
                 path = Path(request.FILES["file"].name)
@@ -85,7 +87,7 @@ class VideoUpload(View):
                     owner=request.user,
                 )
                 if not created:
-                    logging.error("VideoUpload::database_create_failed")
+                    logger.error("VideoUpload::database_create_failed")
                     return JsonResponse({"status": "error"})
 
                 analyers = request.POST.get("analyser").split(",")
@@ -108,7 +110,7 @@ class VideoUpload(View):
 
         except Exception as e:
             print(e, flush=True)
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -122,7 +124,7 @@ class VideoList(View):
                 entries.append(video.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.exception('Error listing videos')
             return JsonResponse({"status": "error"})
 
 
@@ -144,7 +146,7 @@ class VideoGet(View):
                 return JsonResponse({"status": "error"})
             return JsonResponse({"status": "ok", "entry": entries[0]})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -179,7 +181,7 @@ class VideoRename(View):
             video_db.save()
             return JsonResponse({"status": "ok", "entry": video_db.to_dict()})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -202,5 +204,5 @@ class VideoDelete(View):
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

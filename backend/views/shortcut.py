@@ -5,10 +5,14 @@ import traceback
 
 from django.views import View
 from django.http import JsonResponse
+# from django.core.exceptions import BadRequest
 
 from backend.models import Shortcut, Video
 
-# from django.core.exceptions import BadRequest
+
+logger = logging.getLogger(__name__)
+
+
 class ShortcutCreate(View):
     def post(self, request):
         try:
@@ -45,7 +49,7 @@ class ShortcutCreate(View):
                 shortcut_db = Shortcut.objects.create(**create_args)
             return JsonResponse({"status": "ok", "entry": shortcut_db.to_dict()})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -69,5 +73,5 @@ class ShortcutList(View):
                 entries.append(shortcut.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

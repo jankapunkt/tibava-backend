@@ -36,6 +36,9 @@ from analyser.data import DataManager, Shot
 import numpy as np
 
 
+logger = logging.getLogger(__name__)
+
+
 def json_to_csv(json_obj):
     df = pd.DataFrame(json_obj)
     return df.to_csv(index=False, sep="\t")
@@ -108,7 +111,7 @@ class VideoExportElan(View):
             result = str_out.getvalue()
             return JsonResponse({"status": "ok", "file": result})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -207,7 +210,7 @@ class VideoExportCSV(View):
                 # result = "\n".join([",".join(r) for r in rows])
             return JsonResponse({"status": "ok", "file": buffer})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -238,7 +241,7 @@ class VideoExportJson(View):
 
             return JsonResponse({"status": "ok", "file": result})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
 
@@ -299,7 +302,7 @@ class VideoExport(View):
         time_duration = sorted(list(set(zip(times, durations))), key=lambda x: x[0])
         cols = []
 
-        # logging.error(time_duration)
+        # logger.error(time_duration)
 
         # shot number column
         # also extract shots for aggregation later
@@ -308,7 +311,7 @@ class VideoExport(View):
 
         for start, duration in time_duration:
             end = start + duration
-            # logging.error(f"{start} - {end}")
+            # logger.error(f"{start} - {end}")
             for shot_index, shot in enumerate(shot_timeline.timelinesegment_set.all()):
                 shot_number_col.append(shot_index) 
 
@@ -384,12 +387,12 @@ class VideoExport(View):
 
                                 anno = round(float(y_agg), 3)
                                 col.append(anno)
-                                # logging.error(shot_y_data)
+                                # logger.error(shot_y_data)
                                 min_col.append(round(float(np.min(shot_y_data)), 7))
                                 max_col.append(round(float(np.max(shot_y_data)), 7))
                                 std_col.append(round(float(np.std(shot_y_data)), 7))
                                 var_col.append(round(float(np.var(shot_y_data)), 7))
-                                # logging.error(f"{min_col[-1], max_col[-1], std_col[-1], var_col[-1],}")
+                                # logger.error(f"{min_col[-1], max_col[-1], std_col[-1], var_col[-1],}")
                         
                         cols.append(col)
                         cols.append(min_col)
@@ -871,5 +874,5 @@ class VideoExport(View):
 
             return JsonResponse({"status": "error", "type": "unknown_format"})
         except Exception as e:
-            logging.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})

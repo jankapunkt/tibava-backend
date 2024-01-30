@@ -10,6 +10,9 @@ import mimetypes
 import logging
 
 
+logger = logging.getLogger(__name__)
+
+
 def check_extension(filename: Path, extensions: list):
     if isinstance(filename, str):
         filename = Path(filename)
@@ -44,7 +47,7 @@ def download_file(file, output_dir, output_name=None, max_size=None, extensions=
 
         return {"status": "ok", "path": Path(output_path), "origin": file.name}
     except Exception as e:
-        logging.error(f"download_file::exception {e}")
+        logger.error(f"download_file::exception {e}")
         return {"status": "error", "error": {"type": "downloading_error"}}
 
 
