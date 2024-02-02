@@ -2,6 +2,7 @@ import logging
 
 from django.apps import AppConfig
 from django.db.models import Q
+from django.db import connection
 
 
 logger = logging.getLogger(__name__)
@@ -11,6 +12,8 @@ class BackendConfig(AppConfig):
     name = "backend"
 
     def ready(self):
+        if 'backend_pluginrun' not in connection.introspection.table_names():
+            return
         # import here otherwise django complains
         from tibava.celery import app
         from backend.models import PluginRun
