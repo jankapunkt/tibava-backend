@@ -1,12 +1,20 @@
+import logging
+import os
 from random import random
 import uuid
 
-from django.db import models
-from django.contrib.auth.models import AbstractUser
 from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from backend.utils.color import rgb_to_hex, random_rgb
 
+from backend.utils import media_path_to_video
 from .managers import TibavaUserManager
+
+
+logger = logging.getLogger(__name__)
 
 
 def random_color_string():
@@ -74,6 +82,14 @@ class Video(models.Model):
                 )
 
         return new_video_db  # FIXME
+
+
+@receiver(post_delete, sender=Video)
+def delete_video_file(sender, instance, **kwargs):
+    logger.info(f'Deleting video {instance.id.hex} by user {instance.owner.username}')
+    path = media_path_to_video(instance.id.hex, instance.ext)
+    if os.path.exists(path):
+        os.remove(path)
 
 
 class Plugin(models.Model):
