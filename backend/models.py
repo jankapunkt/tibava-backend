@@ -22,8 +22,8 @@ def random_color_string():
 
 
 class TibavaUser(AbstractUser):
-    allowance = models.IntegerField(default=3)
-    max_video_size = models.BigIntegerField(default=50 * 1024 * 1024)  # 50 Mb
+    allowance = models.IntegerField(default=10)
+    max_video_size = models.BigIntegerField(default=500 * 1024 * 1024)  # 50 Mb
     objects = TibavaUserManager()
 
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
@@ -86,7 +86,7 @@ class Video(models.Model):
 
 @receiver(post_delete, sender=Video)
 def delete_video_file(sender, instance, **kwargs):
-    logger.info(f'Deleting video {instance.id.hex} by user {instance.owner.username}')
+    logger.info(f"Deleting video {instance.id.hex} by user {instance.owner.username}")
     path = media_path_to_video(instance.id.hex, instance.ext)
     if os.path.exists(path):
         os.remove(path)
@@ -270,7 +270,7 @@ class Timeline(models.Model):
                 x.to_dict(
                     include_refs_hashes=include_refs_hashes,
                     include_refs=include_refs,
-                    **kwargs
+                    **kwargs,
                 )
                 for x in self.timelinesegment_set.all()
             ]
