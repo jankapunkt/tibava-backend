@@ -56,7 +56,12 @@ class DeepfaceEmotion(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
+        self,
+        parameters: Dict,
+        video: Video = None,
+        user: TibavaUser = None,
+        plugin_run: PluginRun = None,
+        **kwargs
     ):
         # Debug
         # parameters["fps"] = 0.05
@@ -73,8 +78,12 @@ class DeepfaceEmotion(Task):
 
         shots_id = None
         if parameters.get("shot_timeline_id"):
-            shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
-            shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
+            shot_timeline_db = Timeline.objects.get(
+                id=parameters.get("shot_timeline_id")
+            )
+            shot_timeline_segments = TimelineSegment.objects.filter(
+                timeline=shot_timeline_db
+            )
 
             shots = manager.create_data("ShotsData")
             with shots:
@@ -120,7 +129,10 @@ class DeepfaceEmotion(Task):
 
         with transaction.atomic():
             with aggregate_result[1]["aggregated_scalars"] as data:
+
+                timeline_dict = {}
                 # Annotate shots
+                annotation_timeline_db = None
                 if shots_id:
 
                     annotater_result = self.run_analyser(
@@ -134,16 +146,22 @@ class DeepfaceEmotion(Task):
                         raise Exception
                     with annotater_result[1]["annotations"] as annotations_data:
 
-                        annotation_timeline = Timeline.objects.create(
-                            video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                        annotation_timeline_db = Timeline.objects.create(
+                            video=video,
+                            name=parameters.get("timeline"),
+                            type=Timeline.TYPE_ANNOTATION,
                         )
 
-                        category_db, _ = AnnotationCategory.objects.get_or_create(name="Emotion", video=video, owner=user)
+                        timeline_dict.update({"annotations": annotation_timeline_db})
+
+                        category_db, _ = AnnotationCategory.objects.get_or_create(
+                            name="Emotion", video=video, owner=user
+                        )
 
                         for annotation in annotations_data.annotations:
                             # create TimelineSegment
                             timeline_segment_db = TimelineSegment.objects.create(
-                                timeline=annotation_timeline,
+                                timeline=annotation_timeline_db,
                                 start=annotation.start,
                                 end=annotation.end,
                             )
@@ -151,15 +169,18 @@ class DeepfaceEmotion(Task):
                             for label in annotation.labels:
                                 # add annotion to TimelineSegment
                                 annotation_db, _ = Annotation.objects.get_or_create(
-                                    name=LABEL_LUT.get(label, label), video=video, category=category_db, owner=user
+                                    name=LABEL_LUT.get(label, label),
+                                    video=video,
+                                    category=category_db,
+                                    owner=user,
                                 )
 
                                 TimelineSegmentAnnotation.objects.create(
-                                    annotation=annotation_db, timeline_segment=timeline_segment_db
+                                    annotation=annotation_db,
+                                    timeline_segment=timeline_segment_db,
                                 )
 
                 data.extract_all(manager)
-                timeline_dict = {}
                 data_list = {}
                 for index, sub_data in zip(data.index, data.data):
 
@@ -169,20 +190,25 @@ class DeepfaceEmotion(Task):
                         name="face_emotion",
                         type=PluginRunResult.TYPE_SCALAR,
                     )
-                    timeline_db= Timeline.objects.create(
+                    timeline_db = Timeline.objects.create(
                         video=video,
                         name=LABEL_LUT.get(index, index),
                         type=Timeline.TYPE_PLUGIN_RESULT,
                         plugin_run_result=plugin_run_result_db,
                         visualization=Timeline.VISUALIZATION_SCALAR_COLOR,
-                        parent=annotation_timeline,
+                        parent=annotation_timeline_db,
                     )
-                    timeline_dict.update({index:timeline_db.id.hex})
-                    data_list.update({index: sub_data.id})
+                    timeline_dict.update({index: timeline_db.id.hex})
+                    data_list.update({index: sub_data})
 
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
-                    "timelines": {"annotations": annotation_timeline_db, **timeline_dict},
-                    "data": {"annotations": result[1]["aggregated_scalars"].id, **data_list}
+                    "timelines": {
+                        **timeline_dict,
+                    },
+                    "data": {
+                        "annotations": aggregate_result[1]["aggregated_scalars"].id,
+                        **data_list,
+                    },
                 }
