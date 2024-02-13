@@ -55,7 +55,6 @@ class Command(BaseCommand):
                     video_db, created = Video.objects.get_or_create(
                         name=video_name,
                         id=video_id_uuid,
-                        license="",
                         ext=ext,
                         fps=fps,
                         duration=duration,

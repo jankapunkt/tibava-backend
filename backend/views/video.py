@@ -68,7 +68,6 @@ class VideoUpload(View):
                 size = reader.get_meta_data()["size"]
                 meta = {
                     "name": request.POST.get("title"),
-                    "license": request.POST.get("license"),
                     "width": size[0],
                     "height": size[1],
                     "ext": ext,
@@ -78,7 +77,6 @@ class VideoUpload(View):
                 video_db, created = Video.objects.get_or_create(
                     name=meta["name"],
                     id=video_id_uuid,
-                    license=meta["license"],
                     ext=meta["ext"],
                     fps=meta["fps"],
                     duration=meta["duration"],

@@ -44,7 +44,6 @@ class Video(models.Model):
         settings.AUTH_USER_MODEL, blank=True, null=True, on_delete=models.CASCADE
     )
     name = models.CharField(max_length=256)
-    license = models.CharField(max_length=256)
     file = models.UUIDField(default=uuid.uuid4)
     ext = models.CharField(max_length=256)
     date = models.DateTimeField(auto_now_add=True)
@@ -57,7 +56,6 @@ class Video(models.Model):
     def to_dict(self, include_refs_hashes=True, include_refs=False, **kwargs):
         return {
             "name": self.name,
-            "license": self.license,
             "id": self.id.hex,
             "ext": self.ext,
             "date": self.date,
