@@ -10,6 +10,7 @@ from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from backend.utils.color import rgb_to_hex, random_rgb
 
+from analyser.data import DataManager
 from backend.utils import media_path_to_video
 from .managers import TibavaUserManager
 
@@ -185,6 +186,30 @@ class PluginRunResult(models.Model):
         if include_refs_hashes:
             result["plugin_run_id"] = self.plugin_run.id.hex
         return result
+
+
+@receiver(post_delete, sender=PluginRunResult)
+def delete_pluginresult_data(sender, instance, **kwargs):
+    logger.info(f'Deleting PluginRunResult {instance.id} by user {instance.plugin_run.video.owner.username}')
+    data_manager = DataManager("/predictions/")
+
+    if instance.type == PluginRunResult.TYPE_IMAGES:
+        data = data_manager.load(instance.data_id)
+        with data:
+            data.load()
+        for image in data.images:
+            path = data_manager._create_file_path(image.id, image.ext)
+            if os.path.exists(path):
+                os.remove(path)
+
+    for clusteritem in instance.cluster_items.all():
+        filename, ext = clusteritem.image_path.split('/')[-1].split('.')
+
+        path = data_manager._create_file_path(filename, ext)
+        if os.path.exists(path):
+            os.remove(path)
+
+    data_manager.delete(instance.data_id)
 
 
 class Timeline(models.Model):
@@ -521,14 +546,14 @@ class ClusterTimelineItem(models.Model):
 class ClusterItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cluster_timeline_item = models.ForeignKey(
-        ClusterTimelineItem, on_delete=models.CASCADE
+        ClusterTimelineItem, on_delete=models.CASCADE, related_name='items'
     )
     video = models.ForeignKey(Video, null=True, on_delete=models.CASCADE)
     plugin_item_ref = models.UUIDField()
     embedding_index = models.PositiveIntegerField()
     deleted = models.BooleanField(default=False)
     image_path = models.CharField(max_length=128, null=True)
-    plugin_run_result = models.ForeignKey(PluginRunResult, on_delete=models.CASCADE)
+    plugin_run_result = models.ForeignKey(PluginRunResult, on_delete=models.CASCADE, related_name='cluster_items')
 
     TYPE_FACE = "A"
     TYPE_PLACE = "P"
