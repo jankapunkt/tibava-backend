@@ -48,8 +48,8 @@ class ShortcutCreate(View):
 
                 shortcut_db = Shortcut.objects.create(**create_args)
             return JsonResponse({"status": "ok", "entry": shortcut_db.to_dict()})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to create shortcut")
             return JsonResponse({"status": "error"})
 
 
@@ -72,6 +72,6 @@ class ShortcutList(View):
             for shortcut in query_results:
                 entries.append(shortcut.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to list shortcuts")
             return JsonResponse({"status": "error"})

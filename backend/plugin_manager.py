@@ -102,8 +102,8 @@ class PluginManager:
                 if plugin_result:
                     result["result"] = plugin_result
 
-            except Exception as e:
-                logger.error(f"{plugin} {e}")
+            except Exception:
+                logger.exception(f"Failed to run plugin {plugin_run.type}")
                 plugin_run.status = PluginRun.STATUS_ERROR
                 plugin_run.save()
                 result["status"] = False
@@ -135,8 +135,8 @@ def generate_plugin_run_result_cache(
             if os.path.exists(cache_path):
                 with open(cache_path, "r") as f:
                     cached = True
-        except Exception as e:
-            logger.error(f"Cache couldn't read {e}")
+        except Exception:
+            logger.exception("Cache reading failed")
         if cached:
             continue
         # print(f"x {x}")
@@ -150,13 +150,9 @@ def generate_plugin_run_result_cache(
             try:
                 with open(cache_path, "w") as f:
                     json.dump(result_dict, f)
-                    print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+", flush=True)
-                    print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+", flush=True)
-                    print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+", flush=True)
-                    print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+", flush=True)
-                    print(f"+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+ {x.id}", flush=True)
-            except Exception as e:
-                logger.error(f"Cache couldn't write {e}")
+                    logger.debug(f'Writin result {x.id} to cache')
+            except Exception:
+                logger.exception("Cache couldn't write")
 
 
 @shared_task(bind=True)
@@ -197,16 +193,7 @@ def run_plugin(self, args):
 
         return
 
-    except Exception as e:
-        logger.error(f"{plugin}: {e}")
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-
-        traceback.print_exception(
-            exc_type,
-            exc_value,
-            exc_traceback,
-            limit=2,
-            file=sys.stdout,
-        )
+    except Exception:
+        logger.exception(f'Plugin run failed for {plugin}')
     plugin_run_db.status = PluginRun.STATUS_ERROR
     plugin_run_db.save()

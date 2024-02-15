@@ -46,8 +46,8 @@ def download_file(file, output_dir, output_name=None, max_size=None, extensions=
                 f.write(chunk)
 
         return {"status": "ok", "path": Path(output_path), "origin": file.name}
-    except Exception as e:
-        logger.error(f"download_file::exception {e}")
+    except Exception:
+        logger.exception("Failed to download file")
         return {"status": "error", "error": {"type": "downloading_error"}}
 
 

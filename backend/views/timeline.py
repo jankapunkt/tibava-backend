@@ -37,8 +37,8 @@ class TimelineList(View):
                 result = timeline.to_dict()
                 entries.append(result)
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to list timelines")
             return JsonResponse({"status": "error"})
 
 
@@ -81,8 +81,8 @@ class TimelineDuplicate(View):
                     ],
                 }
             )
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to duplicate timeline")
             return JsonResponse({"status": "error"})
 
 
@@ -132,8 +132,8 @@ class TimelineCreate(View):
                     "timeline_segment_added": timeline_segment_added,
                 }
             )
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to create timeline")
             return JsonResponse({"status": "error"})
 
 
@@ -167,8 +167,8 @@ class TimelineRename(View):
             timeline_db.name = data.get("name")
             timeline_db.save()
             return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to rename timeline")
             return JsonResponse({"status": "error"})
 
 
@@ -213,8 +213,8 @@ class TimelineChangeVisualization(View):
 
             timeline_db.save()
             return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to change timeline visualization")
             return JsonResponse({"status": "error"})
 
 
@@ -253,8 +253,8 @@ class TimelineSetParent(View):
             timeline_db.parent = parent_timeline_db
             timeline_db.save()
             return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to set timeline parent")
             return JsonResponse({"status": "error"})
 
 
@@ -270,7 +270,7 @@ class TimelineSetCollapse(View):
 
             try:
                 data = json.loads(body)
-            except Exception as e:
+            except Exception:
                 return JsonResponse({"status": "error"})
 
             if "timelineId" not in data:
@@ -287,8 +287,8 @@ class TimelineSetCollapse(View):
             timeline_db.collapse = data.get("collapse")
             timeline_db.save()
             return JsonResponse({"status": "ok"})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to collapse timeline")
             return JsonResponse({"status": "error"})
 
 
@@ -320,8 +320,8 @@ class TimelineSetOrder(View):
                 timeline_db.order = idx
                 timeline_db.save()
             return JsonResponse({"status": "ok"})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to set timeline order")
             return JsonResponse({"status": "error"})
 
 
@@ -343,6 +343,6 @@ class TimelineDelete(View):
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to delete timeline")
             return JsonResponse({"status": "error"})

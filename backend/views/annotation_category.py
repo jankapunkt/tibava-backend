@@ -50,8 +50,8 @@ class AnnoatationCategoryCreate(View):
 
                 annotation_category_db = AnnotationCategory.objects.create(**create_args)
             return JsonResponse({"status": "ok", "entry": annotation_category_db.to_dict()})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to create AnnotationCategory')
             return JsonResponse({"status": "error"})
 
 
@@ -74,6 +74,6 @@ class AnnoatationCategoryList(View):
             for annotation_category in query_results:
                 entries.append(annotation_category.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to list AnnotationCategory')
             return JsonResponse({"status": "error"})

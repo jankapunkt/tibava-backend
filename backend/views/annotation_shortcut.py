@@ -146,8 +146,8 @@ class AnnotationShortcutUpdate(View):
                 }
             )
 
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to update AnnotationShortcut')
             return JsonResponse({"status": "error"})
 
 
@@ -168,6 +168,6 @@ class AnnotationShortcutList(View):
             for shortcut in query_results:
                 entries.append(shortcut.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to list annotation shortcuts')
             return JsonResponse({"status": "error"})

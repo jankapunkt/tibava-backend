@@ -44,8 +44,8 @@ class UserGet(View):
                     },
                 }
             )
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to get user info')
             return JsonResponse({"status": "error"})
 
 
@@ -59,15 +59,15 @@ def login(request):
     try:
         data = json.loads(body)
     except Exception as e:
-        print("Search: JSON error: {}".format(e), flush=True)
+        logger.exception('Could not load JSON for login')
         return JsonResponse({"status": "error"})
 
     if "name" not in data["params"]:
-        print("name", flush=True)
+        logger.warning('Name not supplied for login')
         return JsonResponse({"status": "error"})
 
     if "password" not in data["params"]:
-        print("password", flush=True)
+        logger.warning('Password not supplied for login')
         return JsonResponse({"status": "error"})
 
     username = data["params"]["name"]
@@ -105,20 +105,19 @@ def register(request):
     try:
         data = json.loads(body)
     except Exception as e:
-        print("Search: JSON error: {}".format(e), flush=True)
+        logger.exception('Could not load JSON for register')
         return JsonResponse({"status": "error"})
 
-    print(data, flush=True)
     if "name" not in data["params"]:
-        print("name", flush=True)
+        logger.warning('Name not supplied for registration')
         return JsonResponse({"status": "error"})
 
     if "password" not in data["params"]:
-        print("password", flush=True)
+        logger.warning('Password not supplied for registration')
         return JsonResponse({"status": "error"})
 
     if "email" not in data["params"]:
-        print("email", flush=True)
+        logger.warning('EMail not supplied for registration')
         return JsonResponse({"status": "error"})
 
     username = data["params"]["name"]
@@ -126,16 +125,17 @@ def register(request):
     email = data["params"]["email"]
 
     if username == "" or password == "" or email == "":
-        print("An input is missing.", flush=True)
+        logger.warning("An input is missing for registration.")
         return JsonResponse({"status": "error"})
 
     if auth.get_user_model().objects.filter(username=username).count() > 0:
-        print("User already exists. Abort.", flush=True)
+        logger.warning("User already exists. Abort.")
         return JsonResponse({"status": "error"})
 
     # TODO Add EMail register here
     user = auth.get_user_model().objects.create_user(username, email, password)
     user = auth.authenticate(username=username, password=password)
+    logger.info('New user registered')
 
     if user is not None:
         auth.login(request, user)

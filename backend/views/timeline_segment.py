@@ -132,8 +132,8 @@ class TimelineSegmentAnnotate(View):
                     "annotation_added": annotation_added,
                 }
             )
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to annotate timeline segment")
             return JsonResponse({"status": "error"})
 
 
@@ -288,8 +288,8 @@ class TimelineSegmentAnnotateRange(View):
                     "timeline_segment_added": timeline_segment_added,
                 }
             )
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to annotate timeline segment range")
             return JsonResponse({"status": "error"})
 
 
@@ -315,8 +315,8 @@ class TimelineSegmentGet(View):
             for segment in timeline_segments:
                 entries.append(segment.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to get timeline segment")
             return JsonResponse({"status": "error"})
 
 
@@ -343,8 +343,8 @@ class TimelineSegmentList(View):
             for segment in timeline_segments:
                 entries.append(segment.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to list timeline segments")
             return JsonResponse({"status": "error"})
 
 
@@ -431,8 +431,8 @@ class TimelineSegmentMerge(View):
                     "timeline_segment_annotation_added": timeline_segment_annotation_added,
                 }
             )
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to merge timeline segments")
             return JsonResponse({"status": "error"})
 
 
@@ -507,8 +507,8 @@ class TimelineSegmentSplit(View):
                     "timeline_segment_annotation_added": timeline_segment_annotation_added,
                 }
             )
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to split timeline segment")
             return JsonResponse({"status": "error"})
 
 

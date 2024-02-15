@@ -110,8 +110,8 @@ class VideoExportElan(View):
             sys.stdout = stdout
             result = str_out.getvalue()
             return JsonResponse({"status": "ok", "file": result})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to export ELAN')
             return JsonResponse({"status": "error"})
 
 
@@ -209,8 +209,8 @@ class VideoExportCSV(View):
                     f.writerow(line)
                 # result = "\n".join([",".join(r) for r in rows])
             return JsonResponse({"status": "ok", "file": buffer})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to export CSV')
             return JsonResponse({"status": "error"})
 
 
@@ -240,8 +240,8 @@ class VideoExportJson(View):
             result = json.dumps({"annotations": annotations, "timelines": timelines})
 
             return JsonResponse({"status": "ok", "file": result})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to export JSON')
             return JsonResponse({"status": "error"})
 
 
@@ -873,6 +873,6 @@ class VideoExport(View):
                 )
 
             return JsonResponse({"status": "error", "type": "unknown_format"})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to generate merged export')
             return JsonResponse({"status": "error"})

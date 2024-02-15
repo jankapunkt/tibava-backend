@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, List
 
 from celery import shared_task
@@ -25,6 +26,8 @@ from backend.utils.task import Task
 from django.db import transaction
 from django.conf import settings
 
+
+logger = logging.getLogger(__name__)
 
 LABEL_LUT = {
     "p_ECU": "Extreme Close-Up",
@@ -109,7 +112,7 @@ class ShotTypeClassifier(Task):
             """
             Create a timeline labeled by most probable class (per shot)
             """
-            print(f"[ShotTypeClassifier] Create annotation timeline", flush=True)
+            logger.info("Create annotation timeline")
             annotation_timeline = Timeline.objects.create(
                 video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
             )
@@ -142,7 +145,7 @@ class ShotTypeClassifier(Task):
         """
         Create timeline(s) with probability of each class as scalar data
         """
-        print(f"[ShotTypeClassifier] Create scalar color (SC) timeline with probabilities for each class", flush=True)
+        logger.info(f" Create scalar color (SC) timeline with probabilities for each class")
 
         with transaction.atomic():
             with result[1]["probs"] as data:

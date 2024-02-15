@@ -40,6 +40,6 @@ class PluginList(View):
                 entries = [x.to_dict() for x in analyses]
 
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to list plugins')
             return JsonResponse({"status": "error"})

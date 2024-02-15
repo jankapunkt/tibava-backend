@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, List
 
 
@@ -16,6 +17,9 @@ from backend.utils.task import Task
 
 from django.db import transaction
 from django.conf import settings
+
+
+logger = logging.getLogger(__name__)
 
 
 @PluginManager.export_parser("aggregate_scalar")
@@ -52,10 +56,7 @@ class AggregateScalar(Task):
 
         with timelines:
             for timeline_id in parameters.get("timeline_ids"):
-                print(
-                    f"[AggregateScalar] Get probabilities from scalar timeline with id: {timeline_id}",
-                    flush=True,
-                )
+                logger.debug(f"Get probabilities from scalar timeline with id: {timeline_id}")
 
                 timeline_db = Timeline.objects.get(id=timeline_id)
                 plugin_data_id = timeline_db.plugin_run_result.data_id

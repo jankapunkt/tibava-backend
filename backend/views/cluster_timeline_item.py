@@ -46,8 +46,8 @@ class ClusterTimelineItemCreate(View):
                 return JsonResponse({"status": "error", "type": "not_exist"})
 
             return JsonResponse({"status": "ok", "entry": cluster_timeline_item.to_dict()})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to create cluster timeline item')
             return JsonResponse({"status": "error", "type" : "general"})
         
 class ClusterTimelineItemDelete(View):
@@ -68,8 +68,8 @@ class ClusterTimelineItemDelete(View):
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error", "type": "delete_op"})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to delete cluster timeline item')
             return JsonResponse({"status": "error"})
 
 
@@ -103,8 +103,8 @@ class ClusterTimelineItemRename(View):
             cti.name = data.get("name")
             cti.save()
             return JsonResponse({"status": "ok", "entry": cti.to_dict()})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to rename cluster timeline item')
             return JsonResponse({"status": "error"})
 
 class ClusterTimelineItemFetch(View):
@@ -113,11 +113,19 @@ class ClusterTimelineItemFetch(View):
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error_user_auth"})
             
+            print('cluster id', request.GET.get('cluster_id'))
+            print(request.GET)
+            run_id = uuid.UUID(hex=request.GET.get('cluster_id'))  # adds dashes
             entries = []
-            video = Video.objects.get(id=request.GET.get("video_id"))
-            for cti in ClusterTimelineItem.objects.filter(video=video):
-                entries.append(cti.to_dict())
+            for cti in ClusterTimelineItem.objects.filter(plugin_run_id=run_id):
+                entry = cti.to_dict()
+                entries.append(entry)
+
+                entry['items'] = []
+                for item in cti.items.all():
+                    entry['items'].append(item.to_dict())
+
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to fetch cluster timeline item')
             return JsonResponse({"status": "error"})

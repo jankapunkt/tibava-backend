@@ -41,8 +41,8 @@ class ClusterItemFetch(View):
             logger.warning(f"ClusterItemFetch end {time.time() - start_time}")
 
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to fetch cluster items')
             return JsonResponse({"status": "error"})
 
 
@@ -90,8 +90,6 @@ class ClusterItemSetDeleted(View):
 
             return JsonResponse({"status": "ok", "entries": plugin_item_ref_list})
 
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to delete cluster item set')
             return JsonResponse({"status": "error_cluster_item_set_deleted"})
-
-        import logging

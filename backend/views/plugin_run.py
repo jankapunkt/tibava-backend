@@ -128,8 +128,8 @@ class PluginRunNew(View):
             if result:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error", "type": "plugin_not_started"})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to create new plugin run")
             return JsonResponse({"status": "error"})
 
 
@@ -166,8 +166,8 @@ class PluginRunDelete(View):
                 response = p.delete()
 
             return JsonResponse({"status": "ok", "deleted_items": response})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to delete PluginRun")
             return JsonResponse({"status": "error"})
 
 
@@ -194,7 +194,7 @@ class PluginRunList(View):
             analyses = analyses.prefetch_related("video")
 
             end = time.time()
-            print(f"[PluginRunList] 1 {end - start}", flush=True)
+            logger.debug(f"Listing plugin before entry creation took {end - start}s")
             if add_results:
                 entries = []
                 for x in analyses:
@@ -207,8 +207,8 @@ class PluginRunList(View):
                 entries = [x.to_dict() for x in analyses]
 
             end = time.time()
-            print(f"[PluginRunList] 2 {end - start}", flush=True)
+            logger.debug(f"Listing plugin runs took {end - start}s")
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to list plugin runs')
             return JsonResponse({"status": "error"})

@@ -106,9 +106,8 @@ class VideoUpload(View):
 
             return JsonResponse({"status": "error"})
 
-        except Exception as e:
-            print(e, flush=True)
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Video upload by user failed')
             return JsonResponse({"status": "error"})
 
 
@@ -143,8 +142,8 @@ class VideoGet(View):
             if len(entries) != 1:
                 return JsonResponse({"status": "error"})
             return JsonResponse({"status": "ok", "entry": entries[0]})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to get video')
             return JsonResponse({"status": "error"})
 
 
@@ -178,8 +177,8 @@ class VideoRename(View):
             video_db.name = data.get("name")
             video_db.save()
             return JsonResponse({"status": "ok", "entry": video_db.to_dict()})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to rename video')
             return JsonResponse({"status": "error"})
 
 
@@ -201,6 +200,6 @@ class VideoDelete(View):
             if count:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to delete video')
             return JsonResponse({"status": "error"})

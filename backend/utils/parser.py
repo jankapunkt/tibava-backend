@@ -35,7 +35,7 @@ class Parser:
             except Exception as e:
                 logger.error(f"[Parser] {p['name']} could not parse ({e})")
                 return None
-        print(f"Task Parameter {task_parameter}", flush=True)
+        logger.debug(f"Task Parameter {task_parameter}")
         for k, v in self.valid_parameter.items():
             if v.get("required", None):
                 if k not in task_parameter:

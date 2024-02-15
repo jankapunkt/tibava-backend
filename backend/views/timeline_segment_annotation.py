@@ -130,8 +130,8 @@ class TimelineSegmentAnnoatationCreate(View):
                 return JsonResponse({"status": "ok", "entry": timeline_segment_annotation_db.to_dict()})
 
             return JsonResponse({"status": "error", "type": "missing_values"})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to create timeline segment annotation")
             return JsonResponse({"status": "error"})
 
 
@@ -234,7 +234,6 @@ class TimelineSegmentAnnoatationToggle(View):
 
     def post(self, request):
         start = time.time()
-        print(f"toggle {start}")
         try:
 
             # decode data
@@ -284,7 +283,7 @@ class TimelineSegmentAnnoatationToggle(View):
                     timeline_segment_annotation_db.delete()
 
             end = time.time()
-            print(f"toggle {end} {end-start}")
+            logger.debug(f"Timeline annotation toggle request took {end-start}s")
             return JsonResponse(
                 {
                     "status": "ok",
@@ -295,8 +294,8 @@ class TimelineSegmentAnnoatationToggle(View):
                 }
             )
 
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to load timeline annotation toggle')
             return JsonResponse({"status": "error"})
 
 
@@ -304,7 +303,6 @@ class TimelineSegmentAnnoatationList(View):
     def get(self, request):
         try:
             start = time.time()
-            print(f"list {start}")
             query_args = {}
 
             if "timeline_segment_id" in request.GET:
@@ -324,10 +322,10 @@ class TimelineSegmentAnnoatationList(View):
                 entries.append(timeline_segment_annotation.to_dict())
 
             end = time.time()
-            print(f"list {end} {end-start}")
+            logger.debug(f"Getting TimelineSegmentAnnotationList took {end-start}s")
             return JsonResponse({"status": "ok", "entries": entries})
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception('Failed to get timeline annotations')
             return JsonResponse({"status": "error"})
 
 
@@ -355,11 +353,11 @@ class TimelineSegmentAnnoatationDelete(View):
                 ).delete()
             except TimelineSegment.DoesNotExist:
                 return JsonResponse({"status": "error", "type": "not_exist"})
-            print(num_deleted)
+            logger.debug(f'Deleted {num_deleted} timeline annotations')
             if num_deleted == 1:
                 return JsonResponse({"status": "ok"})
             return JsonResponse({"status": "error"})
 
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to delete timeline segment annotation")
             return JsonResponse({"status": "error"})
