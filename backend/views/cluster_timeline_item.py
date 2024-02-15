@@ -72,41 +72,6 @@ class ClusterTimelineItemDelete(View):
             logger.error(traceback.format_exc())
             return JsonResponse({"status": "error"})
 
-class ClusterTimelineItemSetTimeline(View):
-    def post(self, request):
-        try:
-            if not request.user.is_authenticated:
-                return JsonResponse({"status": "error"})
-            try:
-                body = request.body.decode("utf-8")
-            except (UnicodeDecodeError, AttributeError):
-                body = request.body
-
-            try:
-                data = json.loads(body)
-            except Exception as e:
-                return JsonResponse({"status": "error"})
-
-            if "cti_id" not in data:
-                return JsonResponse({"status": "error", "type": "missing_values_cti_id"})
-            if "timeline_id" not in data:
-                return JsonResponse({"status": "error", "type": "missing_values_timeline_id"})
-
-            try:
-                cti = ClusterTimelineItem.objects.get(id=data.get("cti_id"))
-                timeline = Timeline.objects.get(id=data.get("timeline_id"))
-                cti.timeline = timeline
-                cti.save()
-            except ClusterTimelineItem.DoesNotExist:
-                return JsonResponse({"status": "error", "type": "not_exist_cti"})
-            
-            return JsonResponse({"status": "ok", "entry": cti.to_dict()})
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            return JsonResponse({"status": "error_cti_set_timeline"})
-
-
-
 
 class ClusterTimelineItemRename(View):
     def post(self, request):

@@ -509,9 +509,6 @@ class ClusterTimelineItem(models.Model):
     plugin_run = models.ForeignKey(PluginRun, default=None, on_delete=models.CASCADE)
     video = models.ForeignKey(Video, blank=True, null=True, on_delete=models.CASCADE)
     cluster_id = models.UUIDField(null=True, blank=True)
-    timeline = models.ForeignKey(
-        Timeline, on_delete=models.SET_NULL, null=True, blank=True
-    )
     name = models.CharField(max_length=256)
 
     TYPE_FACE = "A"
@@ -533,9 +530,6 @@ class ClusterTimelineItem(models.Model):
             "name": self.name,
             "cluster_id": self.cluster_id.hex,
         }
-
-        if self.timeline:
-            result["timeline"] = self.timeline.id.hex
 
         if self.video:
             result["video"] = self.video.id.hex

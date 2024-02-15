@@ -46,11 +46,6 @@ urlpatterns = [
         name="cluster_timeline_item_rename",
     ),
     path(
-        "cluster/timeline/item/setTimeline",
-        views.ClusterTimelineItemSetTimeline.as_view(),
-        name="cluster_timeline_item_set_timeline",
-    ),
-    path(
         "cluster/timeline/item/delete",
         views.ClusterTimelineItemDelete.as_view(),
         name="cluster_timeline_item_delete",
