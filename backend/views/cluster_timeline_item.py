@@ -113,18 +113,10 @@ class ClusterTimelineItemFetch(View):
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error_user_auth"})
             
-            print('cluster id', request.GET.get('cluster_id'))
-            print(request.GET)
-            run_id = uuid.UUID(hex=request.GET.get('cluster_id'))  # adds dashes
             entries = []
-            for cti in ClusterTimelineItem.objects.filter(plugin_run_id=run_id):
-                entry = cti.to_dict()
-                entries.append(entry)
-
-                entry['items'] = []
-                for item in cti.items.all():
-                    entry['items'].append(item.to_dict())
-
+            video = Video.objects.get(id=request.GET.get("video_id"))
+            for cti in ClusterTimelineItem.objects.filter(video=video):
+                entries.append(cti.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception:
             logger.exception('Failed to fetch cluster timeline item')
