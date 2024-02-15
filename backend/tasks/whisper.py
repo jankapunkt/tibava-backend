@@ -29,9 +29,7 @@ from django.conf import settings
 class WhisperParser(Parser):
     def __init__(self):
 
-        self.valid_parameter = {
-            "timeline": {"parser": str, "default": "Speech Recognition"},
-        }
+        self.valid_parameter = {}
 
 
 @PluginManager.export_plugin("whisper")
@@ -79,9 +77,8 @@ class Whisper(Task):
                 """
                 Create a timeline labeled
                 """
-                # print(f"[{PLUGIN_NAME}] Create annotation timeline", flush=True)
                 annotation_timeline_db = Timeline.objects.create(
-                    video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                    video=video, name="Whisper Transcript", type=Timeline.TYPE_TRANSCRIPT
                 )
 
                 category_db, _ = AnnotationCategory.objects.get_or_create(name="Transcript", video=video, owner=user)

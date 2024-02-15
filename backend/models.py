@@ -222,9 +222,11 @@ class Timeline(models.Model):
 
     TYPE_ANNOTATION = "A"
     TYPE_PLUGIN_RESULT = "R"
+    TYPE_TRANSCRIPT = "T"
     TYPE = {
         TYPE_ANNOTATION: "ANNOTATION",
         TYPE_PLUGIN_RESULT: "PLUGIN_RESULT",
+        TYPE_TRANSCRIPT: "TRANSCRIPT"
     }
 
     type = models.CharField(
