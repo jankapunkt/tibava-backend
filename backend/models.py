@@ -195,9 +195,13 @@ def delete_pluginresult_data(sender, instance, **kwargs):
 
     if instance.type == PluginRunResult.TYPE_IMAGES:
         data = data_manager.load(instance.data_id)
-        with data:
-            data.load()
-        for image in data.images:
+        try:
+            with data:
+                data.load()
+            images = data.images
+        except AttributeError:
+            images = []
+        for image in images:
             path = data_manager._create_file_path(image.id, image.ext)
             if os.path.exists(path):
                 os.remove(path)
