@@ -96,9 +96,8 @@ class TimelineImportEAF(View):
 
             return JsonResponse({"status": "error"})
 
-        except Exception as e:
-            print(e, flush=True)
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Failed to import EAF timeline")
             return JsonResponse({"status": "error"})
 
     def import_timelines_from_eaf(self, xmlfile):

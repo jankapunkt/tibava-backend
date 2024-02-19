@@ -1,14 +1,11 @@
 import logging
-import traceback
 import json
 import time
-
 
 from django.views import View
 from django.http import JsonResponse
 
-
-from backend.models import ClusterItem, Video
+from backend.models import ClusterItem
 
 
 logger = logging.getLogger(__name__)
@@ -20,25 +17,10 @@ class ClusterItemFetch(View):
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error_user_auth"})
 
-            start_time = time.time()
-            entries = []
-            video = Video.objects.get(id=request.GET.get("video_id"))
-
-            logger.warning(f"ClusterItemFetch start {time.time() - start_time}")
-
-            query_args = {}
-
-            for cluster_item in (
-                ClusterItem.objects.filter(video=video)
-                .prefetch_related("video")
-                .prefetch_related("plugin_run_result")
-                .prefetch_related("cluster_timeline_item")
-            ):
-                logger.warning(f"ClusterItemFetch step {time.time() - start_time}")
-
-                entries.append(cluster_item.to_dict())
-
-            logger.warning(f"ClusterItemFetch end {time.time() - start_time}")
+            entries = [
+                item.to_dict()
+                for item in ClusterItem.objects.filter(video_id=request.GET.get('video_id'))
+            ]
 
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception:
@@ -46,7 +28,7 @@ class ClusterItemFetch(View):
             return JsonResponse({"status": "error"})
 
 
-class ClusterItemSetDeleted(View):
+class ClusterItemDelete(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
@@ -58,10 +40,10 @@ class ClusterItemSetDeleted(View):
 
             try:
                 data = json.loads(body)
-            except Exception as e:
+            except Exception:
                 return JsonResponse({"status": "error"})
 
-            if "plugin_item_ref_list" not in data:
+            if "item_ids" not in data:
                 return JsonResponse(
                     {"status": "error", "type": "missing_values_plugin_item_ref_list"}
                 )
@@ -70,25 +52,10 @@ class ClusterItemSetDeleted(View):
                     {"status": "error", "type": "missing_values_cluster_id"}
                 )
 
-            plugin_item_ref_list = list(data.get("plugin_item_ref_list"))
-            for plugin_item_ref in plugin_item_ref_list:
-                cluster_items = ClusterItem.objects.filter(
-                    plugin_item_ref=plugin_item_ref
-                )  # TODO change filter to "get" as soon as old clusters are deleted
-                if len(cluster_items) > 1:
-                    cluster_items = [
-                        f
-                        for f in cluster_items
-                        if f.cluster_timeline_item.cluster_id.hex
-                        == data.get("cluster_id")
-                    ]
-                assert (
-                    len(cluster_items) == 1
-                ), f"still more than one cluster_item: {cluster_items} \n {data}"
-                cluster_items[0].deleted = True
-                cluster_items[0].save()
+            item_ids = list(data.get("item_ids"))
+            ClusterItem.objects.filter(id__in=item_ids).delete()
 
-            return JsonResponse({"status": "ok", "entries": plugin_item_ref_list})
+            return JsonResponse({"status": "ok", "entries": item_ids})
 
         except Exception:
             logger.exception('Failed to delete cluster item set')

@@ -50,6 +50,7 @@ urlpatterns = [
         views.ClusterTimelineItemDelete.as_view(),
         name="cluster_timeline_item_delete",
     ),
+    path('cluster/timeline/item/merge', views.ClusterTimelineItemMerge.as_view()),
     #
     path(
         "cluster/item/fetch",
@@ -57,9 +58,9 @@ urlpatterns = [
         name="cluster_item_fetch",
     ),
     path(
-        "cluster/item/setDeleted",
-        views.ClusterItemSetDeleted.as_view(),
-        name="cluster_item_set_deleted",
+        "cluster/item/delete",
+        views.ClusterItemDelete.as_view(),
+        name="cluster_item_delete",
     ),
     #
     path("timeline/list", views.TimelineList.as_view(), name="timeline_list"),
