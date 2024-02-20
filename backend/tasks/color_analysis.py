@@ -13,7 +13,6 @@ from django.db import transaction
 from django.conf import settings
 
 
-
 @PluginManager.export_parser("color_analysis")
 class ColorAnalyserParser(Parser):
     def __init__(self):
@@ -37,7 +36,13 @@ class ColorAnalyser(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        plugin_run: PluginRun = None,
+        **kwargs,
+    ):
 
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
@@ -75,6 +80,8 @@ class ColorAnalyser(Task):
                         type=Timeline.TYPE_PLUGIN_RESULT,
                     )
 
+                result_timelines = {}
+                plugin_run_results = []
                 for i, d in enumerate(data.data):
                     plugin_run_result_db = PluginRunResult.objects.create(
                         plugin_run=plugin_run,
@@ -85,16 +92,23 @@ class ColorAnalyser(Task):
 
                     timeline_db = Timeline.objects.create(
                         video=video,
-                        name=parameters.get("timeline") + f" #{i}" if len(data.data) > 1 else parameters.get("timeline"),
+                        name=(
+                            parameters.get("timeline") + f" #{i}"
+                            if len(data.data) > 1
+                            else parameters.get("timeline")
+                        ),
                         type=Timeline.TYPE_PLUGIN_RESULT,
                         plugin_run_result=plugin_run_result_db,
                         visualization=Timeline.VISUALIZATION_COLOR,
                         parent=parent_timeline,
                     )
 
-                    return {
-                        "plugin_run": plugin_run.id.hex,
-                        "plugin_run_results": [plugin_run_result_db.id.hex],
-                        "timelines": {"colors":timeline_db.id.hex},
-                        "data": {"colors": result[1]["colors"].id}
-                    }
+                    result_timelines[i] = timeline_db.id.hex
+                    plugin_run_results.append(plugin_run_result_db.id.hex)
+
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": plugin_run_results,
+                    "timelines": result_timelines,
+                    "data": {"colors": result[1]["colors"].id},
+                }
