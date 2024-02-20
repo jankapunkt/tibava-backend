@@ -64,17 +64,17 @@ def login(request):
 
     if "name" not in data["params"]:
         logger.warning('Name not supplied for login')
-        return JsonResponse({"status": "error"})
+        return JsonResponse({"status": "error", "message": "Name missing"})
 
     if "password" not in data["params"]:
         logger.warning('Password not supplied for login')
-        return JsonResponse({"status": "error"})
+        return JsonResponse({"status": "error", "message": "Password missing"})
 
     username = data["params"]["name"]
     password = data["params"]["password"]
 
     if username == "" or password == "":
-        return JsonResponse({"status": "error"})
+        return JsonResponse({"status": "error", "message": "Value empty"})
 
     user = auth.authenticate(username=username, password=password)
     if user is not None:
@@ -92,7 +92,7 @@ def login(request):
             }
         )
 
-    return JsonResponse({"status": "error"})
+    return JsonResponse({"status": "error", "message": "Invalid login credentials"})
 
 
 @require_http_methods(["POST"])
@@ -110,15 +110,15 @@ def register(request):
 
     if "name" not in data["params"]:
         logger.warning('Name not supplied for registration')
-        return JsonResponse({"status": "error"})
+        return JsonResponse({"status": "error", "message": "Name missing"})
 
     if "password" not in data["params"]:
         logger.warning('Password not supplied for registration')
-        return JsonResponse({"status": "error"})
+        return JsonResponse({"status": "error", "message": "Password missing"})
 
     if "email" not in data["params"]:
         logger.warning('EMail not supplied for registration')
-        return JsonResponse({"status": "error"})
+        return JsonResponse({"status": "error", "message": "E-Mail missing"})
 
     username = data["params"]["name"]
     password = data["params"]["password"]
@@ -126,11 +126,11 @@ def register(request):
 
     if username == "" or password == "" or email == "":
         logger.warning("An input is missing for registration.")
-        return JsonResponse({"status": "error"})
+        return JsonResponse({"status": "error", "message": "Input empty"})
 
     if auth.get_user_model().objects.filter(username=username).count() > 0:
         logger.warning("User already exists. Abort.")
-        return JsonResponse({"status": "error"})
+        return JsonResponse({"status": "error", "message": "User already exists"})
 
     # TODO Add EMail register here
     user = auth.get_user_model().objects.create_user(username, email, password)
