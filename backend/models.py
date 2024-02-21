@@ -571,13 +571,7 @@ class ClusterItem(models.Model):
     def to_dict(self):
         result = {
             "id": self.id.hex,
-            "cluster_timeline_item": self.cluster_timeline_item.id.hex,
-            "cluster_id": self.cluster_timeline_item.cluster_id.hex,
-            "video": self.video.id.hex,
-            "plugin_item_ref": self.plugin_item_ref.hex,
-            "embedding_id": self.embedding_id,
             "image_path": self.image_path,
-            "plugin_run_result_id": self.plugin_run_result.id.hex,
             "type": self.TYPE[self.type],
             "time": self.time,
             "delta_time": self.delta_time,
