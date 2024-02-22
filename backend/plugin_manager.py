@@ -59,8 +59,7 @@ class PluginManager:
             print("Unknown Plugin")
             return {"status": False}
 
-        print(self._parser, flush=True)
-        print(parameters, flush=True)
+        logger.info(f'User "{user.username}" has started plugin "{plugin}" with parameters {parameters}')
 
         if plugin in self._parser:
             parameters = self._parser[plugin]()(parameters)
