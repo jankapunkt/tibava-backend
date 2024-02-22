@@ -75,6 +75,8 @@ class FaceClustering(Task):
             inputs={"video": video_data_id},
             outputs=["images", "kpss", "faces", "bboxes"],
         )
+        plugin_run.progress = 0.2
+        plugin_run.save()
 
         if facedetector_result is None:
             raise Exception
@@ -89,6 +91,8 @@ class FaceClustering(Task):
             outputs=["images", "kpss", "faces", "bboxes"],
             downloads=["images", "faces"],
         )
+        plugin_run.progress = 0.4
+        plugin_run.save()
 
         if face_size_filter_result is None:
             raise Exception
@@ -105,6 +109,8 @@ class FaceClustering(Task):
             outputs=["features"],
             downloads=["features"],
         )
+        plugin_run.progress = 0.6
+        plugin_run.save()
 
         if image_feature_result is None:
             raise Exception
@@ -123,6 +129,8 @@ class FaceClustering(Task):
             outputs=["cluster_data"],
             downloads=["cluster_data"],
         )
+        plugin_run.progress = 0.8
+        plugin_run.save()
 
         if cluster_result is None:
             raise Exception

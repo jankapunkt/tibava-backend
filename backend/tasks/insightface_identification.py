@@ -76,6 +76,8 @@ class InsightfaceIdentification(Task):
                 inputs={"images": query_image_id},
                 outputs=["kpss", "faces"],
             )
+            plugin_run.progress = 0.1
+            plugin_run.save()
 
             if facedetection_result is None:
                 raise Exception
@@ -91,6 +93,8 @@ class InsightfaceIdentification(Task):
                 },
                 outputs=["features"],
             )
+            plugin_run.progress = 0.2
+            plugin_run.save()
 
             if query_image_feature_result is None:
                 raise Exception
@@ -105,6 +109,8 @@ class InsightfaceIdentification(Task):
             inputs={"video": video_id},
             outputs=["kpss", "faces"],
         )
+        plugin_run.progress = 0.4
+        plugin_run.save()
 
         if video_facedetection is None:
             raise Exception
@@ -115,6 +121,8 @@ class InsightfaceIdentification(Task):
             inputs={"video": video_id, "kpss": video_facedetection[0]["kpss"]},
             outputs=["features"],
         )
+        plugin_run.progress = 0.6
+        plugin_run.save()
 
         if video_feature_result is None:
             raise Exception
@@ -132,6 +140,8 @@ class InsightfaceIdentification(Task):
             },
             outputs=["probs"],
         )
+        plugin_run.progress = 0.8
+        plugin_run.save()
 
         if result is None:
             raise Exception

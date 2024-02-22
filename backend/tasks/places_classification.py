@@ -93,6 +93,8 @@ class PlacesClassifier(Task):
         result_timelines = {}
         result_data = {}
 
+        plugin_run.progress = 0.5
+        plugin_run.save()
 
         with transaction.atomic():
             result_annotations = {}

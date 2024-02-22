@@ -51,6 +51,8 @@ class XCLIP(Task):
             inputs={"video": video_id},
             outputs=["image_features", "video_features"],
         )
+        plugin_run.progress = 0.3
+        plugin_run.save()
 
         if result is None:
             raise Exception
@@ -62,6 +64,9 @@ class XCLIP(Task):
             inputs={**result[0]},
             outputs=["probs"],
         )
+        plugin_run.progress = 0.6
+        plugin_run.save()
+
         if result is None:
             raise Exception
 

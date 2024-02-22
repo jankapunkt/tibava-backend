@@ -83,6 +83,8 @@ class InsightfaceFacesize(Task):
             inputs={"video": video_id},
             outputs=["probs"],
         )
+        plugin_run.progress = 0.25
+        plugin_run.save()
 
         if shot_type_results is None:
             raise Exception
@@ -93,6 +95,8 @@ class InsightfaceFacesize(Task):
             inputs={"probs": shot_type_results[0]["probs"], "shots": shots_id},
             outputs=["annotations"],
         )
+        plugin_run.progress = 0.5
+        plugin_run.save()
 
         if shot_size_annotation is None:
             raise Exception
@@ -106,6 +110,8 @@ class InsightfaceFacesize(Task):
             inputs={"video": video_id},
             outputs=["images", "kpss", "faces", "bboxes"],
         )
+        plugin_run.progress = 0.75
+        plugin_run.save()
 
         facesize_result = self.run_analyser(
             client,

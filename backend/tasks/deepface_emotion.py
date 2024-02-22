@@ -102,6 +102,8 @@ class DeepfaceEmotion(Task):
             inputs={"video": video_id},
             outputs=["images", "faces"],
         )
+        plugin_run.progress = 0.25
+        plugin_run.save()
 
         if result is None:
             raise Exception
@@ -113,6 +115,8 @@ class DeepfaceEmotion(Task):
             outputs=["probs"],
             downloads=["probs"],
         )
+        plugin_run.progress = 0.5
+        plugin_run.save()
 
         if emotion_result is None:
             raise Exception
@@ -123,6 +127,8 @@ class DeepfaceEmotion(Task):
             inputs={"scalars": emotion_result[0]["probs"]},
             downloads=["aggregated_scalars"],
         )
+        plugin_run.progress = 0.75
+        plugin_run.save()
 
         if aggregate_result is None:
             raise Exception
