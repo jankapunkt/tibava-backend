@@ -66,6 +66,8 @@ class InsightfaceIdentification(Task):
             inputs={"video": video_id},
             outputs=["embeddings"],
         )
+        plugin_run.progress = 0.3
+        plugin_run.save() 
 
         if places_result is None:
             raise Exception
@@ -84,6 +86,8 @@ class InsightfaceIdentification(Task):
             },
             outputs=["probs"],
         )
+        plugin_run.progress = 0.6
+        plugin_run.save() 
 
         if result is None:
             raise Exception

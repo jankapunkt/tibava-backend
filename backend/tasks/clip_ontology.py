@@ -93,6 +93,8 @@ class CLIPOntology(Task):
             inputs={"video": video_id},
             outputs=["embeddings"],
         )
+        plugin_run.progress = 0.25
+        plugin_run.save()
 
         if result is None:
             raise Exception
@@ -104,6 +106,8 @@ class CLIPOntology(Task):
             inputs={**result[0], "concepts": concepts_id},
             outputs=["probs"],
         )
+        plugin_run.progress = 0.5
+        plugin_run.save()
         if result is None:
             raise Exception
 
@@ -113,6 +117,8 @@ class CLIPOntology(Task):
             inputs={"scalars": result[0]["probs"]},
             downloads=["aggregated_scalars"],
         )
+        plugin_run.progress = 0.75
+        plugin_run.save()
         if aggregate_result is None:
             raise Exception
 

@@ -51,6 +51,8 @@ class AudioRms(Task):
             inputs={"video": video_id},
             outputs=["audio"],
         )
+        plugin_run.progress = 0.5
+        plugin_run.save()
 
         if result is None:
             raise Exception

@@ -23,10 +23,6 @@ def analyser_status_to_task_status(analyser_status):
     return None
 
 
-def analyser_progress_to_task_progress(analyser_progress):
-    return min(max(0.0, analyser_progress), 1.0)
-
-
 class TaskAnalyserClient(AnalyserClient):
     def __init__(self, *args, plugin_run_db=None, timeout=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -132,14 +128,12 @@ class TaskAnalyserClient(AnalyserClient):
         return None
 
     # 24 hours timeout
-    def get_plugin_results(self, job_id, plugin_run_db=None, progress_fn=None, status_fn=None, timeout=86400):
+    def get_plugin_results(self, job_id, plugin_run_db=None, status_fn=None, timeout=86400):
         plugin_run_db = plugin_run_db if plugin_run_db is not None else self.plugin_run_db
 
         result = None
 
         start_time = time.time()
-        if progress_fn is None:
-            progress_fn = analyser_progress_to_task_progress
         if status_fn is None:
             status_fn = analyser_status_to_task_status
         while True:
@@ -168,7 +162,6 @@ class TaskAnalyserClient(AnalyserClient):
                 return None
 
             if plugin_run_db is not None:
-                plugin_run_db.progress = progress_fn(result.progress)
                 status = status_fn(result.status)
                 if status is not None:
                     plugin_run_db.status = status

@@ -51,6 +51,8 @@ class CLIP(Task):
             inputs={"video": video_id},
             outputs=["embeddings"],
         )
+        plugin_run.progress = 0.3
+        plugin_run.save()
 
         if result is None:
             raise Exception
@@ -62,6 +64,8 @@ class CLIP(Task):
             inputs={**result[0]},
             outputs=["probs"],
         )
+        plugin_run.progress = 0.6
+        plugin_run.save()
         if result is None:
             raise Exception
 
