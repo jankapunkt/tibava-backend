@@ -6,18 +6,15 @@ import sys
 import io
 import csv
 import base64
+from dataclasses import dataclass
 
-from numpy import isin
-
-import wand.image as wimage
-
+from typing import List, Tuple
 
 from django.views import View
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.conf import settings
 
 from pympi.Elan import Eaf, to_eaf
-from xml.etree import cElementTree as etree
 from io import StringIO
 import pandas as pd
 
@@ -27,11 +24,11 @@ from backend.utils.color import get_closest_color
 from backend.models import (
     Video,
     Annotation,
-    AnnotationCategory,
     Timeline,
     TimelineSegment,
     PluginRunResult,
 )
+from enum import Enum
 from analyser.data import DataManager, Shot
 import numpy as np
 
@@ -59,479 +56,344 @@ def time_to_string(sec, loc="en"):
     return f"{hours}:{min}:{sec}.{sec_frac}"
 
 
-class VideoExportElan(View):
-    def get(self, request):
-        try:
-            if not request.user.is_authenticated:
-                return JsonResponse({"status": "error"})
-
-            if "video_id" not in request.GET:
-                return JsonResponse({"status": "error", "type": "missing_values"})
-
-            try:
-                video_db = Video.objects.get(id=request.GET.get("video_id"))
-            except Video.DoesNotExist:
-                return JsonResponse({"status": "error", "type": "not_exist"})
-
-            annotations = {}
-            for annotation in Annotation.objects.filter(video=video_db):
-                annotation_dict = annotation.to_dict()
-                if annotation.category:
-                    annotation_dict["category"] = annotation.category.to_dict()
-                annotations[annotation.id] = annotation_dict
-            eaf = Eaf(author="")
-            # specific timeline
-            for timeline_id in request.GET.get("timeline_ids"):
-                timeline_db = Timeline.objects.get(id=timeline_id)
-                tier = timeline_db.name
-                # ignore timelines with the same name TODO: check if there is a better way
-                if tier in list(eaf.tiers.keys()):
-                    continue
-                eaf.add_tier(tier_id=tier)
-                # store all annotations
-                for segment_db in timeline_db.timelinesegment_set.all():
-                    start_time = int(segment_db.start * 1000)
-                    end_time = int(segment_db.end * 1000)
-                    for (
-                        segment_annotation_db
-                    ) in segment_db.timelinesegmentannotation_set.all():
-                        category = segment_annotation_db.annotation.category
-                        name = segment_annotation_db.annotation.name
-                        anno = f"{name} {category}"
-                        eaf.add_annotation(
-                            tier, start=start_time, end=end_time, value=anno
-                        )
-            # if request.GET.get("format") == "textgrid":
-            #    textgrid = eaf.to_textgrid()
-            # else:
-            stdout = sys.stdout
-            sys.stdout = str_out = StringIO()
-            to_eaf(file_path="-", eaf_obj=eaf)
-            sys.stdout = stdout
-            result = str_out.getvalue()
-            return JsonResponse({"status": "ok", "file": result})
-        except Exception:
-            logger.exception('Failed to export ELAN')
-            return JsonResponse({"status": "error"})
+@dataclass
+class TimeExport:
+    start: int
+    end: int
 
 
-class VideoExportCSV(View):
-    def get(self, request):
-        try:
-            if not request.user.is_authenticated:
-                return JsonResponse({"status": "error"})
-
-            if "video_id" not in request.GET:
-                return JsonResponse({"status": "error", "type": "missing_values"})
-
-            try:
-                video_db = Video.objects.get(id=request.GET.get("video_id"))
-            except Video.DoesNotExist:
-                return JsonResponse({"status": "error", "type": "not_exist"})
-
-            annotations = {}
-            for annotation in Annotation.objects.filter(video=video_db):
-                annotation_dict = annotation.to_dict()
-                if annotation.category:
-                    annotation_dict["category"] = annotation.category.to_dict()
-                annotations[annotation.id] = annotation_dict
-
-            times = []
-            durations = []
-            timeline_headers = {}
-            for timeline_db in video_db.timeline_set.all():
-                annotations_headers = {}
-                for segment_db in timeline_db.timelinesegment_set.all():
-                    times.append(segment_db.start)
-                    durations.append(segment_db.end - segment_db.start)
-                    for (
-                        segment_annotation_db
-                    ) in segment_db.timelinesegmentannotation_set.all():
-                        annotation_id = segment_annotation_db.annotation.id
-                        if annotation_id not in annotations_headers:
-                            annotations_headers[annotation_id] = {
-                                **annotations[annotation_id],
-                                "times": [],
-                            }
-                        annotations_headers[annotation_id]["times"].append(
-                            {"start": segment_db.start, "end": segment_db.end}
-                        )
-                timeline_headers[timeline_db.id] = {
-                    "name": timeline_db.name,
-                    "annotations": annotations_headers,
-                }
-            # 0, video_db.duration
-            time_duration = sorted(list(set(zip(times, durations))), key=lambda x: x[0])
-            # print(time_duration, flush=True)
-            # print(len(time_duration), flush=True)
-            cols = []
-
-            # first col
-            cols.append(
-                ["start hh:mm:ss.ms", "", ""] + [str(t[0]) for t in time_duration]
-            )
-            cols.append(
-                ["start in seconds", "", ""]
-                + [time_to_string(t[0], loc="en") for t in time_duration]
-            )
-            cols.append(
-                ["duration hh:mm:ss.ms", "", ""] + [str(t[1]) for t in time_duration]
-            )
-            cols.append(
-                ["duration in seconds", "", ""]
-                + [time_to_string(t[1], loc="en") for t in time_duration]
-            )
-            for _, timeline in timeline_headers.items():
-                for _, annotation in timeline["annotations"].items():
-                    col = [timeline["name"]]
-                    col.append(annotation["name"])
-                    if "category" in annotation:
-                        col.append(annotation["category"]["name"])
-                    else:
-                        col.append("")
-                    for t, _ in time_duration:
-                        print(t, flush=True)
-                        label = 0
-                        for anno_t in annotation["times"]:
-                            if anno_t["start"] <= t and t < anno_t["end"]:
-                                label = 1
-                        col.append(str(label))
-                        # cols.append([timeline["name"], "", ""] + times)
-                    cols.append(col)
-            # print(cols, flush=True)
-            # Transpose
-            rows = list(map(list, zip(*cols)))
-
-            # Back to a single string
-            buffer = io.StringIO()
-            with csv.writer(buffer, quoting=csv.QUOTE_ALL) as f:
-                for line in rows:
-                    f.writerow(line)
-                # result = "\n".join([",".join(r) for r in rows])
-            return JsonResponse({"status": "ok", "file": buffer})
-        except Exception:
-            logger.exception('Failed to export CSV')
-            return JsonResponse({"status": "error"})
+@dataclass
+class TimelineExport:
+    annotations: List[str]
+    headlines: List[str]
 
 
-class VideoExportJson(View):
-    def get(self, request):
-        try:
-            if not request.user.is_authenticated:
-                return JsonResponse({"status": "error"})
+class TimeFormatExport(Enum):
+    SECOND = 1
+    ISO = 2
 
-            if "video_id" not in request.GET:
-                return JsonResponse({"status": "error", "type": "missing_values"})
 
-            try:
-                video_db = Video.objects.get(id=request.GET.get("video_id"))
-            except Video.DoesNotExist:
-                return JsonResponse({"status": "error", "type": "not_exist"})
-
-            annotations = [
-                x.to_dict(include_refs_hashes=False, include_refs=True)
-                for x in Annotation.objects.filter(video=video_db)
-            ]
-            timelines = [
-                x.to_dict(include_refs_hashes=False, include_refs=True)
-                for x in video_db.timeline_set.all()
-            ]
-
-            result = json.dumps({"annotations": annotations, "timelines": timelines})
-
-            return JsonResponse({"status": "ok", "file": result})
-        except Exception:
-            logger.exception('Failed to export JSON')
-            return JsonResponse({"status": "error"})
+class TimeTypeExport(Enum):
+    START = 1
+    END = 2
+    DURATION = 3
+    DURATION_NO_GAP = 4
 
 
 class VideoExport(View):
-    def export_merged_csv(self, parameters, video_db):
-        include_category = True
-        if "include_category" in parameters:
-            include_category = parameters.get("include_category")
 
-        use_timestamps = True
-        if "use_timestamps" in parameters:
-            use_timestamps = parameters.get("use_timestamps")
-
-        use_seconds = True
-        if "use_seconds" in parameters:
-            use_seconds = parameters.get("use_seconds")
-
-        merge_timeline = True
-        if "merge_timeline" in parameters:
-            merge_timeline = parameters.get("merge_timeline")
-
-        split_places = False
-        if "split_places" in parameters:
-            split_places = parameters.get("split_places")
-
-        num_header_lines = 1
-        if not merge_timeline:
-            if include_category:
-                num_header_lines = 3
-            else:
-                num_header_lines = 2
-
+    def get_segment_times_from_timeline(
+        self, video: Video, timeline_id: str = None
+    ) -> List[TimeExport]:
         times = []
-        durations = []
-        end_times = []
-        diffs = []
-        for timeline_db in video_db.timeline_set.all():
-            annotations_headers = {}
+        if timeline_id:
+            timeline_db = Timeline.objects.get(id=timeline_id)
             timeline_segments = timeline_db.timelinesegment_set.all()
             for index, segment_db in enumerate(timeline_segments):
-                # if (segment_db.end - segment_db.start) > 1:
-                times.append(segment_db.start)
-                end_times.append(segment_db.end)
-                if index < len(timeline_segments)-1:
-                    diff = timeline_segments[index+1].start - segment_db.end
+                times.append(TimeExport(start=segment_db.start, end=segment_db.end))
+        else:
+            plugin_run_result_db = PluginRunResult.objects.filter(
+                type=PluginRunResult.TYPE_SHOTS, plugin_run__video=video
+            ).first()
+            data_manager = DataManager(settings.DATA_OUTPUT_PATH)
+
+            with data_manager.load(plugin_run_result_db.data_id) as shot_data:
+
+                for shot in shot_data.shots:
+                    times.append(TimeExport(start=shot.start, end=shot.end))
+
+        return times
+
+    def export_time_annotations(
+        self,
+        video: Video,
+        segments: List[TimeExport] = None,
+        type: TimeTypeExport = None,
+        format: TimeFormatExport = None,
+    ):
+        times = [s.start for s in segments] + [video.duration]
+        durations_no_gap = np.asarray(times[1:]) - np.asarray(times[:-1])
+        durations = np.asarray([s.end for s in segments]) - np.asarray(
+            [s.start for s in segments]
+        )
+
+        if type is None:
+            type = TimeTypeExport.START
+        if format is None:
+            format = TimeFormatExport.SECOND
+
+        if format == TimeFormatExport.ISO:
+            if type == TimeTypeExport.START:
+                return TimelineExport(
+                    headlines=["start hh:mm:ss.ms"],
+                    annotations=[time_to_string(t.start, loc="en") for t in segments],
+                )
+            elif type == TimeTypeExport.END:
+                return TimelineExport(
+                    headlines=["end hh:mm:ss.ms"],
+                    annotations=[time_to_string(t.end, loc="en") for t in segments],
+                )
+            elif type == TimeTypeExport.DURATION:
+                return TimelineExport(
+                    headlines=["duration hh:mm:ss.ms"],
+                    annotations=[time_to_string(t, loc="en") for t in durations],
+                )
+            elif type == TimeTypeExport.DURATION_NO_GAP:
+                return TimelineExport(
+                    headlines=["duration to next segment hh:mm:ss.ms"],
+                    annotations=[time_to_string(t, loc="en") for t in durations_no_gap],
+                )
+
+        elif format == TimeFormatExport.SECOND:
+            if type == TimeTypeExport.START:
+                return TimelineExport(
+                    headlines=["start in seconds"],
+                    annotations=[t.start for t in segments],
+                )
+            elif type == TimeTypeExport.END:
+                return TimelineExport(
+                    headlines=["end in seconds"],
+                    annotations=[t.end for t in segments],
+                )
+            elif type == TimeTypeExport.DURATION:
+                return TimelineExport(
+                    headlines=["duration in seconds"],
+                    annotations=[t for t in durations],
+                )
+            elif type == TimeTypeExport.DURATION_NO_GAP:
+                return TimelineExport(
+                    headlines=["duration to next segment in seconds"],
+                    annotations=[t for t in durations_no_gap],
+                )
+
+    def export_scalar_timeline(
+        self,
+        timeline: Timeline,
+        plugin_run_reuslts: PluginRunResult,
+        segments: List[TimeExport] = None,
+        **kwargs,
+    ):
+        data_manager = DataManager(settings.DATA_OUTPUT_PATH)
+
+        headlines = [timeline.name]
+
+        annotations = []
+        with data_manager.load(plugin_run_reuslts.data_id) as data:
+            y = np.asarray(data.y)
+            time = np.asarray(data.time)
+            for segment in segments:
+                shot_y_data = y[
+                    np.logical_and(time >= segment.start, time <= segment.end)
+                ]
+
+                if len(shot_y_data) <= 0:
+                    annotations.append(0.0)
+                    continue
+
+                y_agg = np.sqrt(np.mean(shot_y_data))
+
+                anno = y_agg.item()
+                annotations.append(anno)
+
+        return TimelineExport(headlines=headlines, annotations=annotations)
+
+    def export_annotation_timeline(
+        self,
+        timeline: Timeline,
+        segments: List[TimeExport] = None,
+        include_category: bool = True,
+        empty_annotation: str = None,
+        **kwargs,
+    ) -> TimelineExport:
+        if empty_annotation is None:
+            empty_annotation = "None"
+
+        headlines = [timeline.name]
+
+        annotations = []
+        for segment_db in timeline.timelinesegment_set.all():
+            annotation_labels = []
+            for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
+
+                if include_category and segment_annotation_db.annotation.category:
+                    annotation_labels.append(
+                        segment_annotation_db.annotation.category.name
+                        + "::"
+                        + segment_annotation_db.annotation.name
+                    )
                 else:
-                    diff = 0
-                diffs.append(diff)
-                durations.append(segment_db.end - segment_db.start + diff)
+                    annotation_labels.append(segment_annotation_db.annotation.name)
 
-        # d = {"starts": times, "durations": durations, "end_times": end_times, "diffs": diffs}
-        # import pandas as pd
+            if len(annotation_labels) > 0:
+                annotations.append(
+                    {
+                        "annotation": "+".join(annotation_labels),
+                        "start": float(segment_db.start),
+                        "end": float(segment_db.end),
+                    }
+                )
+            else:
+                annotations.append(
+                    {
+                        "annotation": empty_annotation,
+                        "start": float(segment_db.start),
+                        "end": float(segment_db.end),
+                    }
+                )
 
-        # df = pd.DataFrame.from_dict(d)
-        # df.to_csv("data.csv", index=False)
-                    
-        # 0, video_db.duration
-        time_duration = sorted(list(set(zip(times, durations))), key=lambda x: x[0])
+        # change segmentation if the user ask for another timeline segmentation
+        if segments:
+            new_annotations = []
+            for segment in segments:
+                new_annotation_labels = []
+
+                for annotation in annotations:
+                    if (
+                        (
+                            annotation["start"] >= segment.start
+                            and annotation["start"] <= segment.end
+                        )
+                        or (
+                            annotation["end"] >= segment.start
+                            and annotation["end"] <= segment.end
+                        )
+                        or (
+                            annotation["start"] <= segment.start
+                            and annotation["end"] >= segment.end
+                        )
+                    ):
+                        new_annotation_labels.append(annotation["annotation"])
+                if len(new_annotation_labels) <= 0:
+                    col_text = empty_annotation
+                else:
+                    col_text = "+".join(new_annotation_labels)
+                # print(f'################ {col_text} {segment["end"]} {segment["annotation"]} {s} {d}')
+                new_annotations.append(col_text)
+
+            annotations = new_annotations
+
+        return TimelineExport(headlines=headlines, annotations=annotations)
+
+    def export_timeline(
+        self,
+        timeline: Timeline,
+        segments: List[TimeExport] = None,
+        **kwargs,
+    ) -> TimelineExport:
+        plugin_run_reuslts_db = timeline.plugin_run_result
+
+        if plugin_run_reuslts_db:
+            if plugin_run_reuslts_db.type == PluginRunResult.TYPE_SCALAR:
+                return self.export_scalar_timeline(
+                    timeline=timeline,
+                    plugin_run_reuslts=plugin_run_reuslts_db,
+                    segments=segments,
+                    **kwargs,
+                )
+        else:
+            return self.export_annotation_timeline(
+                timeline=timeline, segments=segments, **kwargs
+            )
+
+    def export_merged_csv(self, parameters, video_db):
+        include_category = parameters.get("include_category", True)
+        use_timestamps = parameters.get("use_timestamps", True)
+        use_seconds = parameters.get("use_seconds", True)
+        merge_timeline = parameters.get("merge_timeline", True)
+        split_places = parameters.get("split_places", False)
+
+        # TODO timeline selection
+        time_segments = self.get_segment_times_from_timeline(video=video_db)
+
         cols = []
 
-        # logger.error(time_duration)
-
-        # shot number column
-        # also extract shots for aggregation later
-        shot_number_col = ["Shot Number"]
-        shot_timeline = video_db.timeline_set.filter(name="Shots")[0]
-
-        for start, duration in time_duration:
-            end = start + duration
-            # logger.error(f"{start} - {end}")
-            for shot_index, shot in enumerate(shot_timeline.timelinesegment_set.all()):
-                shot_number_col.append(shot_index) 
-
-        cols.append(shot_number_col)
-
-        # start time column
-        if use_timestamps:
+        if True:
             cols.append(
-                ["start hh:mm:ss.ms"]
-                + ["" for x in range(num_header_lines - 1)]
-                + [time_to_string(t[0], loc="en") for t in time_duration]
+                TimelineExport(
+                    headlines=["#"],
+                    annotations=[i for i, _ in enumerate(time_segments)],
+                )
             )
+
         if use_seconds:
             cols.append(
-                ["start in seconds"]
-                + ["" for x in range(num_header_lines - 1)]
-                + [str(round(t[0],3)) for t in time_duration]
+                self.export_time_annotations(
+                    video=video_db,
+                    segments=time_segments,
+                    type=TimeTypeExport.START,
+                    format=TimeFormatExport.SECOND,
+                )
             )
-
-        # duration column
-        if use_timestamps:
             cols.append(
-                ["duration hh:mm:ss.ms"]
-                + ["" for x in range(num_header_lines - 1)]
-                + [time_to_string(t[1], loc="en") for t in time_duration]
+                self.export_time_annotations(
+                    video=video_db,
+                    segments=time_segments,
+                    type=TimeTypeExport.START,
+                    format=TimeFormatExport.ISO,
+                )
             )
-        if use_seconds:
             cols.append(
-                ["duration in seconds"]
-                + ["" for x in range(num_header_lines - 1)]
-                + [str(round(t[1],3)) for t in time_duration]
+                self.export_time_annotations(
+                    video=video_db,
+                    segments=time_segments,
+                    type=TimeTypeExport.END,
+                    format=TimeFormatExport.SECOND,
+                )
+            )
+            cols.append(
+                self.export_time_annotations(
+                    video=video_db,
+                    segments=time_segments,
+                    type=TimeTypeExport.END,
+                    format=TimeFormatExport.ISO,
+                )
+            )
+            cols.append(
+                self.export_time_annotations(
+                    video=video_db,
+                    segments=time_segments,
+                    type=TimeTypeExport.DURATION_NO_GAP,
+                    format=TimeFormatExport.SECOND,
+                )
+            )
+            cols.append(
+                self.export_time_annotations(
+                    video=video_db,
+                    segments=time_segments,
+                    type=TimeTypeExport.DURATION_NO_GAP,
+                    format=TimeFormatExport.ISO,
+                )
+            )
+            cols.append(
+                self.export_time_annotations(
+                    video=video_db,
+                    segments=time_segments,
+                    type=TimeTypeExport.DURATION,
+                    format=TimeFormatExport.SECOND,
+                )
+            )
+            cols.append(
+                self.export_time_annotations(
+                    video=video_db,
+                    segments=time_segments,
+                    type=TimeTypeExport.DURATION,
+                    format=TimeFormatExport.ISO,
+                )
             )
 
-        annotations = {}
-        for annotation in Annotation.objects.filter(video=video_db):
-            annotation_dict = annotation.to_dict()
-            if annotation.category:
-                annotation_dict["category"] = annotation.category.to_dict()
-            annotations[annotation.id] = annotation_dict
+        for timeline_db in video_db.timeline_set.all():
+            cols.append(
+                self.export_timeline(timeline=timeline_db, segments=time_segments)
+            )
 
-        # result columns
-        data_manager = DataManager("/predictions/")
+        csv_cols = []
+        for col in cols:
+            if col is None:
+                continue
+            print(f"{col.headlines} {len(col.headlines)} {len(col.annotations)}")
+            csv_cols.append(col.headlines + col.annotations)
 
-        if merge_timeline:
-            for timeline_db in video_db.timeline_set.all():
-                PRresult = timeline_db.plugin_run_result
-
-                if PRresult is not None:
-                    # SCALAR TYPE
-                    if PRresult.type == PluginRunResult.TYPE_SCALAR:
-                        col = [timeline_db.name]
-                        min_col = [f"{timeline_db.name}_min"]
-                        max_col = [f"{timeline_db.name}_max"]
-                        std_col = [f"{timeline_db.name}_std"]
-                        var_col = [f"{timeline_db.name}_var"]
-
-                        scalar_data = data_manager.load(
-                            timeline_db.plugin_run_result.data_id
-                        )
-                        with scalar_data:
-                            y = np.asarray(scalar_data.y)
-                            time = np.asarray(scalar_data.time)
-                            for start, duration in time_duration:
-                                end = start + duration
-                                shot_y_data = y[
-                                    np.logical_and(time >= start, time <= end)
-                                ]
-
-                                if len(shot_y_data) <= 0:
-                                    continue
-
-                                y_agg = np.sqrt(np.mean(shot_y_data))
-
-                                anno = round(float(y_agg), 3)
-                                col.append(anno)
-                                # logger.error(shot_y_data)
-                                min_col.append(round(float(np.min(shot_y_data)), 7))
-                                max_col.append(round(float(np.max(shot_y_data)), 7))
-                                std_col.append(round(float(np.std(shot_y_data)), 7))
-                                var_col.append(round(float(np.var(shot_y_data)), 7))
-                                # logger.error(f"{min_col[-1], max_col[-1], std_col[-1], var_col[-1],}")
-                        
-                        cols.append(col)
-                        cols.append(min_col)
-                        cols.append(max_col)
-                        cols.append(std_col)
-                        cols.append(var_col)
-
-                    # RGB HIST TYPE
-                    if PRresult.type == PluginRunResult.TYPE_RGB_HIST:
-                        col = [timeline_db.name]
-                        rgb_data = data_manager.load(
-                            timeline_db.plugin_run_result.data_id
-                        )
-
-                        with rgb_data:
-                            colors = rgb_data.colors
-                            time = rgb_data.time
-
-                            for start, duration in time_duration:
-                                end = start + duration
-                                shot_colors = colors[
-                                    np.logical_and(time >= start, time <= end)
-                                ]
-                                avg_color = np.mean(shot_colors, axis=0)
-                                col.append(get_closest_color(avg_color))
-
-                        cols.append(col)
-
-                # Annotation Timelines
-                else:
-                    segments = []
-                    places = False # NOTE small Hack to detect if that Timeline is a places_classification
-                    for segment_db in timeline_db.timelinesegment_set.all():
-                        annotations = []
-                        for segment_annotation_db in segment_db.timelinesegmentannotation_set.all():
-                            if  not places\
-                                and segment_annotation_db.annotation.name[0] == ("/")\
-                                and segment_annotation_db.annotation.name[2] == ("/"):
-                                places = True
-
-                            if (include_category and segment_annotation_db.annotation.category):
-                                annotations.append(
-                                    segment_annotation_db.annotation.category.name
-                                    + "::"
-                                    + segment_annotation_db.annotation.name
-                                )
-                            else:
-                                annotations.append(segment_annotation_db.annotation.name)
-                        
-                        if len(annotations) > 0:
-                            segments.append({
-                                    "annotation": "+".join(annotations),
-                                    "start": segment_db.start,
-                                    "end": segment_db.end,
-                                })
-                        else:
-                            segments.append({
-                                "annotation": "None",
-                                "start": segment_db.start,
-                                "end": segment_db.end,
-                            })
-
-                    if len(segments) == 0:
-                        continue
-
-                    if places and split_places:
-                        for index, places_class in enumerate(["place365", "place16", "place3"]):
-                            col = [places_class]
-                            for s, d in time_duration:
-                                col_text = ""
-
-                                for segment in segments:
-                                    splitted = segment["annotation"].split("+")
-                                    if segment["start"] >= s and segment["end"] <= (s + d):
-                                        if len(splitted) > 1:
-                                            col_text = splitted[index]
-                                        else:
-                                            col_text = "None"
-
-                                col.append(col_text)
-                                        
-                            cols.append(col)
-                    else:
-                        col = [timeline_db.name]
-
-                        for s, d in time_duration:
-                            col_text = ""
-
-                            for segment in segments:
-                                # print(f'####### {timeline_db.name} {segment["start"]} {segment["end"]} {segment["annotation"]} {s} {d}')
-                                if segment["start"] >= s and segment["end"] <= (s + d):
-                                    col_text = segment["annotation"]
-                            if col_text == "":
-                                col_text = "None"
-                            
-                            # print(f'################ {col_text} {segment["end"]} {segment["annotation"]} {s} {d}')
-                            col.append(col_text)
-
-
-                        cols.append(col)
-        else:
-            timeline_headers = {}
-
-            for timeline_db in video_db.timeline_set.all():
-                annotations_headers = {}
-                for segment_db in timeline_db.timelinesegment_set.all():
-                    for (segment_annotation_db) in segment_db.timelinesegmentannotation_set.all():
-                        annotation_id = segment_annotation_db.annotation.id
-                        if annotation_id not in annotations_headers:
-                            annotations_headers[annotation_id] = {
-                                **annotations[annotation_id],
-                                "times": [],
-                            }
-                        annotations_headers[annotation_id]["times"].append(
-                            {"start": segment_db.start, "end": segment_db.end}
-                        )
-                timeline_headers[timeline_db.id] = {
-                    "name": timeline_db.name,
-                    "annotations": annotations_headers,
-                }
-
-            for _, timeline in timeline_headers.items():
-                for _, annotation in timeline["annotations"].items():
-                    col = [timeline["name"]]
-                    col.append(annotation["name"])
-                    if include_category:
-                        if "category" in annotation:
-                            col.append(annotation["category"]["name"])
-                        else:
-                            col.append("")
-                    for t, _ in time_duration:
-                        label = 0
-                        for anno_t in annotation["times"]:
-                            if anno_t["start"] <= t and t < anno_t["end"]:
-                                label = 1
-                        col.append(str(label))
-                    cols.append(col)
-        # Transpose
-        rows = list(map(list, zip(*cols)))
+        rows = list(map(list, zip(*csv_cols)))
 
         buffer = io.StringIO()
         writer = csv.writer(buffer, quoting=csv.QUOTE_ALL)
@@ -541,17 +403,9 @@ class VideoExport(View):
         return buffer.getvalue()
 
     def export_individual_csv(self, parameters, video_db):
-        include_category = True
-        if "include_category" in parameters:
-            include_category = parameters.get("include_category")
-
-        use_timestamps = True
-        if "use_timestamps" in parameters:
-            use_timestamps = parameters.get("use_timestamps")
-
-        use_seconds = True
-        if "use_seconds" in parameters:
-            use_seconds = parameters.get("use_seconds")
+        include_category = parameters.get("include_category", True)
+        use_timestamps = parameters.get("use_timestamps", True)
+        use_seconds = parameters.get("use_seconds", True)
 
         timeline_annotations = []
         timeline_names = []
@@ -874,5 +728,5 @@ class VideoExport(View):
 
             return JsonResponse({"status": "error", "type": "unknown_format"})
         except Exception:
-            logger.exception('Failed to generate merged export')
+            logger.exception("Failed to generate merged export")
             return JsonResponse({"status": "error"})
