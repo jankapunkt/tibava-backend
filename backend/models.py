@@ -147,7 +147,7 @@ class PluginRun(models.Model):
 
 class PluginRunResult(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    plugin_run = models.ForeignKey(PluginRun, on_delete=models.CASCADE)
+    plugin_run = models.ForeignKey(PluginRun, on_delete=models.CASCADE, related_name='results')
     name = models.CharField(max_length=256)
     data_id = models.CharField(null=True, max_length=64)
     TYPE_VIDEO = "V"
@@ -535,6 +535,7 @@ class ClusterTimelineItem(models.Model):
             "id": self.id.hex,
             "name": self.name,
             "cluster_id": self.cluster_id.hex,
+            "plugin_run": self.plugin_run.id.hex,
         }
 
         if self.video:
@@ -550,10 +551,13 @@ class ClusterItem(models.Model):
     )
     video = models.ForeignKey(Video, null=True, on_delete=models.CASCADE)
     plugin_item_ref = models.UUIDField()
-    embedding_index = models.PositiveIntegerField()
-    deleted = models.BooleanField(default=False)
+    embedding_id = models.CharField(max_length=100)
     image_path = models.CharField(max_length=128, null=True)
     plugin_run_result = models.ForeignKey(PluginRunResult, on_delete=models.CASCADE, related_name='cluster_items')
+    time=models.FloatField()
+    delta_time=models.FloatField()
+    is_sample=models.BooleanField(default=False)
+
 
     TYPE_FACE = "A"
     TYPE_PLACE = "P"
@@ -571,15 +575,11 @@ class ClusterItem(models.Model):
     def to_dict(self):
         result = {
             "id": self.id.hex,
-            "cluster_timeline_item": self.cluster_timeline_item.id.hex,
-            "cluster_id": self.cluster_timeline_item.cluster_id.hex,
-            "video": self.video.id.hex,
-            "plugin_item_ref": self.plugin_item_ref.hex,
-            "embedding_index": self.embedding_index,
-            "deleted": self.deleted,
             "image_path": self.image_path,
-            "plugin_run_result_id": self.plugin_run_result.id.hex,
             "type": self.TYPE[self.type],
+            "time": self.time,
+            "delta_time": self.delta_time,
+            "is_sample": self.is_sample
         }
 
         return result

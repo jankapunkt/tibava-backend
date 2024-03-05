@@ -218,10 +218,13 @@ class FaceClustering(Task):
                             cluster_timeline_item=cluster_timeline_item_db,
                             video=video,
                             plugin_item_ref=embedding_face_lut[embedding_id],
-                            embedding_index=face_index,
+                            embedding_id=embedding_id,
                             image_path=image_path,
                             plugin_run_result=plugin_run_result_db,
                             type=ClusterItem.TYPE_FACE,
+                            time=image.time,
+                            delta_time=image.delta_time,
+                            is_sample=embedding_id in cluster.sample_embedding_ids
                         )
 
                 return {

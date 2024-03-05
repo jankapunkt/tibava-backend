@@ -113,11 +113,47 @@ class ClusterTimelineItemFetch(View):
             if not request.user.is_authenticated:
                 return JsonResponse({"status": "error_user_auth"})
             
+            video_id = uuid.UUID(hex=request.GET.get('video_id'))
             entries = []
-            video = Video.objects.get(id=request.GET.get("video_id"))
-            for cti in ClusterTimelineItem.objects.filter(video=video):
-                entries.append(cti.to_dict())
+            for cti in ClusterTimelineItem.objects.filter(video_id=video_id):
+                entry = cti.to_dict()
+                entries.append(entry)
+
+                entry['items'] = []
+                for item in cti.items.all():
+                    entry['items'].append(item.to_dict())
+
+
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception:
             logger.exception('Failed to fetch cluster timeline item')
             return JsonResponse({"status": "error"})
+
+
+class ClusterTimelineItemMerge(View):
+    def post(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+
+            try:
+                data = json.loads(body)
+            except Exception:
+                return JsonResponse({"status": "error", "type": "dataload"})
+            
+            if 'from_id' not in data or 'to_id' not in data:
+                return JsonResponse({'status': 'error', 'type': 'Params missing'})
+
+            from_cluster = ClusterTimelineItem.objects.get(id=data['from_id'])
+            ClusterTimelineItem.objects.get(id=data['to_id'])
+
+            from_cluster.items.update(cluster_timeline_item_id=data['to_id'])
+            from_cluster.delete()
+            return JsonResponse({'status': 'ok'})
+
+        except:
+            logger.exception('Failed to merge clusters')
