@@ -27,6 +27,7 @@ from backend.models import (
     Timeline,
     TimelineSegment,
     PluginRunResult,
+    PluginRun,
 )
 from enum import Enum
 from analyser.data import DataManager, Shot
@@ -95,12 +96,23 @@ class VideoExport(View):
             plugin_run_result_db = PluginRunResult.objects.filter(
                 type=PluginRunResult.TYPE_SHOTS, plugin_run__video=video
             ).first()
-            data_manager = DataManager(settings.DATA_OUTPUT_PATH)
+            if plugin_run_result_db is not None:
 
-            with data_manager.load(plugin_run_result_db.data_id) as shot_data:
+                data_manager = DataManager(settings.DATA_OUTPUT_PATH)
 
-                for shot in shot_data.shots:
-                    times.append(TimeExport(start=shot.start, end=shot.end))
+                with data_manager.load(plugin_run_result_db.data_id) as shot_data:
+
+                    for shot in shot_data.shots:
+                        times.append(TimeExport(start=shot.start, end=shot.end))
+            else:
+                # this is some old stuff
+
+                timeline_db = Timeline.objects.filter(
+                    type=Timeline.TYPE_ANNOTATION, video=video
+                ).first()
+                timeline_segments = timeline_db.timelinesegment_set.all()
+                for index, segment_db in enumerate(timeline_segments):
+                    times.append(TimeExport(start=segment_db.start, end=segment_db.end))
 
         return times
 
@@ -301,7 +313,10 @@ class VideoExport(View):
         use_seconds = parameters.get("use_seconds", True)
         merge_timeline = parameters.get("merge_timeline", True)
         split_places = parameters.get("split_places", False)
+        import time
 
+        t = time.time()
+        start_time = time.time()
         # TODO timeline selection
         time_segments = self.get_segment_times_from_timeline(video=video_db)
 
@@ -314,6 +329,9 @@ class VideoExport(View):
                     annotations=[i for i, _ in enumerate(time_segments)],
                 )
             )
+
+        print(f"A {time.time()-t}")
+        t = time.time()
 
         if use_seconds:
             cols.append(
@@ -381,16 +399,31 @@ class VideoExport(View):
                 )
             )
 
-        for timeline_db in video_db.timeline_set.all():
+        print(f"B {time.time()-t}")
+        t = time.time()
+        for timeline_db in (
+            video_db.timeline_set.all()
+            .prefetch_related("timelinesegment_set")
+            .prefetch_related("timelinesegment_set__timelinesegmentannotation_set")
+            .prefetch_related(
+                "timelinesegment_set__timelinesegmentannotation_set__annotation"
+            )
+            .prefetch_related(
+                "timelinesegment_set__timelinesegmentannotation_set__annotation__category"
+            )
+        ):
             cols.append(
                 self.export_timeline(timeline=timeline_db, segments=time_segments)
             )
+
+            print(f"{timeline_db.name} {time.time()-t}")
+            t = time.time()
 
         csv_cols = []
         for col in cols:
             if col is None:
                 continue
-            print(f"{col.headlines} {len(col.headlines)} {len(col.annotations)}")
+            # print(f"{col.headlines} {len(col.headlines)} {len(col.annotations)}")
             csv_cols.append(col.headlines + col.annotations)
 
         rows = list(map(list, zip(*csv_cols)))
@@ -399,6 +432,9 @@ class VideoExport(View):
         writer = csv.writer(buffer, quoting=csv.QUOTE_ALL)
         for line in rows:
             writer.writerow(line)
+
+        print(f"C {time.time()-t}")
+        print(f"TOTAL {time.time()-start_time}")
 
         return buffer.getvalue()
 
