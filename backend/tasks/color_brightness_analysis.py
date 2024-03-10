@@ -22,6 +22,7 @@ class ColorBrightnessAnalyserParser(Parser):
         self.valid_parameter = {
             "timeline": {"parser": str, "default": "Color Brightness"},
             "fps": {"parser": float, "default": 2.0},
+            "normalize": {"parser": bool, "default": True},
         }
 
 
@@ -34,7 +35,13 @@ class ColorBrightnessAnalyser(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        plugin_run: PluginRun = None,
+        **kwargs
+    ):
 
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
@@ -50,6 +57,7 @@ class ColorBrightnessAnalyser(Task):
             "color_brightness_analyser",
             parameters={
                 "fps": parameters.get("fps"),
+                "normalize": parameters.get("normalize"),
             },
             inputs={"video": video_id},
             downloads=["brightness"],
@@ -78,6 +86,6 @@ class ColorBrightnessAnalyser(Task):
             return {
                 "plugin_run": plugin_run.id.hex,
                 "plugin_run_results": [plugin_run_result_db.id.hex],
-                "timelines": {"brightness":timeline_db.id.hex},
-                "data": {"brightness": result[1]["brightness"].id}
+                "timelines": {"brightness": timeline_db.id.hex},
+                "data": {"brightness": result[1]["brightness"].id},
             }

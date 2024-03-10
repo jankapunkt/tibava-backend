@@ -202,7 +202,7 @@ class VideoExport(View):
                     annotations.append(0.0)
                     continue
 
-                y_agg = np.sqrt(np.mean(shot_y_data))
+                y_agg = np.mean(shot_y_data)
 
                 anno = y_agg.item()
                 annotations.append(anno)
