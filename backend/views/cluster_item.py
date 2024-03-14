@@ -60,3 +60,22 @@ class ClusterItemDelete(View):
         except Exception:
             logger.exception('Failed to delete cluster item set')
             return JsonResponse({"status": "error_cluster_item_set_deleted"})
+
+
+class ClusterItemMove(View):
+    def post(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error", "type": "user_auth"})
+            try:
+                body = request.body.decode("utf-8")
+            except (UnicodeDecodeError, AttributeError):
+                body = request.body
+            data = json.loads(body)
+
+            (ClusterItem.objects.filter(id__in=data['item_ids'])
+                                .update(cluster_timeline_item=data['new_cluster_id']))
+            return JsonResponse({"status": "ok"})
+        except Exception:
+            logger.exception('Failed to delete cluster timeline item')
+            return JsonResponse({"status": "error"})

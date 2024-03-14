@@ -62,6 +62,7 @@ urlpatterns = [
         views.ClusterItemDelete.as_view(),
         name="cluster_item_delete",
     ),
+    path("cluster/item/move", views.ClusterItemMove.as_view()),
     #
     path("timeline/list", views.TimelineList.as_view(), name="timeline_list"),
     path(

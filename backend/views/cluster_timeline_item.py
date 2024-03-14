@@ -1,12 +1,11 @@
 import json
 import logging
-import traceback
 import uuid
 
 from django.views import View
 from django.http import JsonResponse
 
-from backend.models import ClusterTimelineItem, Timeline, Video
+from backend.models import ClusterTimelineItem, Video, PluginRun
 
 
 logger = logging.getLogger(__name__)
@@ -22,28 +21,17 @@ class ClusterTimelineItemCreate(View):
             except (UnicodeDecodeError, AttributeError):
                 body = request.body
 
-            try:
-                data = json.loads(body)
-            except Exception as e:
-                return JsonResponse({"status": "error", "type": "data_load"})
+            data = json.loads(body)
 
-            if "cluster_id" not in data:
-                return JsonResponse({"status": "error", "type": "missing_values_cluster_id"})
-            if "video_id" not in data:
-                return JsonResponse({"status": "error", "type": "missing_values_video"})
-            if not isinstance(data.get("name"), str):
-                return JsonResponse({"status": "error", "type": "wrong_request_body"})
-
-            try:
-                video = Video.objects.get(id=data.get("video_id"))
-                cluster_timeline_item = ClusterTimelineItem.objects.create(
-                    cluster_id=uuid.UUID(data.get("cluster_id")).hex,
-                    name=data.get("name"),
-                    video=video,
-                )
-                cluster_timeline_item.save()
-            except ClusterTimelineItem.DoesNotExist:
-                return JsonResponse({"status": "error", "type": "not_exist"})
+            video = Video.objects.get(id=data["video_id"])
+            plugin_run = PluginRun.objects.get(id=uuid.UUID(data['plugin_run']))
+            cluster_timeline_item = ClusterTimelineItem.objects.create(
+                cluster_id=uuid.uuid4(),
+                name=data["name"],
+                video=video,
+                plugin_run=plugin_run,
+                type=data['type']
+            )
 
             return JsonResponse({"status": "ok", "entry": cluster_timeline_item.to_dict()})
         except Exception:
@@ -114,15 +102,10 @@ class ClusterTimelineItemFetch(View):
                 return JsonResponse({"status": "error_user_auth"})
             
             video_id = uuid.UUID(hex=request.GET.get('video_id'))
-            entries = []
-            for cti in ClusterTimelineItem.objects.filter(video_id=video_id):
-                entry = cti.to_dict()
-                entries.append(entry)
-
-                entry['items'] = []
-                for item in cti.items.all():
-                    entry['items'].append(item.to_dict())
-
+            entries = [
+                cti.to_dict()
+                for cti in ClusterTimelineItem.objects.filter(video_id=video_id)
+            ]
 
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception:

@@ -536,6 +536,8 @@ class ClusterTimelineItem(models.Model):
             "name": self.name,
             "cluster_id": self.cluster_id.hex,
             "plugin_run": self.plugin_run.id.hex,
+            "type": self.type,
+            "items": [item.to_dict() for item in self.items.all()]
         }
 
         if self.video:
