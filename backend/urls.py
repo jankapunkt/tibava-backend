@@ -65,6 +65,7 @@ urlpatterns = [
     path("cluster/item/move", views.ClusterItemMove.as_view()),
     #
     path("timeline/list", views.TimelineList.as_view(), name="timeline_list"),
+    path("timeline/list_all", views.TimelineListAll.as_view()),
     path(
         "timeline/duplicate",
         views.TimelineDuplicate.as_view(),
