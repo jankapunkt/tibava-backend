@@ -5,7 +5,7 @@ import traceback
 from django.views import View
 from django.http import JsonResponse
 
-from backend.models import Video, Timeline, TimelineSegment
+from backend.models import Video, Timeline, TimelineSegment, PluginRunResult
 
 
 logger = logging.getLogger(__name__)
@@ -39,6 +39,30 @@ class TimelineList(View):
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception:
             logger.exception("Failed to list timelines")
+            return JsonResponse({"status": "error"})
+
+
+class TimelineListAll(View):
+    def get(self, request):
+        try:
+            if not request.user.is_authenticated:
+                return JsonResponse({"status": "error"})
+            
+            timelines = (Timeline.objects.filter(video__owner=request.user)
+                                         .prefetch_related('plugin_run_result'))
+            add_results_type = request.GET.get("add_results_type", False)
+
+            entries = []
+            for timeline in timelines:
+                result = timeline.to_dict()
+                if add_results_type:
+                    result['plugin'] = {'type': None}
+                    if timeline.plugin_run_result:
+                        result['plugin']['type'] = PluginRunResult.TYPE[timeline.plugin_run_result.type]
+                entries.append(result)
+            return JsonResponse({"status": "ok", "entries": entries})
+        except Exception:
+            logger.exception("Failed to list all timelines")
             return JsonResponse({"status": "error"})
 
 
