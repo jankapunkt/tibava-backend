@@ -235,6 +235,14 @@ class TimelineChangeVisualization(View):
                     return JsonResponse({"status": "error", "type": "wrong_request_body"})
                 timeline_db.colormap = colormap
 
+            colormap_inverse = data.get("colormap_inverse")
+            if colormap_inverse is not None:
+                print(colormap_inverse)
+                if not isinstance(colormap_inverse, bool):
+                    return JsonResponse({"status": "error", "type": "wrong_request_body"})
+                timeline_db.colormap_inverse = colormap_inverse
+            
+
             timeline_db.save()
             return JsonResponse({"status": "ok", "entry": timeline_db.to_dict()})
         except Exception:

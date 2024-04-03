@@ -260,6 +260,7 @@ class Timeline(models.Model):
         default=VISUALIZATION_COLOR,
     )
     colormap = models.CharField(max_length=256, null=True, blank=True)
+    colormap_inverse = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         if self.order < 0:
@@ -280,6 +281,7 @@ class Timeline(models.Model):
             "order": self.order,
             "collapse": self.collapse,
             "colormap": self.colormap,
+            "colormap_inverse": self.colormap_inverse,
         }
 
         if self.parent:
