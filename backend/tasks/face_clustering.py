@@ -27,11 +27,18 @@ from django.conf import settings
 class FaceClusteringParser(Parser):
     def __init__(self):
         self.valid_parameter = {
-            "cluster_threshold": {"parser": float, "default": 0.5},
-            "fps": {"parser": float, "default": 2.0},
-            "max_cluster": {"parser": int, "default": 50},
+            # clustering-specific params
+            "clustering_method": {"parser": str, "default": "DBScan"},
+            "cluster_threshold": {
+                "parser": float,
+                "default": 0.5,
+            },  # agglomerative, dbscan
+            "metric": {"parser": str, "default": "cosine"},  # dbscan
+            # other params
             "max_samples_per_cluster": {"parser": int, "default": 30},
+            "max_cluster": {"parser": int, "default": 50},
             "min_face_height": {"parser": float, "default": 0.1},
+            "fps": {"parser": float, "default": 2.0},
         }
 
 
@@ -116,19 +123,42 @@ class FaceClustering(Task):
             raise Exception
 
         # cluster faces
-        cluster_result = self.run_analyser(
-            client,
-            "clustering",
-            parameters={
-                "cluster_threshold": parameters.get("cluster_threshold"),
-                "max_samples_per_cluster": parameters.get("max_samples_per_cluster"),
-            },
-            inputs={
-                "embeddings": image_feature_result[0]["features"],
-            },
-            outputs=["cluster_data"],
-            downloads=["cluster_data"],
-        )
+        if parameters.get("clustering_method").lower() == "agglomerative":
+            cluster_result = self.run_analyser(
+                client,
+                "clustering",
+                parameters={
+                    "cluster_threshold": parameters.get("cluster_threshold"),
+                    "max_samples_per_cluster": parameters.get(
+                        "max_samples_per_cluster"
+                    ),
+                },
+                inputs={
+                    "embeddings": image_feature_result[0]["features"],
+                },
+                outputs=["cluster_data"],
+                downloads=["cluster_data"],
+            )
+        elif parameters.get("clustering_method").lower() == "dbscan":
+            cluster_result = self.run_analyser(
+                client,
+                "dbscanclustering",
+                parameters={
+                    "cluster_threshold": parameters.get("cluster_threshold"),
+                    "metric": parameters.get("metric"),
+                    "max_samples_per_cluster": parameters.get(
+                        "max_samples_per_cluster"
+                    ),
+                },
+                inputs={
+                    "embeddings": image_feature_result[0]["features"],
+                },
+                outputs=["cluster_data"],
+                downloads=["cluster_data"],
+            )
+        else:
+            raise Exception
+
         plugin_run.progress = 0.8
         plugin_run.save()
 
@@ -217,14 +247,14 @@ class FaceClustering(Task):
                         _ = ClusterItem.objects.create(
                             cluster_timeline_item=cluster_timeline_item_db,
                             video=video,
-                            plugin_item_ref=embedding_face_lut[embedding_id],
+                            # plugin_item_ref=embedding_face_lut[embedding_id],
                             embedding_id=embedding_id,
                             image_path=image_path,
                             plugin_run_result=plugin_run_result_db,
                             type=ClusterItem.TYPE_FACE,
                             time=image.time,
                             delta_time=image.delta_time,
-                            is_sample=embedding_id in cluster.sample_embedding_ids
+                            is_sample=embedding_id in cluster.sample_embedding_ids,
                         )
 
                 return {

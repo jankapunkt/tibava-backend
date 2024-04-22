@@ -147,7 +147,9 @@ class PluginRun(models.Model):
 
 class PluginRunResult(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    plugin_run = models.ForeignKey(PluginRun, on_delete=models.CASCADE, related_name='results')
+    plugin_run = models.ForeignKey(
+        PluginRun, on_delete=models.CASCADE, related_name="results"
+    )
     name = models.CharField(max_length=256)
     data_id = models.CharField(null=True, max_length=64)
     TYPE_VIDEO = "V"
@@ -190,7 +192,9 @@ class PluginRunResult(models.Model):
 
 @receiver(post_delete, sender=PluginRunResult)
 def delete_pluginresult_data(sender, instance, **kwargs):
-    logger.info(f'Deleting PluginRunResult {instance.id} by user {instance.plugin_run.video.owner.username}')
+    logger.info(
+        f"Deleting PluginRunResult {instance.id} by user {instance.plugin_run.video.owner.username}"
+    )
     data_manager = DataManager("/predictions/")
 
     if instance.type == PluginRunResult.TYPE_IMAGES:
@@ -207,7 +211,7 @@ def delete_pluginresult_data(sender, instance, **kwargs):
                 os.remove(path)
 
     for clusteritem in instance.cluster_items.all():
-        filename, ext = clusteritem.image_path.split('/')[-1].split('.')
+        filename, ext = clusteritem.image_path.split("/")[-1].split(".")
 
         path = data_manager._create_file_path(filename, ext)
         if os.path.exists(path):
@@ -230,7 +234,7 @@ class Timeline(models.Model):
     TYPE = {
         TYPE_ANNOTATION: "ANNOTATION",
         TYPE_PLUGIN_RESULT: "PLUGIN_RESULT",
-        TYPE_TRANSCRIPT: "TRANSCRIPT"
+        TYPE_TRANSCRIPT: "TRANSCRIPT",
     }
 
     type = models.CharField(
@@ -539,7 +543,7 @@ class ClusterTimelineItem(models.Model):
             "cluster_id": self.cluster_id.hex,
             "plugin_run": self.plugin_run.id.hex,
             "type": self.type,
-            "items": [item.to_dict() for item in self.items.all()]
+            "items": [item.to_dict() for item in self.items.all()],
         }
 
         if self.video:
@@ -551,17 +555,18 @@ class ClusterTimelineItem(models.Model):
 class ClusterItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     cluster_timeline_item = models.ForeignKey(
-        ClusterTimelineItem, on_delete=models.CASCADE, related_name='items'
+        ClusterTimelineItem, on_delete=models.CASCADE, related_name="items"
     )
     video = models.ForeignKey(Video, null=True, on_delete=models.CASCADE)
-    plugin_item_ref = models.UUIDField()
+    # plugin_item_ref = models.UUIDField()
     embedding_id = models.CharField(max_length=100)
     image_path = models.CharField(max_length=128, null=True)
-    plugin_run_result = models.ForeignKey(PluginRunResult, on_delete=models.CASCADE, related_name='cluster_items')
-    time=models.FloatField()
-    delta_time=models.FloatField()
-    is_sample=models.BooleanField(default=False)
-
+    plugin_run_result = models.ForeignKey(
+        PluginRunResult, on_delete=models.CASCADE, related_name="cluster_items"
+    )
+    time = models.FloatField()
+    delta_time = models.FloatField()
+    is_sample = models.BooleanField(default=False)
 
     TYPE_FACE = "A"
     TYPE_PLACE = "P"
@@ -583,7 +588,7 @@ class ClusterItem(models.Model):
             "type": self.TYPE[self.type],
             "time": self.time,
             "delta_time": self.delta_time,
-            "is_sample": self.is_sample
+            "is_sample": self.is_sample,
         }
 
         return result
