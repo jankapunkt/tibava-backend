@@ -32,11 +32,11 @@ def download_file(file, output_dir, output_name=None, max_size=None, extensions=
 
         if extensions is not None:
             if not check_extension(path, extensions):
-                return {"status": "error", "error": {"type": "wrong_file_extension"}}
+                return {"status": "error", "type": "wrong_file_extension"}
         # TODO add parameter
         if max_size is not None:
             if file.size > max_size:
-                return {"status": "error", "error": {"type": "file_too_large"}}
+                return {"status": "error", "type": "file_too_large"}
 
         os.makedirs(output_dir, exist_ok=True)
 
@@ -48,14 +48,14 @@ def download_file(file, output_dir, output_name=None, max_size=None, extensions=
         return {"status": "ok", "path": Path(output_path), "origin": file.name}
     except Exception:
         logger.exception("Failed to download file")
-        return {"status": "error", "error": {"type": "downloading_error"}}
+        return {"status": "error", "type": "downloading_error"}
 
 
 def download_url(url, output_dir, output_name=None, max_size=None, extensions=None):
     try:
         response = requests.get(url, stream=True)
         if response.status_code != 200:
-            return {"status": "error", "error": {"type": "downloading_error"}}
+            return {"status": "error", "type": "downloading_error"}
 
         params = cgi.parse_header(response.headers.get("Content-Disposition", ""))[-1]
         if "filename" in params:
@@ -64,20 +64,26 @@ def download_url(url, output_dir, output_name=None, max_size=None, extensions=No
             if extensions is not None:
                 if ext not in extensions:
 
-                    return {"status": "error", "error": {"type": "wrong_file_extension"}}
+                    return {
+                        "status": "error",
+                        "type": "wrong_file_extension",
+                    }
 
         elif response.headers.get("Content-Type") != None:
 
             ext = mimetypes.guess_extension(response.headers.get("Content-Type"))
             if ext is None:
-                return {"status": "error", "error": {"type": "downloading_error"}}
+                return {"status": "error", "type": "downloading_error"}
 
             if extensions is not None:
                 if ext.lower() not in extensions:
-                    return {"status": "error", "error": {"type": "wrong_file_extension"}}
+                    return {
+                        "status": "error",
+                        "type": "wrong_file_extension",
+                    }
             filename = url
         else:
-            return {"status": "error", "error": {"type": "file_not_found"}}
+            return {"status": "error", "type": "file_not_found"}
 
         if output_name is not None:
             output_path = os.path.join(output_dir, f"{output_name}{ext}")
@@ -90,9 +96,9 @@ def download_url(url, output_dir, output_name=None, max_size=None, extensions=No
                 size += 1024
 
                 if size > max_size:
-                    return {"status": "error", "error": {"type": "file_too_large"}}
+                    return {"status": "error", "type": "file_too_large"}
                 f.write(chunk)
 
         return {"status": "ok", "path": Path(output_path), "origin": filename}
     except:
-        return {"status": "error", "error": {"type": "downloading_error"}}
+        return {"status": "error", "type": "downloading_error"}

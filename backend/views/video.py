@@ -13,7 +13,13 @@ from urllib.parse import urlparse
 import imageio
 from backend.plugin_manager import PluginManager
 
-from backend.utils import download_url, download_file, media_url_to_video, media_path_to_video, media_dir_to_video
+from backend.utils import (
+    download_url,
+    download_file,
+    media_url_to_video,
+    media_path_to_video,
+    media_dir_to_video,
+)
 
 from django.views import View
 from django.http import JsonResponse
@@ -37,11 +43,15 @@ class VideoUpload(View):
         try:
             if not request.user.is_authenticated:
                 logger.error("VideoUpload::not_authenticated")
-                return JsonResponse({"status": "error"})
+                return JsonResponse(
+                    {"status": "error", "type": "not_authenticated"}, status=500
+                )
 
             if request.method != "POST":
                 logger.error("VideoUpload::wrong_method")
-                return JsonResponse({"status": "error"})
+                return JsonResponse(
+                    {"status": "error", "type": "database_error"}, status=500
+                )
             video_id_uuid = uuid.uuid4()
             video_id = video_id_uuid.hex
             if "file" in request.FILES:
@@ -57,7 +67,7 @@ class VideoUpload(View):
 
                 if download_result["status"] != "ok":
                     logger.error("VideoUpload::failed")
-                    return JsonResponse(download_result)
+                    return JsonResponse(download_result, status=500)
 
                 path = Path(request.FILES["file"].name)
                 ext = "".join(path.suffixes)
@@ -86,10 +96,14 @@ class VideoUpload(View):
                 )
                 if not created:
                     logger.error("VideoUpload::database_create_failed")
-                    return JsonResponse({"status": "error"})
+                    return JsonResponse(
+                        {"status": "error", "type": "database_error"}, status=500
+                    )
 
                 analyers = request.POST.get("analyser").split(",")
-                self.submit_analyse(plugins=["thumbnail"] + analyers, video=video_db, user=request.user)
+                self.submit_analyse(
+                    plugins=["thumbnail"] + analyers, video=video_db, user=request.user
+                )
 
                 return JsonResponse(
                     {
@@ -104,35 +118,37 @@ class VideoUpload(View):
                     }
                 )
 
-            return JsonResponse({"status": "error"})
+            return JsonResponse({"status": "error"}, status=500)
 
         except Exception:
-            logger.exception('Video upload by user failed')
-            return JsonResponse({"status": "error"})
+            logger.exception("Video upload by user failed")
+            return JsonResponse({"status": "error"}, status=500)
 
 
 class VideoList(View):
     def get(self, request):
         try:
             if not request.user.is_authenticated:
-                return JsonResponse({"status": "error"})
+                return JsonResponse({"status": "error"}, status=500)
             entries = []
             for video in Video.objects.filter(owner=request.user):
                 entries.append(video.to_dict())
             return JsonResponse({"status": "ok", "entries": entries})
         except Exception as e:
-            logger.exception('Error listing videos')
-            return JsonResponse({"status": "error"})
+            logger.exception("Error listing videos")
+            return JsonResponse({"status": "error"}, status=500)
 
 
 class VideoGet(View):
     def get(self, request):
         try:
             if not request.user.is_authenticated:
-                return JsonResponse({"status": "error"})
+                return JsonResponse({"status": "error"}, status=500)
 
             entries = []
-            for video in Video.objects.filter(id=request.GET.get("id"), owner=request.user):
+            for video in Video.objects.filter(
+                id=request.GET.get("id"), owner=request.user
+            ):
                 entries.append(
                     {
                         **video.to_dict(),
@@ -140,18 +156,18 @@ class VideoGet(View):
                     }
                 )
             if len(entries) != 1:
-                return JsonResponse({"status": "error"})
+                return JsonResponse({"status": "error"}, status=500)
             return JsonResponse({"status": "ok", "entry": entries[0]})
         except Exception:
-            logger.exception('Failed to get video')
-            return JsonResponse({"status": "error"})
+            logger.exception("Failed to get video")
+            return JsonResponse({"status": "error"}, status=500)
 
 
 class VideoRename(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
-                return JsonResponse({"status": "error"})
+                return JsonResponse({"status": "error"}, status=500)
             try:
                 body = request.body.decode("utf-8")
             except (UnicodeDecodeError, AttributeError):
@@ -160,33 +176,41 @@ class VideoRename(View):
             try:
                 data = json.loads(body)
             except Exception as e:
-                return JsonResponse({"status": "error"})
+                return JsonResponse({"status": "error"}, status=500)
 
             if "id" not in data:
-                return JsonResponse({"status": "error", "type": "missing_values"})
+                return JsonResponse(
+                    {"status": "error", "type": "missing_values"}, status=500
+                )
             if "name" not in data:
-                return JsonResponse({"status": "error", "type": "missing_values"})
+                return JsonResponse(
+                    {"status": "error", "type": "missing_values"}, status=500
+                )
             if not isinstance(data.get("name"), str):
-                return JsonResponse({"status": "error", "type": "wrong_request_body"})
+                return JsonResponse(
+                    {"status": "error", "type": "wrong_request_body"}, status=500
+                )
 
             try:
                 video_db = Video.objects.get(id=data.get("id"))
             except Video.DoesNotExist:
-                return JsonResponse({"status": "error", "type": "not_exist"})
+                return JsonResponse(
+                    {"status": "error", "type": "not_exist"}, status=500
+                )
 
             video_db.name = data.get("name")
             video_db.save()
             return JsonResponse({"status": "ok", "entry": video_db.to_dict()})
         except Exception:
-            logger.exception('Failed to rename video')
-            return JsonResponse({"status": "error"})
+            logger.exception("Failed to rename video")
+            return JsonResponse({"status": "error"}, status=500)
 
 
 class VideoDelete(View):
     def post(self, request):
         try:
             if not request.user.is_authenticated:
-                return JsonResponse({"status": "error"})
+                return JsonResponse({"status": "error"}, status=500)
             try:
                 body = request.body.decode("utf-8")
             except (UnicodeDecodeError, AttributeError):
@@ -195,11 +219,13 @@ class VideoDelete(View):
             try:
                 data = json.loads(body)
             except Exception as e:
-                return JsonResponse({"status": "error"})
-            count, _ = Video.objects.filter(id=data.get("id"), owner=request.user).delete()
+                return JsonResponse({"status": "error"}, status=500)
+            count, _ = Video.objects.filter(
+                id=data.get("id"), owner=request.user
+            ).delete()
             if count:
                 return JsonResponse({"status": "ok"})
-            return JsonResponse({"status": "error"})
+            return JsonResponse({"status": "error"}, status=500)
         except Exception:
-            logger.exception('Failed to delete video')
-            return JsonResponse({"status": "error"})
+            logger.exception("Failed to delete video")
+            return JsonResponse({"status": "error"}, status=500)
