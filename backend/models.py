@@ -607,11 +607,35 @@ class VideoAnalysisState(models.Model):
         blank=True,
         null=True,
     )
+    selected_place_clustering = models.ForeignKey(
+        PluginRun,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="video_analyses_state_place_clustering",
+    )
+    selected_face_clustering = models.ForeignKey(
+        PluginRun,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="video_analyses_state_face_clustering",
+    )
 
     def to_dict(self):
         result = {
             "selected_shots": (
                 self.selected_shots.id.hex if self.selected_shots else None
+            ),
+            "selected_place_clustering": (
+                self.selected_place_clustering.id.hex
+                if self.selected_place_clustering
+                else None
+            ),
+            "selected_face_clustering": (
+                self.selected_face_clustering.id.hex
+                if self.selected_face_clustering
+                else None
             ),
         }
 

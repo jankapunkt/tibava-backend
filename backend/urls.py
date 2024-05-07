@@ -210,4 +210,14 @@ urlpatterns = [
         views.VideoAnalysisStateSetSelectedShots.as_view(),
         name="video_analysis_set_selected_shots",
     ),
+    path(
+        "video/analysis/setselectedplaceclustering",
+        views.VideoAnalysisStateSetSelectedPlaceClustering.as_view(),
+        name="video_analysis_set_selected_place_clustering",
+    ),
+    path(
+        "video/analysis/setselectedfaceclustering",
+        views.VideoAnalysisStateSetSelectedFaceClustering.as_view(),
+        name="video_analysis_set_selected_face_clustering",
+    ),
 ]
