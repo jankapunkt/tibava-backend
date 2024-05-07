@@ -592,3 +592,27 @@ class ClusterItem(models.Model):
         }
 
         return result
+
+
+class VideoAnalysisState(models.Model):
+
+    video = models.OneToOneField(
+        Video,
+        on_delete=models.CASCADE,
+        primary_key=True,
+    )
+    selected_shots = models.ForeignKey(
+        Timeline,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
+
+    def to_dict(self):
+        result = {
+            "selected_shots": (
+                self.selected_shots.id.hex if self.selected_shots else None
+            ),
+        }
+
+        return result

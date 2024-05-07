@@ -50,7 +50,7 @@ urlpatterns = [
         views.ClusterTimelineItemDelete.as_view(),
         name="cluster_timeline_item_delete",
     ),
-    path('cluster/timeline/item/merge', views.ClusterTimelineItemMerge.as_view()),
+    path("cluster/timeline/item/merge", views.ClusterTimelineItemMerge.as_view()),
     #
     path(
         "cluster/item/fetch",
@@ -200,9 +200,14 @@ urlpatterns = [
         views.AnnotationShortcutUpdate.as_view(),
         name="annotation_shortcut_update",
     ),
-    #
-    # path("analyser/upload/file", views.AnalyserUploadFile.as_view(), name="analyser_upload_file"),
-    # path("analyser/plugin/run", views.AnalyserPluginRun.as_view(), name="analyser_plugin_run"),
-    # path("analyser/plugin/status", views.AnalyserPluginStatus.as_view(), name="analyser_plugin_status"),
-    # path("analyser/download/data", views.AnalyserDownloadData.as_view(), name="analyser_download_data"),
+    path(
+        "video/analysis/get",
+        views.VideoAnalysisStateGet.as_view(),
+        name="video_analysis_get",
+    ),
+    path(
+        "video/analysis/setselectedshots",
+        views.VideoAnalysisStateSetSelectedShots.as_view(),
+        name="video_analysis_set_selected_shots",
+    ),
 ]
