@@ -85,7 +85,7 @@ class BLIPVQA(Task):
         )
         if result is None:
             raise Exception
-        
+
         result = self.run_analyser(
             client,
             "blip_image_embedding",
@@ -96,7 +96,7 @@ class BLIPVQA(Task):
 
         if result is None:
             raise Exception
-        
+
         plugin_run.progress = 0.5
         plugin_run.save()
 
@@ -115,7 +115,7 @@ class BLIPVQA(Task):
 
         with transaction.atomic():
             with result[1]["annotations"] as data:
-                
+
                 # print("A", flush=True)
                 """
                 Create a timeline labeled
@@ -140,8 +140,14 @@ class BLIPVQA(Task):
                     )
                     # print(f"C {annotation.start} {annotation.end}", flush=True)
                     for label in annotation.labels:
+                        label = str(label)
+                        if len(label) > settings.ANNOTATION_MAX_LENGTH:
+                            label = (
+                                label[: max(0, settings.ANNOTATION_MAX_LENGTH - 4)]
+                                + " ..."
+                            )
                         annotation_db, _ = Annotation.objects.get_or_create(
-                            name=str(label),
+                            name=label,
                             video=video,
                             category=category_db,
                             owner=user,

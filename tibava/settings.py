@@ -179,6 +179,8 @@ GRPC_PORT = 50051
 
 INDEXER_PATH = "/indexer"
 
+ANNOTATION_MAX_LENGTH = 1000
+
 
 try:
     from .user_settings import *
