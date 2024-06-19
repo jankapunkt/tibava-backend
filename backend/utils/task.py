@@ -52,11 +52,15 @@ class Task:
         )
         if job_id is None:
             return None
-        logger.info(f"Analyser started: {job_id}")
+        logger.info(
+            f"Plugin started: analyser job_id: {job_id} plugin_run_id: {plugin_run}"
+        )
 
         result = client.get_plugin_results(job_id=job_id, plugin_run_db=plugin_run)
         if result is None:
-            logger.error(f"Analyser is crashing: {job_id}")
+            logger.error(
+                f"Plugin is crashing: analyser job_id: {job_id} plugin_run_id: {plugin_run}"
+            )
             return None
 
         result_ids = {}
