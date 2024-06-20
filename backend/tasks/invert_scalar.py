@@ -27,7 +27,7 @@ class InvertScalarParser(Parser):
     def __init__(self):
         self.valid_parameter = {
             "timeline": {"parser": str, "default": "Inverted Timeline"},
-            "timeline_id": {"required": True},
+            "scalar_timeline_id": {"required": True},
         }
 
 
@@ -40,7 +40,13 @@ class InvertScalar(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        plugin_run: PluginRun = None,
+        **kwargs,
+    ):
 
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
@@ -50,8 +56,7 @@ class InvertScalar(Task):
             manager=manager,
         )
 
-
-        timeline_id = parameters.get("timeline_id")
+        timeline_id = parameters.get("scalar_timeline_id")
         logger.debug(f"Get probabilities from scalar timeline with id: {timeline_id}")
 
         timeline_db = Timeline.objects.get(id=timeline_id)
@@ -64,8 +69,7 @@ class InvertScalar(Task):
         result = self.run_analyser(
             client,
             "invert_scalar",
-            parameters={
-            },
+            parameters={},
             inputs={"input": input_scalar_timelines_id},
             downloads=["output"],
         )
@@ -92,6 +96,6 @@ class InvertScalar(Task):
             return {
                 "plugin_run": plugin_run.id.hex,
                 "plugin_run_results": [plugin_run_result_db.id.hex],
-                "timelines": {"output":timeline_db.id.hex},
-                "data": {"output": result[1]["output"].id}
+                "timelines": {"output": timeline_db.id.hex},
+                "data": {"output": result[1]["output"].id},
             }
