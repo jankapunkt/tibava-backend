@@ -17,15 +17,7 @@ ENV NUMBA_CACHE_DIR=/tmp/
 # Install pip requirements
 COPY requirements.txt .
 RUN python3 -m pip install -r requirements.txt
-RUN python3 -m pip install librosa ffmpeg-python
-RUN python3 -m pip install imageio
-RUN python3 -m pip install "imageio[pyav]"
-RUN python3 -m pip install imageio-ffmpeg
 
-RUN python3 -m pip install msgpack_numpy
-RUN python3 -m pip install grpcio  grpcio-tools
-RUN python3 -m pip install pympi-ling
-RUN python3 -m pip install pandas
 
 WORKDIR /app
 COPY . /app
