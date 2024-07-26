@@ -45,7 +45,14 @@ class ShotDetection(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs
+    ):
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
@@ -66,11 +73,17 @@ class ShotDetection(Task):
         if result is None:
             raise Exception
 
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
+
         with transaction.atomic():
             with result[1]["shots"] as d:
                 # TODO translate the name
                 timeline = Timeline.objects.create(
-                    video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                    video=video,
+                    name=parameters.get("timeline"),
+                    type=Timeline.TYPE_ANNOTATION,
                 )
                 for shot in d.shots:
                     segment_id = uuid.uuid4().hex
@@ -82,12 +95,15 @@ class ShotDetection(Task):
                     )
 
                 plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run, data_id=d.id, name="shots", type=PluginRunResult.TYPE_SHOTS
+                    plugin_run=plugin_run,
+                    data_id=d.id,
+                    name="shots",
+                    type=PluginRunResult.TYPE_SHOTS,
                 )
 
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
-                    "timelines": {"shots":timeline.id.hex},
-                    "data": {"shots": result[1]["shots"].id}
+                    "timelines": {"shots": timeline.id.hex},
+                    "data": {"shots": result[1]["shots"].id},
                 }

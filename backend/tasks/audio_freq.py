@@ -1,5 +1,5 @@
 from typing import Dict, List
-
+import logging
 
 from backend.models import PluginRun, PluginRunResult, Video, Timeline, TimelineSegment
 from django.conf import settings
@@ -12,8 +12,6 @@ from backend.utils.task import Task
 from analyser.data import DataManager
 from django.db import transaction
 from django.conf import settings
-
-
 
 
 @PluginManager.export_parser("audio_freq")
@@ -36,7 +34,14 @@ class AudioFreq(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs
+    ):
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
@@ -52,8 +57,10 @@ class AudioFreq(Task):
             inputs={"video": video_id},
             outputs=["audio"],
         )
-        plugin_run.progress = 0.5
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.5
+            plugin_run.save()
 
         if result is None:
             raise Exception
@@ -68,11 +75,18 @@ class AudioFreq(Task):
         if result is None:
             raise Exception
 
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
+
         with transaction.atomic():
             with result[1]["freq"] as data:
 
                 plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run, data_id=data.id, name="audio_freq", type=PluginRunResult.TYPE_HIST
+                    plugin_run=plugin_run,
+                    data_id=data.id,
+                    name="audio_freq",
+                    type=PluginRunResult.TYPE_HIST,
                 )
 
                 timeline_db = Timeline.objects.create(
@@ -86,6 +100,6 @@ class AudioFreq(Task):
             return {
                 "plugin_run": plugin_run.id.hex,
                 "plugin_run_results": [plugin_run_result_db.id.hex],
-                "timelines": {"freq":timeline_db.id.hex},
-                "data": {"freq": result[1]["freq"].id}
+                "timelines": {"freq": timeline_db.id.hex},
+                "data": {"freq": result[1]["freq"].id},
             }

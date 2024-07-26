@@ -1,5 +1,5 @@
 from typing import Dict, List
-
+import logging
 
 from backend.models import PluginRun, PluginRunResult, Video, Timeline, TimelineSegment
 from backend.plugin_manager import PluginManager
@@ -34,7 +34,14 @@ class AudioAmp(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs
+    ):
 
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
@@ -67,10 +74,17 @@ class AudioAmp(Task):
         if result is None:
             raise Exception
 
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
+
         with transaction.atomic():
             with result[1]["amp"] as data:
                 plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run, data_id=data.id, name="audio_amp", type=PluginRunResult.TYPE_SCALAR
+                    plugin_run=plugin_run,
+                    data_id=data.id,
+                    name="audio_amp",
+                    type=PluginRunResult.TYPE_SCALAR,
                 )
 
                 timeline_db = Timeline.objects.create(
@@ -84,6 +98,6 @@ class AudioAmp(Task):
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
-                    "timelines": {"amp":timeline_db.id.hex},
-                    "data": {"amp": result[1]["amp"].id}
+                    "timelines": {"amp": timeline_db.id.hex},
+                    "data": {"amp": result[1]["amp"].id},
                 }

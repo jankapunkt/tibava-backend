@@ -1,3 +1,4 @@
+import logging
 import random
 from typing import Dict, List
 
@@ -30,7 +31,6 @@ from django.db import transaction
 from django.conf import settings
 
 
-
 @PluginManager.export_parser("shot_scalar_annotation")
 class ShotScalarAnnotationParser(Parser):
     def __init__(self):
@@ -52,7 +52,13 @@ class ShotScalarAnnotation(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
+        self,
+        parameters: Dict,
+        video: Video = None,
+        user: TibavaUser = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs,
     ):
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
@@ -69,23 +75,25 @@ class ShotScalarAnnotation(Task):
         shots = manager.create_data("ShotsData")
         with shots:
 
-            shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
+            shot_timeline_segments = TimelineSegment.objects.filter(
+                timeline=shot_timeline_db
+            )
             for x in shot_timeline_segments:
                 shots.shots.append(Shot(start=x.start, end=x.end))
         shots_id = client.upload_data(shots)
 
-        scalar_timeline_db = Timeline.objects.get(id=parameters.get("scalar_timeline_id"))
+        scalar_timeline_db = Timeline.objects.get(
+            id=parameters.get("scalar_timeline_id")
+        )
         if scalar_timeline_db.type != Timeline.TYPE_PLUGIN_RESULT:
             raise Exception
         if scalar_timeline_db.plugin_run_result.type != PluginRunResult.TYPE_SCALAR:
             raise Exception
 
-        print(f"++++++++++++++++++ {scalar_timeline_db.plugin_run_result.data_id}", flush=True)
         scalar_data = manager.load(scalar_timeline_db.plugin_run_result.data_id)
         if scalar_data is None:
             raise Exception
 
-        print(f"++++++++++++++++++ {scalar_data}", flush=True)
         scalar_id = client.upload_data(scalar_data)
 
         result = self.run_analyser(
@@ -98,6 +106,10 @@ class ShotScalarAnnotation(Task):
         if result is None:
             raise Exception
 
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
+
         with transaction.atomic():
             with result[1]["annotations"] as data:
                 """
@@ -105,10 +117,14 @@ class ShotScalarAnnotation(Task):
                 """
                 print(f"[ShotScalarAnnotation] Create annotation timeline", flush=True)
                 annotation_timeline_db = Timeline.objects.create(
-                    video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                    video=video,
+                    name=parameters.get("timeline"),
+                    type=Timeline.TYPE_ANNOTATION,
                 )
 
-                category_db, _ = AnnotationCategory.objects.get_or_create(name="value", video=video, owner=user)
+                category_db, _ = AnnotationCategory.objects.get_or_create(
+                    name="value", video=video, owner=user
+                )
 
                 values = []
                 for annotation in data.annotations:
@@ -146,12 +162,13 @@ class ShotScalarAnnotation(Task):
                         )
 
                         TimelineSegmentAnnotation.objects.create(
-                            annotation=annotation_db, timeline_segment=timeline_segment_db
+                            annotation=annotation_db,
+                            timeline_segment=timeline_segment_db,
                         )
 
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [],
                     "timelines": {"annotations": annotation_timeline_db},
-                    "data": {"annotations": result[1]["annotations"].id}
+                    "data": {"annotations": result[1]["annotations"].id},
                 }

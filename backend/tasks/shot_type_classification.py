@@ -59,7 +59,13 @@ class ShotTypeClassifier(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
+        self,
+        parameters: Dict,
+        video: Video = None,
+        user: TibavaUser = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs,
     ):
         # Debug
         parameters["fps"] = 0.1
@@ -75,8 +81,12 @@ class ShotTypeClassifier(Task):
 
         shots_id = None
         if parameters.get("shot_timeline_id"):
-            shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
-            shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
+            shot_timeline_db = Timeline.objects.get(
+                id=parameters.get("shot_timeline_id")
+            )
+            shot_timeline_segments = TimelineSegment.objects.filter(
+                timeline=shot_timeline_db
+            )
 
             shots = manager.create_data("ShotsData")
             with shots:
@@ -95,8 +105,8 @@ class ShotTypeClassifier(Task):
         if result is None:
             raise Exception
 
-        result_timelines ={}
-        result_data ={}
+        result_timelines = {}
+        result_data = {}
 
         if shots_id:
 
@@ -114,14 +124,16 @@ class ShotTypeClassifier(Task):
             """
             logger.info("Create annotation timeline")
             annotation_timeline = Timeline.objects.create(
-                video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                video=video,
+                name=parameters.get("timeline"),
+                type=Timeline.TYPE_ANNOTATION,
             )
 
+            result_timelines["annotation"] = annotation_timeline.id.hex
 
-            result_timelines["annotation"]=annotation_timeline.id.hex
-
-
-            category_db, _ = AnnotationCategory.objects.get_or_create(name="Shot Size", video=video, owner=user)
+            category_db, _ = AnnotationCategory.objects.get_or_create(
+                name="Shot Size", video=video, owner=user
+            )
 
             with annotations_result[1]["annotations"] as annotations:
                 for annotation in annotations.annotations:
@@ -135,17 +147,28 @@ class ShotTypeClassifier(Task):
                     for label in annotation.labels:
                         # add annotion to TimelineSegment
                         annotation_db, _ = Annotation.objects.get_or_create(
-                            name=LABEL_LUT.get(label, label), video=video, category=category_db, owner=user
+                            name=LABEL_LUT.get(label, label),
+                            video=video,
+                            category=category_db,
+                            owner=user,
                         )
 
                         TimelineSegmentAnnotation.objects.create(
-                            annotation=annotation_db, timeline_segment=timeline_segment_db
+                            annotation=annotation_db,
+                            timeline_segment=timeline_segment_db,
                         )
                 result_data["annotations"] = annotations.id
+
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
+
         """
         Create timeline(s) with probability of each class as scalar data
         """
-        logger.info(f" Create scalar color (SC) timeline with probabilities for each class")
+        logger.info(
+            f" Create scalar color (SC) timeline with probabilities for each class"
+        )
 
         with transaction.atomic():
             with result[1]["probs"] as data:
@@ -168,13 +191,13 @@ class ShotTypeClassifier(Task):
                         parent=annotation_timeline,
                     )
 
-                    result_timelines[LABEL_LUT.get(index, index)]=timeline_db.id.hex
-                
+                    result_timelines[LABEL_LUT.get(index, index)] = timeline_db.id.hex
+
                 result_data["probs"] = data.id
 
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
                     "timelines": result_timelines,
-                    "data": result_data
+                    "data": result_data,
                 }

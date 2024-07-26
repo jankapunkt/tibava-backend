@@ -2,6 +2,7 @@ from typing import Dict, List
 import imageio.v3 as iio
 import json
 import os
+import logging
 
 from backend.models import (
     ClusterTimelineItem,
@@ -58,6 +59,7 @@ class FaceClustering(Task):
         video: Video = None,
         user: TibavaUser = None,
         plugin_run: PluginRun = None,
+        dry_run: bool = False,
         **kwargs,
     ):
         # Debug
@@ -82,8 +84,10 @@ class FaceClustering(Task):
             inputs={"video": video_data_id},
             outputs=["images", "kpss", "faces", "bboxes"],
         )
-        plugin_run.progress = 0.2
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.2
+            plugin_run.save()
 
         if facedetector_result is None:
             raise Exception
@@ -98,8 +102,10 @@ class FaceClustering(Task):
             outputs=["images", "kpss", "faces", "bboxes"],
             downloads=["images", "faces"],
         )
-        plugin_run.progress = 0.4
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.4
+            plugin_run.save()
 
         if face_size_filter_result is None:
             raise Exception
@@ -116,8 +122,10 @@ class FaceClustering(Task):
             outputs=["features"],
             downloads=["features"],
         )
-        plugin_run.progress = 0.6
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.6
+            plugin_run.save()
 
         if image_feature_result is None:
             raise Exception
@@ -159,8 +167,9 @@ class FaceClustering(Task):
         else:
             raise Exception
 
-        plugin_run.progress = 0.8
-        plugin_run.save()
+        if plugin_run is not None:
+            plugin_run.progress = 0.8
+            plugin_run.save()
 
         if cluster_result is None:
             raise Exception
@@ -190,6 +199,10 @@ class FaceClustering(Task):
         with image_feature_result[1]["features"] as d:
             for embedding in d.embeddings:
                 embedding_face_lut[embedding.id] = embedding.ref_id
+
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
 
         with transaction.atomic():
             with cluster_filter_result[1]["clusters"] as data:

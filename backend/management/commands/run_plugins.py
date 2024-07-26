@@ -12,13 +12,22 @@ def job(args):
     plugin_manager = args["plugin_manager"]
     plugin = args["plugin"]
     parameters = args["parameters"]
+    dry_run = args["dry_run"]
+
     try:
         video_db = Video.objects.get(pk=video_id)
         user_db = video_db.owner
     except Video.DoesNotExist:
         raise CommandError('Poll "%s" does not exist' % video_id)
 
-    result = plugin_manager(plugin, parameters=parameters, user=user_db, video=video_db, run_async=False)
+    result = plugin_manager(
+        plugin,
+        parameters=parameters,
+        user=user_db,
+        video=video_db,
+        run_async=False,
+        dry_run=dry_run,
+    )
 
     return {"video_id": video_id, "plugin": plugin, **result}
 
@@ -35,6 +44,7 @@ class Command(BaseCommand):
         parser.add_argument("--num_threads", type=int, default=2)
         parser.add_argument("--parameters", type=str)
         parser.add_argument("--output", type=str)
+        parser.add_argument("--dry_run", action="store_true")
 
     def handle(self, *args, **options):
         plugin_manager = PluginManager()
@@ -56,6 +66,7 @@ class Command(BaseCommand):
                         "plugin_manager": plugin_manager,
                         "parameters": parameters,
                         "plugin": options["plugin"],
+                        "dry_run": options["dry_run"],
                     }
                     for x in options["video_ids"]
                 ],

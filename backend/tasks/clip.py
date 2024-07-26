@@ -13,7 +13,6 @@ from django.db import transaction
 from django.conf import settings
 
 
-
 @PluginManager.export_parser("clip")
 class CLIPParser(Parser):
     def __init__(self):
@@ -21,7 +20,7 @@ class CLIPParser(Parser):
             "timeline": {"parser": str, "default": "clip"},
             "search_term": {"parser": str, "required": True},
             "fps": {"parser": float, "default": 2.0},
-            "normalize" : {"parser": float, "default": 1},
+            "normalize": {"parser": float, "default": 1},
         }
 
 
@@ -34,7 +33,14 @@ class CLIP(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs
+    ):
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
@@ -51,8 +57,10 @@ class CLIP(Task):
             inputs={"video": video_id},
             outputs=["embeddings"],
         )
-        plugin_run.progress = 0.3
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.3
+            plugin_run.save()
 
         if result is None:
             raise Exception
@@ -64,8 +72,11 @@ class CLIP(Task):
             inputs={**result[0]},
             outputs=["probs"],
         )
-        plugin_run.progress = 0.6
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.6
+            plugin_run.save()
+
         if result is None:
             raise Exception
 
@@ -79,10 +90,17 @@ class CLIP(Task):
         if result is None:
             raise Exception
 
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
+
         with transaction.atomic():
             with result[1]["scalar"] as data:
                 plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run, data_id=data.id, name="clip", type=PluginRunResult.TYPE_SCALAR
+                    plugin_run=plugin_run,
+                    data_id=data.id,
+                    name="clip",
+                    type=PluginRunResult.TYPE_SCALAR,
                 )
 
                 timeline_db = Timeline.objects.create(
@@ -96,6 +114,6 @@ class CLIP(Task):
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
-                    "timelines": {"rms":timeline_db.id.hex},
-                    "data": {"rms": result[1]["scalar"].id}
+                    "timelines": {"rms": timeline_db.id.hex},
+                    "data": {"rms": result[1]["scalar"].id},
                 }

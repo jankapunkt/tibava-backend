@@ -1,4 +1,5 @@
 from typing import Dict, List
+import logging
 from backend.models import PluginRun, PluginRunResult, Video, Timeline, TimelineSegment
 from backend.plugin_manager import PluginManager
 
@@ -41,6 +42,7 @@ class ColorAnalyser(Task):
         parameters: Dict,
         video: Video = None,
         plugin_run: PluginRun = None,
+        dry_run: bool = False,
         **kwargs,
     ):
 
@@ -68,6 +70,10 @@ class ColorAnalyser(Task):
 
         if result is None:
             raise Exception
+
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
 
         with transaction.atomic():
             with result[1]["colors"] as data:

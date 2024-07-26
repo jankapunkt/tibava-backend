@@ -1,4 +1,5 @@
 from typing import Dict, List
+import logging
 from ..utils.analyser_client import TaskAnalyserClient
 
 from analyser.data import Shot, ShotsData
@@ -25,8 +26,12 @@ from django.db import transaction
 from django.conf import settings
 
 
+CATEGORY_LUT = {
+    "probs_places365": "Places365",
+    "probs_places16": "Places16",
+    "probs_places3": "Places3",
+}
 
-CATEGORY_LUT = {"probs_places365": "Places365", "probs_places16": "Places16", "probs_places3": "Places3"}
 
 @PluginManager.export_parser("places_classification")
 class PlacesClassifierParser(Parser):
@@ -49,7 +54,13 @@ class PlacesClassifier(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
+        self,
+        parameters: Dict,
+        video: Video = None,
+        user: TibavaUser = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs,
     ):
         # Debug
         # parameters["fps"] = 0.05
@@ -66,8 +77,12 @@ class PlacesClassifier(Task):
 
         shots_id = None
         if parameters.get("shot_timeline_id"):
-            shot_timeline_db = Timeline.objects.get(id=parameters.get("shot_timeline_id"))
-            shot_timeline_segments = TimelineSegment.objects.filter(timeline=shot_timeline_db)
+            shot_timeline_db = Timeline.objects.get(
+                id=parameters.get("shot_timeline_id")
+            )
+            shot_timeline_segments = TimelineSegment.objects.filter(
+                timeline=shot_timeline_db
+            )
 
             shots = manager.create_data("ShotsData")
             with shots:
@@ -93,8 +108,13 @@ class PlacesClassifier(Task):
         result_timelines = {}
         result_data = {}
 
-        plugin_run.progress = 0.5
-        plugin_run.save()
+        if plugin_run is not None:
+            plugin_run.progress = 0.5
+            plugin_run.save()
+
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
 
         with transaction.atomic():
             result_annotations = {}
@@ -114,10 +134,12 @@ class PlacesClassifier(Task):
 
                     result_annotations[key] = annotation_result[1]["annotations"]
             annotation_timeline = Timeline.objects.create(
-                video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                video=video,
+                name=parameters.get("timeline"),
+                type=Timeline.TYPE_ANNOTATION,
             )
 
-            result_timelines["annotation"]=annotation_timeline.id.hex
+            result_timelines["annotation"] = annotation_timeline.id.hex
 
             segments = {}
             for shot in shots.shots:
@@ -128,28 +150,40 @@ class PlacesClassifier(Task):
                 )
                 segments[shot.start] = timeline_segment_db
 
-            category_lut = {"probs_places365": "Places365", "probs_places16": "Places16", "probs_places3": "Places3"}
+            category_lut = {
+                "probs_places365": "Places365",
+                "probs_places16": "Places16",
+                "probs_places3": "Places3",
+            }
             for key in result_annotations:
-                category_db, _ = AnnotationCategory.objects.get_or_create(name=category_lut[key], video=video, owner=user)
+                category_db, _ = AnnotationCategory.objects.get_or_create(
+                    name=category_lut[key], video=video, owner=user
+                )
                 with result_annotations[key] as annotations:
                     for annotation in annotations.annotations:
                         for label in annotation.labels:
                             # add annotion to TimelineSegment
                             annotation_db, _ = Annotation.objects.get_or_create(
-                                name=label, video=video, category=category_db, owner=user
+                                name=label,
+                                video=video,
+                                category=category_db,
+                                owner=user,
                             )
 
                             timeline_db = TimelineSegmentAnnotation.objects.create(
-                                annotation=annotation_db, timeline_segment=segments[annotation.start]
+                                annotation=annotation_db,
+                                timeline_segment=segments[annotation.start],
                             )
 
                     result_data[key] = result_annotations[key].id
 
-
             """
             TODO: Create hierarchical timeline(s) with probability of each place category (per hierarchy level) as scalar data
             """
-            print(f"[PlacesClassifier] Create scalar color (SC) timeline with probabilities for each class", flush=True)
+            print(
+                f"[PlacesClassifier] Create scalar color (SC) timeline with probabilities for each class",
+                flush=True,
+            )
             # if parameters.get("show_probs"):
             print(result, flush=True)
             with result[1]["probs_places3"] as probs:
@@ -172,13 +206,13 @@ class PlacesClassifier(Task):
                         parent=annotation_timeline,
                     )
 
-                    result_timelines[index]=timeline_db.id.hex
-                
+                    result_timelines[index] = timeline_db.id.hex
+
                 result_data["probs_places3"] = probs.id
 
             return {
                 "plugin_run": plugin_run.id.hex,
                 "plugin_run_results": [plugin_run_result_db.id.hex],
                 "timelines": result_timelines,
-                "data": result_data
+                "data": result_data,
             }

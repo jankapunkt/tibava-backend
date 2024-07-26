@@ -1,4 +1,5 @@
 from typing import Dict, List
+import logging
 
 from backend.models import (
     Annotation,
@@ -52,7 +53,13 @@ class InsightfaceFacesize(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
+        self,
+        parameters: Dict,
+        video: Video = None,
+        user: TibavaUser = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs
     ):
         # Debug
         # parameters["fps"] = 0.05
@@ -69,7 +76,9 @@ class InsightfaceFacesize(Task):
 
         shots_id = None
         if parameters.get("shot_timeline_id"):
-            shot_timeline_segments = TimelineSegment.objects.filter(timeline__id=parameters.get("shot_timeline_id"))
+            shot_timeline_segments = TimelineSegment.objects.filter(
+                timeline__id=parameters.get("shot_timeline_id")
+            )
             shots = manager.create_data("ShotsData")
             with shots:
                 for x in shot_timeline_segments:
@@ -83,24 +92,28 @@ class InsightfaceFacesize(Task):
             inputs={"video": video_id},
             outputs=["probs"],
         )
-        plugin_run.progress = 0.25
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.25
+            plugin_run.save()
 
         if shot_type_results is None:
             raise Exception
-        
+
         shot_size_annotation = self.run_analyser(
             client,
             "shot_annotator",
             inputs={"probs": shot_type_results[0]["probs"], "shots": shots_id},
             outputs=["annotations"],
         )
-        plugin_run.progress = 0.5
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.5
+            plugin_run.save()
 
         if shot_size_annotation is None:
             raise Exception
-        
+
         facedetector_result = self.run_analyser(
             client,
             "insightface_video_detector_torch",
@@ -110,14 +123,16 @@ class InsightfaceFacesize(Task):
             inputs={"video": video_id},
             outputs=["images", "kpss", "faces", "bboxes"],
         )
-        plugin_run.progress = 0.75
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.75
+            plugin_run.save()
 
         facesize_result = self.run_analyser(
             client,
             "insightface_facesize",
             inputs={
-                "shot_annotation": shot_size_annotation[0]['annotations'], 
+                "shot_annotation": shot_size_annotation[0]["annotations"],
                 "bboxes": facedetector_result[0]["bboxes"],
                 "shots": shots_id,
             },
@@ -128,14 +143,22 @@ class InsightfaceFacesize(Task):
         if facesize_result is None:
             raise Exception
 
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
+
         with transaction.atomic():
             with facesize_result[1]["annotations"] as annotations:
 
                 annotation_timeline_db = Timeline.objects.create(
-                    video=video, name=parameters.get("timeline"), type=Timeline.TYPE_ANNOTATION
+                    video=video,
+                    name=parameters.get("timeline"),
+                    type=Timeline.TYPE_ANNOTATION,
                 )
 
-                category_db, _ = AnnotationCategory.objects.get_or_create(name="Face Size", video=video, owner=user)
+                category_db, _ = AnnotationCategory.objects.get_or_create(
+                    name="Face Size", video=video, owner=user
+                )
                 for annotation in annotations.annotations:
                     # create TimelineSegment
                     timeline_segment_db = TimelineSegment.objects.create(
@@ -147,16 +170,20 @@ class InsightfaceFacesize(Task):
                     for label in annotation.labels:
                         # add annotion to TimelineSegment
                         annotation_db, _ = Annotation.objects.get_or_create(
-                            name=LABEL_LUT.get(label, label), video=video, category=category_db, owner=user
+                            name=LABEL_LUT.get(label, label),
+                            video=video,
+                            category=category_db,
+                            owner=user,
                         )
 
                         TimelineSegmentAnnotation.objects.create(
-                            annotation=annotation_db, timeline_segment=timeline_segment_db
+                            annotation=annotation_db,
+                            timeline_segment=timeline_segment_db,
                         )
 
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [],
                     "timelines": {"annotations": annotation_timeline_db},
-                    "data": {"annotations": facesize_result[1]["annotations"].id}
+                    "data": {"annotations": facesize_result[1]["annotations"].id},
                 }

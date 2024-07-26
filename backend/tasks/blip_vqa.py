@@ -45,6 +45,7 @@ class BLIPVQA(Task):
         user: TibavaUser = None,
         video: Video = None,
         plugin_run: PluginRun = None,
+        dry_run: bool = False,
         **kwargs
     ):
         manager = DataManager(self.config["output_path"])
@@ -97,8 +98,9 @@ class BLIPVQA(Task):
         if result is None:
             raise Exception
 
-        plugin_run.progress = 0.5
-        plugin_run.save()
+        if plugin_run is not None:
+            plugin_run.progress = 0.5
+            plugin_run.save()
 
         if result is None:
             raise Exception
@@ -112,6 +114,10 @@ class BLIPVQA(Task):
         )
         if result is None:
             raise Exception
+
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
 
         with transaction.atomic():
             with result[1]["annotations"] as data:

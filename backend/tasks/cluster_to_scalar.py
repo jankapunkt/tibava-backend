@@ -48,24 +48,27 @@ class ClusterToScalar(Task):
         video: Video = None,
         user: TibavaUser = None,
         plugin_run: PluginRun = None,
+        dry_run: bool = False,
         **kwargs,
     ):
         manager = DataManager(self.config["output_path"])
 
-        cti = ClusterTimelineItem.objects.get(id=parameters.get('cluster_timeline_item_id'))
+        cti = ClusterTimelineItem.objects.get(
+            id=parameters.get("cluster_timeline_item_id")
+        )
 
-        embedding_result = (cti.plugin_run.results.filter(type=PluginRunResult.TYPE_IMAGE_EMBEDDINGS)
-                                                  .first())
+        embedding_result = cti.plugin_run.results.filter(
+            type=PluginRunResult.TYPE_IMAGE_EMBEDDINGS
+        ).first()
 
         # load embeddings and compute mean of all non deleted embeddings from a cluster
         with manager.load(embedding_result.data_id) as embedding_data:
-            embed_map = {
-                embed.id: embed 
-                for embed in embedding_data.embeddings
-            }
+            embed_map = {embed.id: embed for embed in embedding_data.embeddings}
             cluster_feature = [
                 embed_map[emb_id].embedding
-                for emb_id in cti.items.filter(is_sample=True).values_list('embedding_id', flat=True)
+                for emb_id in cti.items.filter(is_sample=True).values_list(
+                    "embedding_id", flat=True
+                )
             ]
 
             query_feature = np.mean(cluster_feature, axis=0)
@@ -101,8 +104,10 @@ class ClusterToScalar(Task):
             inputs={"video": video_id},
             outputs=["kpss", "faces"],
         )
-        plugin_run.progress = 0.25
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.25
+            plugin_run.save()
 
         if video_facedetection is None:
             raise Exception
@@ -113,8 +118,10 @@ class ClusterToScalar(Task):
             inputs={"video": video_id, "kpss": video_facedetection[0]["kpss"]},
             outputs=["features"],
         )
-        plugin_run.progress = 0.5
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.5
+            plugin_run.save()
 
         if video_feature_result is None:
             raise Exception
@@ -132,8 +139,10 @@ class ClusterToScalar(Task):
             },
             outputs=["probs"],
         )
-        plugin_run.progress = 0.75
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.75
+            plugin_run.save()
 
         if result is None:
             raise Exception
@@ -147,6 +156,10 @@ class ClusterToScalar(Task):
 
         if aggregated_result is None:
             raise Exception
+
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
 
         with transaction.atomic():
             with aggregated_result[1]["aggregated_scalar"] as data:

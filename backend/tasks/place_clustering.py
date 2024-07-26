@@ -1,6 +1,7 @@
 from typing import Dict
 import json
 import os
+import logging
 
 from backend.models import (
     ClusterTimelineItem,
@@ -60,6 +61,7 @@ class PlaceClustering(Task):
         video: Video = None,
         user: TibavaUser = None,
         plugin_run: PluginRun = None,
+        dry_run: bool = False,
         **kwargs,
     ):
         manager = DataManager(self.config["output_path"])
@@ -104,8 +106,9 @@ class PlaceClustering(Task):
         if sample_result is None:
             raise Exception
 
-        plugin_run.progress = 0.2
-        plugin_run.save()
+        if plugin_run is not None:
+            plugin_run.progress = 0.2
+            plugin_run.save()
 
         # get embeddings for sampled frames within shots
         encoder_lut = {
@@ -122,12 +125,16 @@ class PlaceClustering(Task):
             outputs=["embeddings"],
             downloads=["embeddings"],
         )
-        plugin_run.progress = 0.4
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.4
+            plugin_run.save()
 
         # TODO aggregate embeddings per shot
-        plugin_run.progress = 0.6
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.6
+            plugin_run.save()
 
         # perform clustering
         clustering_lut = {
@@ -150,8 +157,9 @@ class PlaceClustering(Task):
             downloads=["cluster_data"],
         )
 
-        plugin_run.progress = 0.8
-        plugin_run.save()
+        if plugin_run is not None:
+            plugin_run.progress = 0.8
+            plugin_run.save()
 
         if cluster_result is None:
             raise Exception
@@ -181,6 +189,10 @@ class PlaceClustering(Task):
         with embeddings_result[1]["embeddings"] as d:
             for embedding in d.embeddings:
                 embedding_lut[embedding.id] = embedding
+
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
 
         with transaction.atomic():
             with cluster_filter_result[1]["clusters"] as data:

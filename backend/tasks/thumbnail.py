@@ -23,7 +23,6 @@ from django.db import transaction
 from django.conf import settings
 
 
-
 # @PluginManager.export_parser("thumbnail")
 # class ThumbnailParser(Parser):
 #     def __init__(self):
@@ -47,7 +46,14 @@ class Thumbnail(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs,
+    ):
 
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
@@ -56,7 +62,7 @@ class Thumbnail(Task):
             plugin_run_db=plugin_run,
             manager=manager,
         )
-        
+
         video_id = self.upload_video(client, video)
         result = self.run_analyser(
             client,
@@ -68,24 +74,36 @@ class Thumbnail(Task):
         if result is None:
             raise Exception
 
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
+
         # TODO extract all images
         with transaction.atomic():
             with result[1]["images"] as d:
                 # extract thumbnails
                 d.extract_all(manager)
                 plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run, data_id=d.id, name="images", type=PluginRunResult.TYPE_IMAGES
+                    plugin_run=plugin_run,
+                    data_id=d.id,
+                    name="images",
+                    type=PluginRunResult.TYPE_IMAGES,
                 )
 
-                return {"plugin_run": plugin_run.id.hex, "plugin_run_results": [plugin_run_result_db.id.hex], "data": {"images": result[1]["images"].id}}
-
+                return {
+                    "plugin_run": plugin_run.id.hex,
+                    "plugin_run_results": [plugin_run_result_db.id.hex],
+                    "data": {"images": result[1]["images"].id},
+                }
 
     def get_results(self, analyse):
         try:
             results = json.loads(bytes(analyse.results).decode("utf-8"))
-            results = [{**x, "url": self.config.get("base_url") + f"{analyse.id}/{x['path']}"} for x in results]
+            results = [
+                {**x, "url": self.config.get("base_url") + f"{analyse.id}/{x['path']}"}
+                for x in results
+            ]
 
             return results
         except:
             return []
-

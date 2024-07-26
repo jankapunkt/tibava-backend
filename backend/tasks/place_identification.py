@@ -1,5 +1,6 @@
 from typing import Dict, List
 import imageio.v3 as iio
+import logging
 
 from analyser.data import DataManager
 from backend.models import PluginRun, PluginRunResult, Video, Timeline, TibavaUser
@@ -13,7 +14,6 @@ from django.db import transaction
 from django.conf import settings
 
 
-
 @PluginManager.export_parser("place_identification")
 class InsightfaceIdentificationParser(Parser):
     def __init__(self):
@@ -25,9 +25,9 @@ class InsightfaceIdentificationParser(Parser):
             "normalize": {"parser": float, "default": 1},
             "normalize_min_val": {"parser": float, "default": 0.3},
             "normalize_max_val": {"parser": float, "default": 1.0},
-            "embedding_ref" : {"parser": str, "default": None },
-            "index" : {"parser": str, "default": -1},
-            "cluster_id" : {"parser": str, "default": -1}
+            "embedding_ref": {"parser": str, "default": None},
+            "index": {"parser": str, "default": -1},
+            "cluster_id": {"parser": str, "default": -1},
         }
 
 
@@ -41,7 +41,13 @@ class InsightfaceIdentification(Task):
         }
 
     def __call__(
-        self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs
+        self,
+        parameters: Dict,
+        video: Video = None,
+        user: TibavaUser = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs
     ):
         # Debug
         # parameters["fps"] = 0.1
@@ -56,7 +62,7 @@ class InsightfaceIdentification(Task):
         )
         # upload all data
         video_id = self.upload_video(client, video)
-        
+
         places_result = self.run_analyser(
             client,
             "places_classifier",
@@ -66,8 +72,10 @@ class InsightfaceIdentification(Task):
             inputs={"video": video_id},
             outputs=["embeddings"],
         )
-        plugin_run.progress = 0.3
-        plugin_run.save() 
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.3
+            plugin_run.save()
 
         if places_result is None:
             raise Exception
@@ -78,7 +86,7 @@ class InsightfaceIdentification(Task):
             parameters={
                 "normalize": 1,
                 "index": parameters.get("index"),
-                "cluster_id": parameters.get("cluster_id")
+                "cluster_id": parameters.get("cluster_id"),
             },
             inputs={
                 "target_features": places_result[0]["embeddings"],
@@ -86,8 +94,10 @@ class InsightfaceIdentification(Task):
             },
             outputs=["probs"],
         )
-        plugin_run.progress = 0.6
-        plugin_run.save() 
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.6
+            plugin_run.save()
 
         if result is None:
             raise Exception
@@ -101,6 +111,10 @@ class InsightfaceIdentification(Task):
 
         if aggregated_result is None:
             raise Exception
+
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
 
         with transaction.atomic():
             with aggregated_result[1]["aggregated_scalar"] as data:
@@ -122,5 +136,5 @@ class InsightfaceIdentification(Task):
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
                     "timelines": {"annotations": timeline_db},
-                    "data": {"annotations": result[1]["aggregated_scalars"].id}
+                    "data": {"annotations": result[1]["aggregated_scalars"].id},
                 }

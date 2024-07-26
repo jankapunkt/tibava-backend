@@ -50,6 +50,7 @@ class PluginManager:
         user: TibavaUser,
         parameters: List = None,
         run_async: bool = True,
+        dry_run: bool = False,
         **kwargs,
     ):
         if parameters is None:
@@ -59,7 +60,9 @@ class PluginManager:
             print("Unknown Plugin")
             return {"status": False}
 
-        logger.info(f'User "{user.username}" has started plugin "{plugin}" with parameters {parameters}')
+        logger.info(
+            f'User "{user.username}" has started plugin "{plugin}" with parameters {parameters}'
+        )
 
         if plugin in self._parser:
             parameters = self._parser[plugin]()(parameters)
@@ -67,9 +70,11 @@ class PluginManager:
             parameters = {}
 
         result = {"status": True}
-        plugin_run = PluginRun.objects.create(
-            video=video, type=plugin, status=PluginRun.STATUS_QUEUED
-        )
+        plugin_run = None
+        if not dry_run:
+            plugin_run = PluginRun.objects.create(
+                video=video, type=plugin, status=PluginRun.STATUS_QUEUED
+            )
         if run_async:
             run_plugin.apply_async(
                 (
@@ -78,7 +83,8 @@ class PluginManager:
                         "parameters": parameters,
                         "video": video.id,
                         "user": user.id,
-                        "plugin_run": plugin_run.id,
+                        "plugin_run": plugin_run.id if plugin_run else None,
+                        "dry_run": dry_run,
                         "kwargs": kwargs,
                     },
                 )
@@ -86,11 +92,17 @@ class PluginManager:
         else:
             try:
                 plugin_result = self._plugins[plugin]()(
-                    parameters, user=user, video=video, plugin_run=plugin_run, **kwargs
+                    parameters,
+                    user=user,
+                    video=video,
+                    plugin_run=plugin_run,
+                    dry_run=dry_run,
+                    **kwargs,
                 )
-                plugin_run.progress = 1.0
-                plugin_run.status = PluginRun.STATUS_DONE
-                plugin_run.save()
+                if plugin_run is not None:
+                    plugin_run.progress = 1.0
+                    plugin_run.status = PluginRun.STATUS_DONE
+                    plugin_run.save()
 
                 # Create cache files for all plugin run results.
                 manager = DataManager("/predictions/")
@@ -103,8 +115,10 @@ class PluginManager:
 
             except Exception:
                 logger.exception(f"Failed to run plugin {plugin_run.type}")
-                plugin_run.status = PluginRun.STATUS_ERROR
-                plugin_run.save()
+
+                if plugin_run is not None:
+                    plugin_run.status = PluginRun.STATUS_ERROR
+                    plugin_run.save()
                 result["status"] = False
                 return result
         return result
@@ -149,7 +163,7 @@ def generate_plugin_run_result_cache(
             try:
                 with open(cache_path, "w") as f:
                     json.dump(result_dict, f)
-                    logger.debug(f'Writin result {x.id} to cache')
+                    logger.debug(f"Writin result {x.id} to cache")
             except Exception:
                 logger.exception("Cache couldn't write")
 
@@ -161,22 +175,30 @@ def run_plugin(self, args):
     video = args.get("video")
     user = args.get("user")
     plugin_run = args.get("plugin_run")
+    dry_run = args.get("dry_run")
     kwargs = args.get("kwargs")
 
     video_db = Video.objects.get(id=video)
     user_db = TibavaUser.objects.get(id=user)
-    plugin_run_db = PluginRun.objects.get(id=plugin_run)
-    # this job is already started in another jobqueue https://github.com/celery/celery/issues/4400
-    if plugin_run_db.in_scheduler:
-        logger.warning("Job was rescheduled and will be canceled")
-        return
-    plugin_run_db.in_scheduler = True
-    plugin_run_db.save()
+    plugin_run_db = None
+    if not dry_run:
+        plugin_run_db = PluginRun.objects.get(id=plugin_run)
+        # this job is already started in another jobqueue https://github.com/celery/celery/issues/4400
+        if plugin_run_db.in_scheduler:
+            logger.warning("Job was rescheduled and will be canceled")
+            return
+        plugin_run_db.in_scheduler = True
+        plugin_run_db.save()
 
     plugin_manager = PluginManager()
     try:
         plugin_result = plugin_manager._plugins[plugin]()(
-            parameters, user=user_db, video=video_db, plugin_run=plugin_run_db, **kwargs
+            parameters,
+            user=user_db,
+            video=video_db,
+            plugin_run=plugin_run_db,
+            dry_run=dry_run,
+            **kwargs,
         )
 
         # Create cache files for all plugin run results.
@@ -186,13 +208,16 @@ def run_plugin(self, args):
             manager, plugin_result.get("plugin_run_results", [])
         )
 
-        plugin_run_db.progress = 1.0
-        plugin_run_db.status = PluginRun.STATUS_DONE
-        plugin_run_db.save()
+        if plugin_run_db is not None:
+            plugin_run_db.progress = 1.0
+            plugin_run_db.status = PluginRun.STATUS_DONE
+            plugin_run_db.save()
 
         return
 
     except Exception:
-        logger.exception(f'Plugin run failed for {plugin}')
-    plugin_run_db.status = PluginRun.STATUS_ERROR
-    plugin_run_db.save()
+        logger.exception(f"Plugin run failed for {plugin}")
+
+    if plugin_run_db is not None:
+        plugin_run_db.status = PluginRun.STATUS_ERROR
+        plugin_run_db.save()

@@ -1,4 +1,5 @@
 from typing import Dict, List
+import logging
 
 from ..utils.analyser_client import TaskAnalyserClient
 
@@ -34,7 +35,14 @@ class XCLIP(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs
+    ):
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
             host=self.config["analyser_host"],
@@ -51,8 +59,10 @@ class XCLIP(Task):
             inputs={"video": video_id},
             outputs=["image_features", "video_features"],
         )
-        plugin_run.progress = 0.3
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.3
+            plugin_run.save()
 
         if result is None:
             raise Exception
@@ -64,8 +74,10 @@ class XCLIP(Task):
             inputs={**result[0]},
             outputs=["probs"],
         )
-        plugin_run.progress = 0.6
-        plugin_run.save()
+
+        if plugin_run is not None:
+            plugin_run.progress = 0.6
+            plugin_run.save()
 
         if result is None:
             raise Exception
@@ -79,10 +91,17 @@ class XCLIP(Task):
         if result is None:
             raise Exception
 
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
+
         with transaction.atomic():
             with result[1]["scalar"] as d:
                 plugin_run_result_db = PluginRunResult.objects.create(
-                    plugin_run=plugin_run, data_id=d.id, name="x_clip", type=PluginRunResult.TYPE_SCALAR
+                    plugin_run=plugin_run,
+                    data_id=d.id,
+                    name="x_clip",
+                    type=PluginRunResult.TYPE_SCALAR,
                 )
 
                 timeline_db = Timeline.objects.create(
@@ -97,5 +116,5 @@ class XCLIP(Task):
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
                     "timelines": {"scalar": timeline_db},
-                    "data": {"scalar": result[1]["scalar"].id}
+                    "data": {"scalar": result[1]["scalar"].id},
                 }

@@ -42,7 +42,14 @@ class AggregateScalar(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs,
+    ):
 
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
@@ -56,7 +63,9 @@ class AggregateScalar(Task):
 
         with timelines:
             for timeline_id in parameters.get("timeline_ids"):
-                logger.debug(f"Get probabilities from scalar timeline with id: {timeline_id}")
+                logger.debug(
+                    f"Get probabilities from scalar timeline with id: {timeline_id}"
+                )
 
                 timeline_db = Timeline.objects.get(id=timeline_id)
                 plugin_data_id = timeline_db.plugin_run_result.data_id
@@ -80,6 +89,10 @@ class AggregateScalar(Task):
         if result is None:
             raise Exception
 
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
+
         with transaction.atomic():
             with result[1]["probs"] as data:
                 plugin_run_result_db = PluginRunResult.objects.create(
@@ -99,6 +112,6 @@ class AggregateScalar(Task):
             return {
                 "plugin_run": plugin_run.id.hex,
                 "plugin_run_results": [plugin_run_result_db.id.hex],
-                "timelines": {"probs":timeline_db.id.hex},
-                "data": {"probs": result[1]["probs"].id}
+                "timelines": {"probs": timeline_db.id.hex},
+                "data": {"probs": result[1]["probs"].id},
             }

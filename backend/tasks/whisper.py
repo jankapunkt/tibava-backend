@@ -1,4 +1,5 @@
 from typing import Dict, List
+import logging
 
 from ..utils.analyser_client import TaskAnalyserClient
 
@@ -41,7 +42,15 @@ class Whisper(Task):
             "analyser_port": settings.GRPC_PORT,
         }
 
-    def __call__(self, parameters: Dict, video: Video = None, user: TibavaUser = None, plugin_run: PluginRun = None, **kwargs):
+    def __call__(
+        self,
+        parameters: Dict,
+        video: Video = None,
+        user: TibavaUser = None,
+        plugin_run: PluginRun = None,
+        dry_run: bool = False,
+        **kwargs
+    ):
 
         manager = DataManager(self.config["output_path"])
         client = TaskAnalyserClient(
@@ -59,8 +68,9 @@ class Whisper(Task):
             outputs=["audio"],
         )
 
-        plugin_run.progress = 0.5
-        plugin_run.save()
+        if plugin_run is not None:
+            plugin_run.progress = 0.5
+            plugin_run.save()
 
         if result is None:
             raise Exception
@@ -73,7 +83,10 @@ class Whisper(Task):
         )
         if result is None:
             raise Exception
-            
+
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
 
         with transaction.atomic():
             with result[1]["annotations"] as data:
@@ -81,11 +94,14 @@ class Whisper(Task):
                 Create a timeline labeled
                 """
                 annotation_timeline_db = Timeline.objects.create(
-                    video=video, name="Whisper Transcript", type=Timeline.TYPE_TRANSCRIPT
+                    video=video,
+                    name="Whisper Transcript",
+                    type=Timeline.TYPE_TRANSCRIPT,
                 )
 
-                category_db, _ = AnnotationCategory.objects.get_or_create(name="Transcript", video=video, owner=user)
-
+                category_db, _ = AnnotationCategory.objects.get_or_create(
+                    name="Transcript", video=video, owner=user
+                )
 
                 for annotation in data.annotations:
                     timeline_segment_db = TimelineSegment.objects.create(
@@ -103,12 +119,13 @@ class Whisper(Task):
                         )
 
                         TimelineSegmentAnnotation.objects.create(
-                            annotation=annotation_db, timeline_segment=timeline_segment_db
+                            annotation=annotation_db,
+                            timeline_segment=timeline_segment_db,
                         )
 
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [],
                     "timelines": {"annotations": annotation_timeline_db},
-                    "data": {"annotations": result[1]["annotations"].id}
+                    "data": {"annotations": result[1]["annotations"].id},
                 }

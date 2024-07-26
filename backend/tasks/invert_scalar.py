@@ -45,6 +45,7 @@ class InvertScalar(Task):
         parameters: Dict,
         video: Video = None,
         plugin_run: PluginRun = None,
+        dry_run: bool = False,
         **kwargs,
     ):
 
@@ -76,6 +77,10 @@ class InvertScalar(Task):
 
         if result is None:
             raise Exception
+
+        if dry_run or plugin_run is None:
+            logging.warning("dry_run or plugin_run is None")
+            return {}
 
         with transaction.atomic():
             with result[1]["output"] as data:
