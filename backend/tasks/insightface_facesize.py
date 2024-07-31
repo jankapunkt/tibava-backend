@@ -184,6 +184,6 @@ class InsightfaceFacesize(Task):
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [],
-                    "timelines": {"annotations": annotation_timeline_db},
-                    "data": {"annotations": facesize_result[1]["annotations"].id},
+                    "timelines": {"annotations": annotation_timeline_db.id.hex},
+                    "data": {"annotations": facesize_result[1]["annotations"].id}
                 }

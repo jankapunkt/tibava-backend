@@ -115,6 +115,6 @@ class XCLIP(Task):
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [plugin_run_result_db.id.hex],
-                    "timelines": {"scalar": timeline_db},
-                    "data": {"scalar": result[1]["scalar"].id},
+                    "timelines": {"scalar": timeline_db.id.hex},
+                    "data": {"scalar": result[1]["scalar"].id}
                 }
