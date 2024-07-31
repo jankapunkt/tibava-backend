@@ -87,6 +87,7 @@ class VideoUpload(View):
                 video_db, created = Video.objects.get_or_create(
                     name=meta["name"],
                     id=video_id_uuid,
+                    file=video_id_uuid,
                     ext=meta["ext"],
                     fps=meta["fps"],
                     duration=meta["duration"],
@@ -105,6 +106,7 @@ class VideoUpload(View):
                     plugins=["thumbnail"] + analyers, video=video_db, user=request.user
                 )
 
+                video_id_hex = video_db.id.hex if not video_db.file.hex else video_db.id.hex
                 return JsonResponse(
                     {
                         "status": "ok",
@@ -112,7 +114,7 @@ class VideoUpload(View):
                             {
                                 "id": video_id,
                                 **video_db.to_dict(),
-                                "url": media_url_to_video(video_id, meta["ext"]),
+                                "url": media_url_to_video(video_id_hex, meta["ext"]),
                             }
                         ],
                     }
@@ -146,13 +148,12 @@ class VideoGet(View):
                 return JsonResponse({"status": "error"}, status=500)
 
             entries = []
-            for video in Video.objects.filter(
-                id=request.GET.get("id"), owner=request.user
-            ):
+            for video in Video.objects.filter(id=request.GET.get("id"), owner=request.user):
+                video_id_hex = video.id.hex if not video.file else video.file.hex
                 entries.append(
                     {
                         **video.to_dict(),
-                        "url": media_url_to_video(video.id.hex, video.ext),
+                        "url": media_url_to_video(video_id_hex, video.ext),
                     }
                 )
             if len(entries) != 1:
