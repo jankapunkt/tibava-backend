@@ -19,8 +19,7 @@ class Task:
         pass
 
     def upload_video(self, client: TaskAnalyserClient, video: Video) -> str:
-
-        video_file = media_path_to_video(video.id.hex, video.ext)
+        video_file = media_path_to_video(video.file.hex, video.ext)
 
         data_id = client.upload_file(video_file)
         return data_id
