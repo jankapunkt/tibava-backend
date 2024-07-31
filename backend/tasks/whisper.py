@@ -110,8 +110,14 @@ class Whisper(Task):
                         end=annotation.end,
                     )
                     for label in annotation.labels:
+                        label = str(label)
+                        if len(label) > settings.ANNOTATION_MAX_LENGTH:
+                            label = (
+                                label[: max(0, settings.ANNOTATION_MAX_LENGTH - 4)]
+                                + " ..."
+                            )
                         annotation_db, _ = Annotation.objects.get_or_create(
-                            name=str(label),
+                            name=label,
                             video=video,
                             category=category_db,
                             owner=user,
@@ -126,6 +132,6 @@ class Whisper(Task):
                 return {
                     "plugin_run": plugin_run.id.hex,
                     "plugin_run_results": [],
-                    "timelines": {"annotations": annotation_timeline_db},
-                    "data": {"annotations": result[1]["annotations"].id},
+                    "timelines": {"annotations": annotation_timeline_db.id.hex},
+                    "data": {"annotations": result[1]["annotations"].id}
                 }
