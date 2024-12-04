@@ -200,6 +200,9 @@ class DeepfaceEmotion(Task):
 
                 data.extract_all(manager)
                 data_list = {}
+
+                plugin_run_results = []
+
                 for index, sub_data in zip(data.index, data.data):
 
                     plugin_run_result_db = PluginRunResult.objects.create(
@@ -208,6 +211,8 @@ class DeepfaceEmotion(Task):
                         name="face_emotion",
                         type=PluginRunResult.TYPE_SCALAR,
                     )
+                    plugin_run_results.append(plugin_run_result_db.id.hex)
+
                     timeline_db = Timeline.objects.create(
                         video=video,
                         name=LABEL_LUT.get(index, index),
@@ -221,7 +226,7 @@ class DeepfaceEmotion(Task):
 
                 return {
                     "plugin_run": plugin_run.id.hex,
-                    "plugin_run_results": [plugin_run_result_db.id.hex],
+                    "plugin_run_results": plugin_run_results,
                     "timelines": {
                         **timeline_dict,
                     },
