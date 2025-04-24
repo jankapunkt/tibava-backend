@@ -18,6 +18,7 @@ from .clip_ontology import *
 from .xclip import *
 from .shot_scalar_annotation import *
 from .whisper import *
+from .whisper_surf import *
 from .face_clustering import *
 from .place_clustering import *
 from .blip_vqa import *
